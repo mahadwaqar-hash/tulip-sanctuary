@@ -55,15 +55,29 @@
 }
 
 @layer base {
+  html, body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+    scroll-behavior: smooth;
+  }
+
   body {
     background: radial-gradient(circle at 20% 15%, var(--bg-end) 0%, var(--bg-start) 65%, var(--bg-end) 100%);
     background-attachment: fixed;
     color: var(--text-main);
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     line-height: 1.6;
-    transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+    transition: background 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
     overflow-x: hidden;
+  }
+
+  button, a, input, textarea, select {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Cute custom scrollbars */
@@ -90,14 +104,18 @@
     -webkit-backdrop-filter: blur(16px) saturate(160%);
     border: 1px solid var(--border);
     box-shadow: 0 8px 32px rgba(224, 17, 95, 0.25);
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
   }
 
   /* Optimize glassmorphism for mobile devices */
   @media (max-width: 640px) {
     .glass-panel {
-      backdrop-filter: blur(12px) saturate(120%);
-      -webkit-backdrop-filter: blur(12px) saturate(120%);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
   }
 

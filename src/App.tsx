@@ -27,7 +27,7 @@ import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
 import { useFirestore, fb } from './firebase';
 
-const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
+const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
 
 function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   // 50/50 Chance between "Mahad loves Ifa" and "Ifa loves Mahad"

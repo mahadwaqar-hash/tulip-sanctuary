@@ -15,7 +15,7 @@ import {
 import { useFirestore, fb } from '../firebase';
 import type { VaultPhoto } from '../db';
 
-const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
+const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
 
 interface SecretPhotosViewProps {
   currentUser: 'Mahad' | 'Ifa';

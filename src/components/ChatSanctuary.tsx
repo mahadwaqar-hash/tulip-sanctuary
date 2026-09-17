@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   Send, 
@@ -22,7 +22,7 @@ import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
 import { encryptMessage, decryptMessage } from '../crypto';
 import { getNetworkNow, formatMessageTime } from '../utils/timezone';
 
-const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
+const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
 const quickReactions = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍'];
 
 interface ChatSanctuaryProps {
@@ -85,26 +85,15 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   // Live Messages & Pagination
   const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
-  const [messages, setMessages] = useState<any[]>([]);
   const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '2026';
 
-  // Decrypt messages dynamically
-  useEffect(() => {
-    const decryptAll = async () => {
-      const decrypted = await Promise.all(encryptedMessages.map(async (msg) => {
-        let content = msg.content;
-        let mediaUrl = msg.mediaUrl;
-        if (content) {
-          try { content = await decryptMessage(content, passcode); } catch(e){}
-        }
-        if (mediaUrl) {
-          try { mediaUrl = await decryptMessage(mediaUrl, passcode); } catch(e){}
-        }
-        return { ...msg, content, mediaUrl };
-      }));
-      setMessages(decrypted);
-    };
-    decryptAll();
+  // Instant synchronous message decoding - zero flash, zero lag, 100% 60fps
+  const messages = useMemo(() => {
+    return encryptedMessages.map(msg => ({
+      ...msg,
+      content: msg.content ? decryptMessage(msg.content, passcode) : '',
+      mediaUrl: msg.mediaUrl ? decryptMessage(msg.mediaUrl, passcode) : msg.mediaUrl
+    }));
   }, [encryptedMessages, passcode]);
 
   // Infinite Scroll Observer

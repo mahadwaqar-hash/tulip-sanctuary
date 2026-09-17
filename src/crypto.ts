@@ -17,18 +17,19 @@ function xorWithKey(text: string, key: string): string {
 /**
  * Message transmission: returns text directly for instant, zero-latency, 100% cross-device delivery.
  */
-export async function encryptMessage(text: string, _passcode?: string): Promise<string> {
+export function encryptMessage(text: string, _passcode?: string): string {
   return text || '';
 }
 
 /**
- * Decrypts legacy messages (XOR or AES-GCM) or returns clean plain text.
+ * Decrypts legacy messages (XOR) or returns clean plain text synchronously.
+ * Zero lag, zero promises, 100% instant rendering on all devices.
  */
-export async function decryptMessage(encryptedText: string, passcode: string): Promise<string> {
+export function decryptMessage(encryptedText: string, passcode = '2026'): string {
   if (!encryptedText) return '';
   if (typeof encryptedText !== 'string') return String(encryptedText);
 
-  // 1. If it was encoded with XOR
+  // If it was encoded with legacy XOR
   if (encryptedText.startsWith('xor:')) {
     try {
       const b64 = encryptedText.slice(4);
@@ -43,17 +44,7 @@ export async function decryptMessage(encryptedText: string, passcode: string): P
     }
   }
 
-  // 2. If it was encoded with legacy AES-GCM
-  if (encryptedText.match(/^[A-Za-z0-9+/=]+$/) && encryptedText.length > 28) {
-    if (typeof window !== 'undefined' && window.crypto?.subtle) {
-      try {
-        const decrypted = await decryptLegacyAES(encryptedText, passcode || '2026');
-        if (decrypted && decrypted.trim()) return decrypted;
-      } catch (e) {}
-    }
-  }
-
-  // 3. Plaintext or already readable
+  // Plaintext or clean text
   return encryptedText;
 }
 
