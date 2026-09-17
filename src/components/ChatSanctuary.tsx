@@ -153,40 +153,38 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    if (editingMsgId) {
-      if (!editContent.trim()) return;
+    try {
+      if (editingMsgId) {
+        if (!editContent.trim()) return;
+        if ('vibrate' in navigator) navigator.vibrate(40);
+        const encContent = await encryptMessage(editContent.trim(), passcode);
+        await fb.messages.update(editingMsgId, { content: encContent, isEdited: true });
+        setEditingMsgId(null);
+        setEditContent('');
+        return;
+      }
+
+      if (!inputText.trim()) return;
+
       if ('vibrate' in navigator) navigator.vibrate(40);
-      const encContent = await encryptMessage(editContent.trim(), passcode);
-      await fb.messages.update(editingMsgId, { content: encContent, isEdited: true });
-      setEditingMsgId(null);
-      setEditContent('');
-      return;
+      const textToSend = inputText.trim();
+      setInputText(''); // Clear immediately for snappy feel
+      fb.typing.set(currentUser, false);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+      const encContent = await encryptMessage(textToSend, passcode);
+
+      await fb.messages.add({
+        id: crypto.randomUUID(),
+        sender: currentUser,
+        type: 'text',
+        content: encContent,
+        createdAt: Date.now()
+      });
+    } catch (err: any) {
+      console.error('SEND FAILED:', err);
+      alert(`Message failed to send: ${err.message || err}`);
     }
-
-    if (!inputText.trim()) return;
-    
-    // Easter Egg Check
-    if (inputText.trim().toLowerCase() === 'aim') {
-      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-      // Trigger a special visual effect in the chat
-      setInputText('I love you immensely, always and forever. ✨');
-      return;
-    }
-
-    if ('vibrate' in navigator) navigator.vibrate(40);
-    const encContent = await encryptMessage(inputText.trim(), passcode);
-
-    await fb.messages.add({
-      id: crypto.randomUUID(),
-      sender: currentUser,
-      type: 'text',
-      content: encContent,
-      createdAt: Date.now()
-    });
-
-    setInputText('');
-    fb.typing.set(currentUser, false);
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
   const handleSendImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -483,7 +481,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       </AnimatePresence>
 
       {/* MESSAGE STREAM */}
-      <div className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative">
+      <div 
+        onClick={(e) => { if ((e.target as HTMLElement).closest('[data-msg-bubble]') === null) setSelectedMsgId(null); }}
+        className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative"
+      >
         <div ref={topElementRef} className="h-6 w-full shrink-0 flex items-center justify-center">
           {loadingMore && <div className="text-pastel-pink-400 font-bold text-xs animate-pulse">Loading older memories...</div>}
         </div>
@@ -934,35 +935,47 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 onChange={handleCustomStickerUpload}
               />
 
-              {/* TAB 1: INFINITE TENOR GIFS */}
+              {/* TAB 1: INFINITE GIPHY GIFS */}
               {stickerTab === 'gifs' && (
                 <div className="flex flex-col gap-3">
                   <input
                     type="text"
-                    placeholder="Search Tenor GIFs..."
-                    onChange={async (e) => {
+                    placeholder="Search GIFs (love, hug, cat, crying...)"
+                    onChange={(e) => {
                       const q = e.target.value.trim();
-                      if (!q) return;
-                      try {
-                        const res = await fetch(`https://api.tenor.com/v1/search?q=${encodeURIComponent(q)}&key=LIVDSRZULELA&limit=30`);
-                        const data = await res.json();
-                        if (data.results) {
-                          const urls = data.results.map((r: any) => r.media[0].tinygif.url);
-                          // We dynamically update the grid, let's create a temporary state or just inject it
-                          setTenorGifs(urls);
+                      // Debounce: clear previous timer
+                      if ((window as any).__gifTimer) clearTimeout((window as any).__gifTimer);
+                      if (!q) {
+                        // Show trending when search is cleared
+                        fetch(`https://api.giphy.com/v1/gifs/trending?api_key=dc6zaTOxFJmzC&limit=30&rating=pg-13`)
+                          .then(r => r.json())
+                          .then(data => {
+                            if (data.data) setTenorGifs(data.data.map((g: any) => g.images.fixed_width_small.url));
+                          }).catch(() => {});
+                        return;
+                      }
+                      (window as any).__gifTimer = setTimeout(async () => {
+                        try {
+                          const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(q)}&limit=30&rating=pg-13`);
+                          const data = await res.json();
+                          if (data.data) {
+                            setTenorGifs(data.data.map((g: any) => g.images.fixed_width_small.url));
+                          }
+                        } catch (err) {
+                          console.error('GIF search failed:', err);
                         }
-                      } catch (err) {}
+                      }, 400);
                     }}
                     className="w-full bg-surface border border-border rounded-xl py-2 px-3 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400"
                   />
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
-                    {(tenorGifs.length > 0 ? tenorGifs : PREMADE_GIFS_AND_STICKERS.filter(s => s.type === 'gif')).map((gif: any, i: number) => (
+                    {(tenorGifs.length > 0 ? tenorGifs : PREMADE_GIFS_AND_STICKERS.filter(s => s.type === 'gif').map(g => g.url)).map((gifUrl: string, i: number) => (
                       <div
                         key={i}
-                        onClick={() => handleSendGifOrSticker(typeof gif === 'string' ? gif : gif.url, 'gif')}
+                        onClick={() => handleSendGifOrSticker(gifUrl, 'gif')}
                         className="aspect-square rounded-xl overflow-hidden border border-border/50 hover:border-pastel-pink-400 cursor-pointer hover:scale-105 transition-all shadow-sm"
                       >
-                        <img src={typeof gif === 'string' ? gif : gif.url} alt="gif" className="w-full h-full object-cover" loading="lazy" />
+                        <img src={gifUrl} alt="gif" className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     ))}
                   </div>

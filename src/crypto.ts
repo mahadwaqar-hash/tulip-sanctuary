@@ -58,8 +58,14 @@ export async function encryptMessage(text: string, passcode: string): Promise<st
     combined.set(iv, salt.length);
     combined.set(encryptedBytes, salt.length + iv.length);
     
-    // Convert to base64 for storage
-    return btoa(String.fromCharCode(...combined));
+    // Convert to base64 for storage — use a chunked loop instead of
+    // String.fromCharCode(...combined) which crashes on large arrays
+    // due to exceeding the maximum call stack size.
+    let binaryStr = '';
+    for (let i = 0; i < combined.length; i++) {
+      binaryStr += String.fromCharCode(combined[i]);
+    }
+    return btoa(binaryStr);
   } catch (e) {
     console.error("Encryption failed:", e);
     return text; // Fallback to plaintext if something breaks
