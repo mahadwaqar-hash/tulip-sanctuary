@@ -578,7 +578,7 @@ export default function App() {
             </div>
 
             {/* CENTER COLUMN (Active View) */}
-            <div className="flex-1 h-full w-full flex flex-col overflow-hidden pb-16 lg:pb-0">
+            <div className="flex-1 h-full w-full flex flex-col overflow-hidden pb-24 lg:pb-0">
               <div className="w-full h-full max-w-4xl mx-auto lg:px-6">
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (

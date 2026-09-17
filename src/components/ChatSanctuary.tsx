@@ -37,16 +37,17 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // How long we've been in love state & live ticker
-  const [startDateStr, setStartDateStr] = useState(() => {
-    return localStorage.getItem('tulip_relationship_start') || '2023-08-14';
-  });
+  // Live Settings
+  const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
+  const globalSettings = settingsArray.find(s => s.id === 'global') || {};
   const [isEditingStart, setIsEditingStart] = useState(false);
   const [timeTogether, setTimeTogether] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
+  const startDateStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
+
   useEffect(() => {
     const updateLoveTimer = () => {
-      const start = new Date(startDateStr + 'T00:00:00').getTime();
+      const start = new Date(`${startDateStr}T00:00:00`).getTime();
       const now = Date.now();
       const diff = Math.max(0, now - start);
 
@@ -63,9 +64,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     return () => clearInterval(interval);
   }, [startDateStr]);
 
-  const handleSaveStartDate = (newDate: string) => {
-    setStartDateStr(newDate);
+  const handleSaveStartDate = async (newDate: string) => {
     localStorage.setItem('tulip_relationship_start', newDate);
+    await fb.userSettings.set('global', { relationshipStart: newDate });
     setIsEditingStart(false);
   };
 
@@ -299,10 +300,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border relative">
+    <div className="flex-1 flex flex-col h-full rounded-[2rem] glass-panel shadow-2xl overflow-hidden border-2 border-pastel-pink-300/30 relative">
       
       {/* CHAT HEADER */}
-      <div className="px-5 py-3 border-b border-border bg-surface/85 backdrop-blur-md z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+      <div className="px-5 py-3 border-b border-pastel-pink-300/20 bg-surface/85 backdrop-blur-md z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         
         {/* Left: User & Avatar */}
         <div className="flex items-center gap-3">
@@ -310,7 +311,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white flex items-center justify-center shadow-md font-serif-italic font-bold text-lg">
               {currentUser === 'Mahad' ? 'M' : 'I'}
             </div>
-            <span className="w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-charcoal absolute -bottom-0.5 -right-0.5" />
+            <span className="w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-charcoal absolute -bottom-0.5 -right-0.5 shadow-sm" />
           </div>
 
           <div>
@@ -325,7 +326,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         </div>
 
         {/* Center: HOW LONG WE'VE BEEN IN LOVE BANNER */}
-        <div className="flex items-center justify-between md:justify-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-hover/80 border border-pastel-pink-200/50 dark:border-pastel-pink-400/20 shadow-xs">
+        <div className="flex items-center justify-between md:justify-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-hover/80 border border-pastel-pink-300/30 shadow-xs">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center">
               <Heart className="w-3 h-3 fill-white" />
@@ -368,7 +369,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             <button
               type="button"
               onClick={() => setIsEditingStart(true)}
-              className="p-1.5 text-text-muted hover:text-pastel-pink-400 rounded-full hover:bg-surface transition-colors cursor-pointer ml-1"
+              className="p-1.5 text-text-muted hover:text-pastel-pink-400 rounded-full hover:bg-pastel-pink-100/10 transition-colors cursor-pointer ml-1"
               title="Change Anniversary / In Love Date"
             >
               <Edit3 className="w-3 h-3" />
@@ -381,7 +382,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           <button
             onClick={() => setShowSearch(!showSearch)}
             className={`p-2.5 rounded-full transition-all cursor-pointer ${
-              showSearch ? 'bg-pastel-pink-400 text-white' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              showSearch ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-100/10 hover:text-pastel-pink-400'
             }`}
             title="Search Messages"
           >
@@ -397,20 +398,20 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="px-6 py-3 border-b border-border bg-surface-hover/60 backdrop-blur-md overflow-hidden"
+            className="px-6 py-3 border-b border-pastel-pink-300/20 bg-surface-hover/80 backdrop-blur-md overflow-hidden"
           >
             <div className="relative flex items-center">
-              <Search className="w-4 h-4 absolute left-4 text-text-muted" />
+              <Search className="w-4 h-4 absolute left-4 text-pastel-pink-400/50" />
               <input
                 type="text"
                 placeholder="Search words, memories, jokes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-border rounded-full py-2 pl-10 pr-10 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400"
+                className="w-full bg-surface border-2 border-pastel-pink-200/50 rounded-full py-2 pl-10 pr-10 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400 transition-colors shadow-inner"
                 autoFocus
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 text-text-muted hover:text-text-main text-xs">
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 text-text-muted hover:text-text-main text-xs cursor-pointer">
                   ✕
                 </button>
               )}
@@ -420,7 +421,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       </AnimatePresence>
 
       {/* MESSAGE STREAM */}
-      <div className="flex-1 bg-surface-hover/20 overflow-y-auto p-6 scroll-smooth flex flex-col gap-4 relative">
+      <div className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/5 dark:to-pastel-pink-900/10 overflow-y-auto p-6 scroll-smooth flex flex-col gap-4 relative">
         <div ref={topElementRef} className="h-10 w-full shrink-0 flex items-center justify-center">
           {loadingMore && <div className="text-pastel-pink-400 font-bold text-xs animate-pulse">Loading older memories...</div>}
         </div>
@@ -608,16 +609,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="absolute bottom-6 left-4 right-4 lg:bottom-8 lg:left-8 lg:right-8 z-20">
-        <div className="p-2 border border-border/50 bg-surface/80 backdrop-blur-xl rounded-[2.5rem] shadow-xl">
-          <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+      <div className="p-3 lg:p-4 shrink-0 bg-surface/90 backdrop-blur-2xl border-t border-border z-20 w-full relative">
+        <div className="p-1.5 border border-pastel-pink-300/40 bg-surface rounded-[2rem] shadow-lg flex items-center relative z-20">
+          <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1.5">
             
             {/* Sticker / GIF Picker Toggle */}
             <button
               type="button"
               onClick={() => setShowStickerPicker(!showStickerPicker)}
-              className={`p-3 rounded-full transition-all cursor-pointer ${
-                showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              className={`p-2.5 rounded-full transition-all cursor-pointer ${
+                showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
               }`}
               title="GIFs & Stickers"
             >
@@ -635,7 +636,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             <button
               type="button"
               onClick={() => imageMsgRef.current?.click()}
-              className="p-3 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main transition-colors cursor-pointer"
+              className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer"
               title="Send Photo"
             >
               <ImageIcon className="w-5 h-5" />
@@ -647,31 +648,29 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               value={inputText}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder={`Say something sweet to ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-              className="flex-1 bg-transparent py-3.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60"
+              className="flex-1 bg-transparent py-2.5 px-3 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60"
             />
 
-            {/* Voice Note Button */}
+            {/* Voice Note Toggle Button */}
             <button
               type="button"
-              onPointerDown={handleStartRecording}
-              onPointerUp={handleStopRecording}
-              onPointerLeave={handleStopRecording}
-              className={`p-3 rounded-full transition-colors cursor-pointer select-none touch-none ${
-                isRecording ? 'bg-red-400 text-white shadow-[0_0_15px_rgba(248,113,113,0.6)] scale-110' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              className={`p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center ${
+                isRecording ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-pulse scale-110' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
               }`}
-              title="Hold to Record Voice Note"
+              title="Tap to Record Voice Note"
             >
               {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
             </button>
 
             {/* Send Button */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.9 }}
               type="submit"
-              className="p-3.5 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-md hover:brightness-110 transition-all cursor-pointer"
+              className="p-3.5 mr-1 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-md hover:shadow-pink-500/50 hover:brightness-110 transition-all cursor-pointer flex items-center justify-center"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-4 h-4 translate-x-[1px] translate-y-[1px]" />
             </motion.button>
           </form>
         </div>

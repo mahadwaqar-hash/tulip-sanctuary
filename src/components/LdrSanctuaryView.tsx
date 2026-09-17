@@ -103,14 +103,13 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
 }
 
 export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSanctuaryViewProps) {
-  // Reunion target date (stored in localStorage)
-  const [reunionDateStr, setReunionDateStr] = useState(() => {
-    return localStorage.getItem('tulip_reunion_date') || '2026-10-25';
-  });
+  const settingsArray = useFirestore<any>('userSettings', 'id', false);
+  const globalSettings = settingsArray.find(s => s.id === 'global') || {};
+  
+  // Reunion target date
+  const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
   const [isEditingReunion, setIsEditingReunion] = useState(false);
 
-  const settingsArray = useFirestore<any>('userSettings', 'id', false);
-  
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
 
@@ -300,10 +299,10 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             {isEditingReunion ? (
               <input
                 type="date"
-                value={reunionDateStr}
-                onChange={(e) => {
-                  setReunionDateStr(e.target.value);
+                defaultValue={reunionDateStr}
+                onChange={async (e) => {
                   localStorage.setItem('tulip_reunion_date', e.target.value);
+                  await fb.userSettings.set('global', { reunionDate: e.target.value });
                 }}
                 className="my-3 p-2 rounded-xl bg-white/20 text-white border border-white/40 text-sm outline-none font-bold"
               />

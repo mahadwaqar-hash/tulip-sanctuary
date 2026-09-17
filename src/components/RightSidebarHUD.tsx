@@ -48,24 +48,26 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
 }
 
 export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' | 'Ifa' }) {
-  const [reunionDateStr, setReunionDateStr] = useState(() => {
-    return localStorage.getItem('tulip_reunion_date') || '2026-10-25';
-  });
-
-  // Pull settings from Firebase (collection 'userSettings', where ID is 'Mahad' or 'Ifa')
-  // We'll set this up in LdrSanctuaryView
+  // Pull settings from Firebase
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
   
-  // Also provide a fallback to localStorage for smooth transition
+  const globalSettings = settingsArray.find(s => s.id === 'global') || {};
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
+
+  const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
+  const inLoveSinceStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
 
   const mahadCity = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
   const mahadTz = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
   const ifaCity = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
   const ifaTz = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
 
-  const [inLoveSince] = useState(() => new Date('2024-01-01T00:00:00').getTime()); // Custom start date
+  const [inLoveSince, setInLoveSince] = useState(() => new Date(`${inLoveSinceStr}T00:00:00`).getTime());
+  useEffect(() => {
+    setInLoveSince(new Date(`${inLoveSinceStr}T00:00:00`).getTime());
+  }, [inLoveSinceStr]);
+
   const [loveTimer, setLoveTimer] = useState('');
 
   useEffect(() => {
