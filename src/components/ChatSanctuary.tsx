@@ -14,7 +14,9 @@ import {
   Play, 
   Volume2,
   Film,
-  Edit3
+  Edit3,
+  Check,
+  CheckCheck
 } from 'lucide-react';
 import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -95,6 +97,43 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       mediaUrl: msg.mediaUrl ? decryptMessage(msg.mediaUrl, passcode) : msg.mediaUrl
     }));
   }, [encryptedMessages, passcode]);
+
+  // Auto-mark incoming messages as seen/read when viewing the chat
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+
+    const unreadMessages = messages.filter(m => m.sender !== currentUser && !m.isRead);
+    if (unreadMessages.length === 0) return;
+
+    const markAsRead = async () => {
+      const now = getNetworkNow();
+      for (const m of unreadMessages) {
+        try {
+          await fb.messages.update(m.id, { isRead: true, readAt: now });
+        } catch (e) {}
+      }
+    };
+
+    const timer = setTimeout(markAsRead, 500);
+    return () => clearTimeout(timer);
+  }, [messages, currentUser]);
+
+  // Listen for visibility change (e.g. switching back to tab/app) to mark as read
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const unreadMessages = messages.filter(m => m.sender !== currentUser && !m.isRead);
+        if (unreadMessages.length > 0) {
+          const now = getNetworkNow();
+          unreadMessages.forEach(m => {
+            fb.messages.update(m.id, { isRead: true, readAt: now }).catch(() => {});
+          });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [messages, currentUser]);
 
   // Infinite Scroll Observer
   const observer = useRef<IntersectionObserver | null>(null);
@@ -708,6 +747,32 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     {msg.isEdited && (
                       <span className="text-[9px] text-pastel-pink-400 font-medium italic">
                         (edited)
+                      </span>
+                    )}
+
+                    {/* Seen / Just Read Status */}
+                    {isMe && (
+                      <span 
+                        className="flex items-center gap-0.5 text-[10px] select-none"
+                        title={msg.isRead ? (msg.readAt ? `Read at ${formatMessageTime(msg.readAt, userTz)}` : 'Seen') : 'Sent'}
+                      >
+                        {msg.isRead ? (
+                          <>
+                            <CheckCheck className="w-3.5 h-3.5 text-pastel-pink-400 stroke-[2.5]" />
+                            <span className="text-[9.5px] text-pastel-pink-400 font-bold tracking-tight">
+                              {msg.readAt && (getNetworkNow() - msg.readAt < 120 * 1000)
+                                ? 'Just read'
+                                : msg.readAt
+                                  ? `Seen ${formatMessageTime(msg.readAt, userTz)}`
+                                  : 'Seen'}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3 text-text-muted/60 stroke-[2]" />
+                            <span className="text-[9px] text-text-muted/60 font-medium">Sent</span>
+                          </>
+                        )}
                       </span>
                     )}
                     {isMe && msg.type === 'text' && (

@@ -143,4 +143,12 @@
   .glow-rose-sm {
     box-shadow: 0 0 12px -2px rgba(255, 102, 133, 0.35);
   }
+
+  /* Mobile safe area padding */
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 12px);
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  }
 }
