@@ -481,15 +481,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
                     required
                   />
-                  <input
-                    type="text"
-                    list="timezones"
+                  <select
                     value={mahadTz}
                     onChange={(e) => setMahadTz(e.target.value)}
-                    placeholder="Search Timezone (e.g. Asia/Karachi)"
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
-                  />
+                  >
+                    {ALL_TIMEZONES.map(tz => (
+                      <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -504,20 +505,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
                     required
                   />
-                  <input
-                    type="text"
-                    list="timezones"
+                  <select
                     value={ifaTz}
                     onChange={(e) => setIfaTz(e.target.value)}
-                    placeholder="Search Timezone (e.g. Europe/London)"
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
-                  />
+                  >
+                    {ALL_TIMEZONES.map(tz => (
+                      <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                    ))}
+                  </select>
                 </div>
-
-                <datalist id="timezones">
-                  {ALL_TIMEZONES.map(tz => <option key={tz} value={tz} />)}
-                </datalist>
 
                 <div className="flex justify-end gap-3 mt-4">
                   <button

@@ -228,8 +228,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
-      // Let the browser pick its preferred codec (Safari prefers mp4, Chrome prefers webm)
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      // Let the browser pick its preferred codec, but force a low bitrate to keep Base64 strings well under Firestore's 1MB limit
+      mediaRecorderRef.current = new MediaRecorder(stream, { 
+        audioBitsPerSecond: 16000 // 16kbps is plenty for voice notes and guarantees small file size
+      });
       audioChunksRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (e) => {
@@ -289,9 +291,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
              mediaUrl: encUrl,
              createdAt: Date.now()
            });
-         } catch (err) {
+         } catch (err: any) {
            console.error("Audio encryption/upload failed:", err);
-           alert("Failed to send voice note.");
+           if (err?.message?.toLowerCase().includes('size') || err?.message?.toLowerCase().includes('limit')) {
+             alert("Voice note is too long! Please keep voice notes under 60 seconds to ensure they can be encrypted safely.");
+           } else {
+             alert("Failed to send voice note. Please try again.");
+           }
          }
        };
        reader.readAsDataURL(audioBlob);
