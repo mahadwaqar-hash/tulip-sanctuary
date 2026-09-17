@@ -40,6 +40,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const [tenorGifs, setTenorGifs] = useState<string[]>([]);
 
@@ -264,15 +266,35 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleStartRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
       streamRef.current = stream;
       
-      // Let the browser pick its preferred codec, but attempt a low bitrate first to keep Base64 strings small
+      // Determine optimal mimeType across iOS, Android, and Desktop
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+          mimeType = 'audio/aac';
+        }
+      }
+
       try {
-        mediaRecorderRef.current = new MediaRecorder(stream, { audioBitsPerSecond: 16000 });
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 24000 });
       } catch (e) {
-        console.warn("Low bitrate not supported, falling back to default:", e);
-        mediaRecorderRef.current = new MediaRecorder(stream);
+        try {
+          mediaRecorderRef.current = new MediaRecorder(stream, { audioBitsPerSecond: 24000 });
+        } catch (e2) {
+          mediaRecorderRef.current = new MediaRecorder(stream);
+        }
       }
       
       audioChunksRef.current = [];
@@ -283,35 +305,44 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         }
       };
 
-      mediaRecorderRef.current.start(250); // Use a 250ms timeslice to force chunks (fixes iOS bug)
+      mediaRecorderRef.current.start(250); // 250ms chunks ensures Safari iOS commits data
       setIsRecording(true);
+      setRecordingSeconds(0);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds(s => s + 1);
+      }, 1000);
+
       if ('vibrate' in navigator) navigator.vibrate(50);
     } catch (err: any) {
       console.error("Mic error:", err);
-      alert(`Could not start microphone: ${err.message || 'Check browser permissions'}`);
+      alert(`Could not start microphone: ${err.message || 'Please enable microphone permissions in your browser'}`);
     }
   };
 
   const handleCancelRecording = () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (mediaRecorderRef.current && isRecording) {
-      // Temporarily remove onstop so it doesn't trigger a send
       mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
+      try { mediaRecorderRef.current.stop(); } catch(e){}
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
     setIsRecording(false);
+    setRecordingSeconds(0);
     audioChunksRef.current = [];
   };
 
   const handleSendRecording = () => {
     if (!mediaRecorderRef.current || !isRecording) return;
 
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+
     mediaRecorderRef.current.onstop = async () => {
        setIsRecording(false);
        
-       const mimeType = mediaRecorderRef.current?.mimeType || 'audio/mp4';
+       const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
        
        if (audioBlob.size === 0) {
@@ -319,36 +350,50 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
          return;
        }
        
-       try {
-         // Upload directly to Firebase Storage to bypass the 1MB Firestore limit for PC voice notes
-         const fileExt = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('webm') ? 'webm' : 'mp3';
-         const storageRef = ref(storage, `voiceNotes/${crypto.randomUUID()}.${fileExt}`);
-         
-         await uploadBytes(storageRef, audioBlob);
-         const downloadUrl = await getDownloadURL(storageRef);
-         
-         const encUrl = await encryptMessage(downloadUrl, passcode);
-         const encContent = await encryptMessage('Voice note', passcode);
-         
-         await fb.messages.add({
-           id: crypto.randomUUID(),
-           sender: currentUser,
-           type: 'audio',
-           content: encContent,
-           mediaUrl: encUrl,
-           createdAt: Date.now()
-         });
-       } catch (err: any) {
-         console.error("Audio upload failed:", err);
-         alert(`Failed to send voice note. Your Firebase Storage rules might be blocking uploads: ${err.message}`);
-       }
+       const reader = new FileReader();
+       reader.onloadend = async () => {
+         try {
+           const base64data = reader.result as string;
+           const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
+           const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+           const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+             ? crypto.randomUUID() 
+             : `voice_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+           const durationStr = recordingSeconds > 0 
+             ? `${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, '0')}`
+             : '0:05';
+
+           await fb.messages.add({
+             id: msgId,
+             sender: currentUser,
+             type: 'audio',
+             content: `Voice note (${durationStr})`,
+             mediaUrl: base64data,
+             createdAt: newCreatedAt
+           });
+
+           setTimeout(() => {
+             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+           }, 50);
+         } catch (err: any) {
+           console.error("Audio save failed:", err);
+           alert(`Failed to send voice note: ${err?.message || err}`);
+         }
+       };
+       reader.readAsDataURL(audioBlob);
        
        if (streamRef.current) {
          streamRef.current.getTracks().forEach(track => track.stop());
        }
+       setRecordingSeconds(0);
     };
 
-    mediaRecorderRef.current.stop();
+    try {
+      mediaRecorderRef.current.stop();
+    } catch (e) {
+      console.error("Stop error:", e);
+    }
   };
 
   const handleReaction = async (msgId: string, emoji: string) => {
@@ -560,7 +605,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   )}
 
                   {/* Bubble Container */}
-                  <div className="relative group/bubble flex flex-col">
+                  <div data-msg-bubble="true" className="relative group/bubble flex flex-col">
                     {msg.type === 'text' && (
                       <div
                         onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
@@ -602,7 +647,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                             : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
                         }`}
                       >
-                        <audio controls src={msg.mediaUrl} className="h-10 w-48 outline-none grayscale" />
+                        <audio controls src={msg.mediaUrl} className="h-10 w-48 outline-none" />
                       </div>
                     )}
 
@@ -654,15 +699,43 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </div>
                   )}
 
-                  {/* Timestamp & Edited Tag */}
-                  <div className="flex items-center gap-1 mt-1 px-2">
+                  {/* Timestamp & Action Buttons (Always Visible!) */}
+                  <div className="flex items-center gap-1.5 mt-1 px-2">
                     <span className="text-[10px] text-text-muted font-medium">
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {msg.isEdited && (
-                      <span className="text-[9px] text-text-muted/60 font-medium italic">
+                      <span className="text-[9px] text-pastel-pink-400 font-medium italic">
                         (edited)
                       </span>
+                    )}
+                    {isMe && msg.type === 'text' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingMsgId(msg.id);
+                          setEditContent(msg.content);
+                        }}
+                        className="text-text-muted/70 hover:text-pastel-pink-400 p-0.5 rounded cursor-pointer transition-colors flex items-center gap-0.5 text-[10px]"
+                        title="Edit message"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span className="hidden sm:inline">edit</span>
+                      </button>
+                    )}
+                    {isMe && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMessage(msg.id);
+                        }}
+                        className="text-text-muted/70 hover:text-red-400 p-0.5 rounded cursor-pointer transition-colors"
+                        title="Delete message"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     )}
                   </div>
 
@@ -673,22 +746,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         )}
         
         {/* Typing Indicator */}
-        <AnimatePresence>
-          {isOtherTyping && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-              className="flex w-full justify-start mt-2"
-            >
-              <div className="bg-surface border border-border px-4 py-2.5 rounded-[1.8rem] rounded-bl-xs flex items-center gap-1.5 shadow-sm w-fit">
-                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isOtherTyping && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 text-text-muted text-xs px-2 py-1"
+          >
+            <span className="w-2 h-2 rounded-full bg-pastel-pink-400 animate-pulse" />
+            <span className="font-medium italic">{otherUser} is typing...</span>
+          </motion.div>
+        )}
 
         <div ref={messagesEndRef} />
       </div>
@@ -714,7 +781,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           
           {editingMsgId ? (
             <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
-              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider shrink-0 hidden sm:block">Editing</div>
+              <div className="text-[11px] font-bold text-pastel-pink-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Edit3 className="w-3.5 h-3.5" /> Editing
+              </div>
               <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
                 <input
                   type="text"
@@ -727,6 +796,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   type="button"
                   onClick={() => { setEditingMsgId(null); setEditContent(''); }}
                   className="p-2 text-text-muted hover:text-red-400 cursor-pointer"
+                  title="Cancel editing"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -746,7 +816,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                 </span>
-                Recording Voice Note...
+                Recording... {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
               </div>
               <div className="flex items-center gap-2">
                 <button
