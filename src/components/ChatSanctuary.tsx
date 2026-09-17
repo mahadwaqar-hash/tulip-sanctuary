@@ -221,48 +221,24 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   // Real Voice Notes (Using Base64 to bypass Firebase Storage Rule issues)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      // Let the browser pick its preferred codec (Safari prefers mp4, Chrome prefers webm)
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
       };
 
-      mediaRecorderRef.current.onstop = async () => {
-         setIsRecording(false);
-         // Don't specify mime type, let the browser figure out its native format (fixes iOS Safari issues)
-         const audioBlob = new Blob(audioChunksRef.current);
-         
-         const reader = new FileReader();
-         reader.onloadend = async () => {
-           const base64data = reader.result as string;
-           try {
-             const encUrl = await encryptMessage(base64data, passcode);
-             const encContent = await encryptMessage('Voice note', passcode);
-             
-             await fb.messages.add({
-               id: crypto.randomUUID(),
-               sender: currentUser,
-               type: 'audio',
-               content: encContent,
-               mediaUrl: encUrl,
-               createdAt: Date.now()
-             });
-           } catch (err) {
-             console.error("Audio encryption/upload failed:", err);
-             alert("Failed to send voice note.");
-           }
-         };
-         reader.readAsDataURL(audioBlob);
-         
-         stream.getTracks().forEach(track => track.stop());
-      };
-      
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(250); // Use a 250ms timeslice to force chunks (fixes iOS bug)
       setIsRecording(true);
       if ('vibrate' in navigator) navigator.vibrate(50);
     } catch (err) {
@@ -271,10 +247,61 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }
   };
 
-  const handleStopRecording = () => {
+  const handleCancelRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Temporarily remove onstop so it doesn't trigger a send
+      mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(false);
+    audioChunksRef.current = [];
+  };
+
+  const handleSendRecording = () => {
+    if (!mediaRecorderRef.current || !isRecording) return;
+
+    mediaRecorderRef.current.onstop = async () => {
+       setIsRecording(false);
+       
+       const mimeType = mediaRecorderRef.current?.mimeType || 'audio/mp4';
+       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+       
+       if (audioBlob.size === 0) {
+         alert("Recording failed: 0 bytes captured. Please try again.");
+         return;
+       }
+       
+       const reader = new FileReader();
+       reader.onloadend = async () => {
+         const base64data = reader.result as string;
+         try {
+           const encUrl = await encryptMessage(base64data, passcode);
+           const encContent = await encryptMessage('Voice note', passcode);
+           
+           await fb.messages.add({
+             id: crypto.randomUUID(),
+             sender: currentUser,
+             type: 'audio',
+             content: encContent,
+             mediaUrl: encUrl,
+             createdAt: Date.now()
+           });
+         } catch (err) {
+           console.error("Audio encryption/upload failed:", err);
+           alert("Failed to send voice note.");
+         }
+       };
+       reader.readAsDataURL(audioBlob);
+       
+       if (streamRef.current) {
+         streamRef.current.getTracks().forEach(track => track.stop());
+       }
+    };
+
+    mediaRecorderRef.current.stop();
   };
 
   const handleReaction = async (msgId: string, emoji: string) => {
@@ -612,69 +639,95 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       {/* INPUT BAR */}
       <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-2xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
-        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20">
-          <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1">
-            
-            {/* Sticker / GIF Picker Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowStickerPicker(!showStickerPicker)}
-              className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
-                showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
-              }`}
-              title="GIFs & Stickers"
-            >
-              <SmilePlus className="w-5 h-5 md:w-5 md:h-5" />
-            </button>
+        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
+          
+          {isRecording ? (
+            <div className="w-full flex items-center justify-between px-3 py-1.5 h-[42px] md:h-[46px]">
+              <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
+                <span className="relative flex h-3 w-3 mr-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                Recording Voice Note...
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelRecording}
+                  className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-text-muted hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendRecording}
+                  className="px-4 py-1.5 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" /> Send
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1">
+              
+              {/* Sticker / GIF Picker Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowStickerPicker(!showStickerPicker)}
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
+                  showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                }`}
+                title="GIFs & Stickers"
+              >
+                <SmilePlus className="w-5 h-5 md:w-5 md:h-5" />
+              </button>
 
-            {/* Photo Attachment */}
-            <input
-              type="file"
-              ref={imageMsgRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleSendImage}
-            />
-            <button
-              type="button"
-              onClick={() => imageMsgRef.current?.click()}
-              className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer shrink-0"
-              title="Send Photo"
-            >
-              <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
-            </button>
+              {/* Photo Attachment */}
+              <input
+                type="file"
+                ref={imageMsgRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleSendImage}
+              />
+              <button
+                type="button"
+                onClick={() => imageMsgRef.current?.click()}
+                className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer shrink-0"
+                title="Send Photo"
+              >
+                <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
+              </button>
 
-            {/* Main Input Field */}
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => handleInputChange(e.target.value)}
-              placeholder={`Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-              className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
-            />
+              {/* Main Input Field */}
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => handleInputChange(e.target.value)}
+                placeholder={`Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
+                className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
+              />
 
-            {/* Voice Note Toggle Button */}
-            <button
-              type="button"
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
-              className={`p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center ${
-                isRecording ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-pulse scale-110' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
-              }`}
-              title="Tap to Record Voice Note"
-            >
-              {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
-            </button>
+              {/* Voice Note Toggle Button */}
+              <button
+                type="button"
+                onClick={handleStartRecording}
+                className="p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 shrink-0"
+                title="Record Voice Note"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
 
-            {/* Send Button */}
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.9 }}
-              type="submit"
-              className="p-3.5 mr-1 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-md hover:shadow-pink-500/50 hover:brightness-110 transition-all cursor-pointer flex items-center justify-center"
-            >
-              <Send className="w-4 h-4 translate-x-[1px] translate-y-[1px]" />
-            </motion.button>
-          </form>
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className="p-3 rounded-full bg-pastel-pink-400 text-white shadow-md disabled:opacity-40 hover:bg-pastel-pink-300 transition-all cursor-pointer shrink-0"
+              >
+                <Send className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+            </form>
+          )}
         </div>
 
         {/* STICKER & GIF VAULT POPUP */}
