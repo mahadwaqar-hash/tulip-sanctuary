@@ -92,10 +92,10 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   const selectedDayEvents = events.filter(e => e.date === selectedDateStr);
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border">
+    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-y-auto md:overflow-hidden border border-border">
       
       {/* LEFT: CALENDAR MONTH GRID */}
-      <div className="flex-1 flex flex-col p-6 md:p-8 overflow-y-auto">
+      <div className="flex-1 flex flex-col p-6 md:p-8 md:overflow-y-auto min-h-min">
         
         {/* Month Header */}
         <div className="flex items-center justify-between mb-6">
@@ -186,7 +186,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
       </div>
 
       {/* RIGHT: SELECTED DATE EVENTS & DETAILS */}
-      <div className="w-full md:w-96 border-t md:border-t-0 md:border-l border-border bg-surface/70 backdrop-blur-2xl p-6 md:p-8 flex flex-col h-full">
+      <div className="w-full md:w-96 border-t md:border-t-0 md:border-l border-border bg-surface/70 backdrop-blur-2xl p-6 md:p-8 flex flex-col md:h-full min-h-[400px]">
         
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
           <div>

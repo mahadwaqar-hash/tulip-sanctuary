@@ -69,5 +69,10 @@ export const fb = {
   lovePings: {
     add: async (data: any) => await setDoc(doc(firestoreDB, 'lovePings', data.id), data),
     delete: async (id: string) => await deleteDoc(doc(firestoreDB, 'lovePings', id)),
+  },
+  typing: {
+    set: async (user: string, isTyping: boolean) => {
+      await setDoc(doc(firestoreDB, 'typing', user), { isTyping, updatedAt: Date.now() });
+    }
   }
 };

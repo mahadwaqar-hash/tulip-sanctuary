@@ -79,6 +79,28 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  const typingStatuses = useFirestore<any>('typing', 'updatedAt', true);
+  const otherUser = currentUser === 'Mahad' ? 'Ifa' : 'Mahad';
+  const isOtherTyping = typingStatuses.some(
+    t => t.id === otherUser && t.isTyping && (Date.now() - t.updatedAt < 5000)
+  );
+
+  // Typing debounce
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setInputText(val);
+    
+    // Set typing to true
+    fb.typing.set(currentUser, true);
+    
+    // Clear it after 3 seconds of inactivity
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      fb.typing.set(currentUser, false);
+    }, 3000);
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
@@ -94,6 +116,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     });
 
     setInputText('');
+    fb.typing.set(currentUser, false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
   const handleSendImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -455,6 +479,25 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             );
           })
         )}
+        
+        {/* Typing Indicator */}
+        <AnimatePresence>
+          {isOtherTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              className="flex w-full justify-start mt-2"
+            >
+              <div className="bg-surface border border-border px-4 py-2.5 rounded-[1.8rem] rounded-bl-xs flex items-center gap-1.5 shadow-sm w-fit">
+                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-pastel-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -510,7 +553,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           <input
             type="text"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             placeholder={`Say something sweet to ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
             className="flex-1 bg-surface-hover border border-border rounded-full py-3.5 px-6 outline-none focus:border-pastel-pink-400 focus:ring-4 focus:ring-pastel-pink-100/20 transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted"
           />

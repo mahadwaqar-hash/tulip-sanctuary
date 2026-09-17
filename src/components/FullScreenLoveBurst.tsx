@@ -35,7 +35,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
         {burst.type === 'kiss' && (
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Ambient Golden Fairy Glow */}
-            <div className="absolute inset-0 bg-radial from-rose-500/40 via-pink-400/20 to-transparent animate-pulse" />
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle, rgba(255, 100, 150, 0.4) 0%, transparent 70%)' }} />
 
             {/* Flying Kiss Particles & Fairy Sparkles */}
             {Array.from({ length: 32 }).map((_, i) => {
@@ -98,7 +98,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
         {burst.type === 'hug' && (
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Radial Warm Golden Peach Glow */}
-            <div className="absolute inset-0 bg-radial from-amber-400/30 via-pink-400/20 to-transparent animate-pulse" />
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle, rgba(255, 180, 100, 0.3) 0%, transparent 70%)' }} />
 
             {/* Orbiting Gentle Hearts & Arms */}
             {Array.from({ length: 28 }).map((_, i) => {
@@ -154,7 +154,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
         {(burst.type === 'thinking' || burst.type === 'stars') && (
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Fairytale Twilight Glow */}
-            <div className="absolute inset-0 bg-radial from-purple-500/35 via-pink-400/20 to-transparent" />
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle, rgba(160, 100, 255, 0.3) 0%, transparent 70%)' }} />
 
             {/* Shimmering Falling Stars */}
             {Array.from({ length: 40 }).map((_, i) => {

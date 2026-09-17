@@ -361,7 +361,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                 key={letter.id}
                 whileHover={{ scale: 1.03, y: -3 }}
                 onClick={() => handleOpenLetter(letter)}
-                className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] relative shadow-md ${
+                className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] relative shadow-md will-change-transform ${
                   letter.isOpened
                     ? 'bg-surface-hover/70 border-border'
                     : 'bg-gradient-to-br from-white via-pastel-pink-50 to-pastel-pink-100/50 dark:from-surface dark:via-surface dark:to-pastel-pink-950/20 border-pastel-pink-300 dark:border-pastel-pink-400/40 shadow-pastel-pink-100/50'
