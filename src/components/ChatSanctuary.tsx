@@ -228,10 +228,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
-      // Let the browser pick its preferred codec, but force a low bitrate to keep Base64 strings well under Firestore's 1MB limit
-      mediaRecorderRef.current = new MediaRecorder(stream, { 
-        audioBitsPerSecond: 16000 // 16kbps is plenty for voice notes and guarantees small file size
-      });
+      // Let the browser pick its preferred codec, but attempt a low bitrate first to keep Base64 strings small
+      try {
+        mediaRecorderRef.current = new MediaRecorder(stream, { audioBitsPerSecond: 16000 });
+      } catch (e) {
+        console.warn("Low bitrate not supported, falling back to default:", e);
+        mediaRecorderRef.current = new MediaRecorder(stream);
+      }
+      
       audioChunksRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (e) => {
@@ -243,9 +247,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       mediaRecorderRef.current.start(250); // Use a 250ms timeslice to force chunks (fixes iOS bug)
       setIsRecording(true);
       if ('vibrate' in navigator) navigator.vibrate(50);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Mic error:", err);
-      alert("Could not access microphone. Please check your browser permissions.");
+      alert(`Could not start microphone: ${err.message || 'Check browser permissions'}`);
     }
   };
 

@@ -498,8 +498,8 @@ export default function App() {
                 <div className="p-1.5 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
                   <Heart className="w-3.5 h-3.5 fill-white animate-pulse" />
                 </div>
-                <h1 className="text-base font-bold tracking-tight text-text-main leading-tight flex items-center gap-1 font-serif-italic">
-                  A.I.M.
+                <h1 className="text-base font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
+                  A.I.M. <span className="text-pastel-pink-400 font-fairytale text-[14px] lowercase whitespace-nowrap">Always Ifa & Mahad</span>
                 </h1>
               </div>
               <div className="flex items-center gap-2">
