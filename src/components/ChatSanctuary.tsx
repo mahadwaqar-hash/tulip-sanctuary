@@ -15,8 +15,7 @@ import {
   Film,
   Edit3
 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useFirestore, fb } from '../firebase';
 import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
@@ -72,8 +71,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Live Messages & Custom Stickers
-  const messages = useLiveQuery(() => db.messages.orderBy('createdAt').toArray()) || [];
-  const customStickers = useLiveQuery(() => db.stickers.orderBy('createdAt').reverse().toArray()) || [];
+  const messages = useFirestore<any>('messages', 'createdAt', false);
+  const customStickers = useFirestore<any>('stickers', 'createdAt', true);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
     if ('vibrate' in navigator) navigator.vibrate(40);
 
-    await db.messages.add({
+    await fb.messages.add({
       id: crypto.randomUUID(),
       sender: currentUser,
       type: 'text',
@@ -105,7 +104,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.onload = async (ev) => {
       if (ev.target?.result) {
         if ('vibrate' in navigator) navigator.vibrate(50);
-        await db.messages.add({
+        await fb.messages.add({
           id: crypto.randomUUID(),
           sender: currentUser,
           type: 'image',
@@ -120,7 +119,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
     if ('vibrate' in navigator) navigator.vibrate(40);
-    await db.messages.add({
+    await fb.messages.add({
       id: crypto.randomUUID(),
       sender: currentUser,
       type,
@@ -154,7 +153,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
     setTimeout(async () => {
       setIsRecording(false);
-      await db.messages.add({
+      await fb.messages.add({
         id: crypto.randomUUID(),
         sender: currentUser,
         type: 'audio',
@@ -167,7 +166,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   };
 
   const handleReaction = async (msgId: string, emoji: string) => {
-    const msg = await db.messages.get(msgId);
+    const msg = await fb.messages.get(msgId);
     if (!msg) return;
 
     const currentReactions = msg.reactions || [];
@@ -175,12 +174,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       ? currentReactions.filter(r => r !== emoji)
       : [...currentReactions, emoji];
 
-    await db.messages.update(msgId, { reactions: updated });
+    await fb.messages.update(msgId, { reactions: updated });
     if ('vibrate' in navigator) navigator.vibrate(30);
   };
 
   const handleDeleteMessage = async (msgId: string) => {
-    await db.messages.delete(msgId);
+    await fb.messages.delete(msgId);
   };
 
   // Filter messages by search query

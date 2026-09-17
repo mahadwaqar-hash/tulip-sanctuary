@@ -10,8 +10,8 @@ import {
   Trash2, 
   Clock
 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useFirestore, fb } from '../firebase';
+import type { CalendarEvent } from '../db';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
 
@@ -40,7 +40,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   const [eventCategory, setEventCategory] = useState<'date' | 'anniversary' | 'call' | 'trip' | 'special'>('date');
   const [eventNote, setEventNote] = useState('');
 
-  const events = useLiveQuery(() => db.calendarEvents.toArray()) || [];
+  const events = useFirestore<CalendarEvent>('calendarEvents', 'createdAt', false);
 
   // Month navigation
   const prevMonth = () => {
@@ -68,7 +68,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
 
     if ('vibrate' in navigator) navigator.vibrate(50);
 
-    await db.calendarEvents.add({
+    await fb.calendarEvents.add({
       id: crypto.randomUUID(),
       title: eventTitle.trim(),
       date: selectedDateStr,
@@ -85,7 +85,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   };
 
   const handleDeleteEvent = async (id: string) => {
-    await db.calendarEvents.delete(id);
+    await fb.calendarEvents.delete(id);
   };
 
   // Filter events for currently selected day

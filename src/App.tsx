@@ -24,6 +24,7 @@ import ScratchpadView from './components/ScratchpadView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
+import { useFirestore, fb } from './firebase';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
 
@@ -372,6 +373,19 @@ export default function App() {
 
   // Global Full Screen Love Burst state
   const [currentBurst, setCurrentBurst] = useState<{ type: LoveBurstType; sender: 'Mahad' | 'Ifa' } | null>(null);
+
+  const lovePings = useFirestore<any>('lovePings', 'createdAt', false);
+
+  useEffect(() => {
+    if (!currentUser || !lovePings.length) return;
+    // Find pings meant for the current user
+    const pingsForMe = lovePings.filter(p => p.recipient === currentUser);
+    if (pingsForMe.length > 0) {
+      const ping = pingsForMe[0];
+      setCurrentBurst({ type: ping.type, sender: ping.sender });
+      fb.lovePings.delete(ping.id); // Delete after receiving so we don't see it again
+    }
+  }, [lovePings, currentUser]);
 
   useEffect(() => {
     if (darkMode) {

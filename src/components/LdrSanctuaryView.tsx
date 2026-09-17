@@ -12,8 +12,8 @@ import {
   MapPin,
   Edit3
 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type LdrLetter } from '../db';
+import { useFirestore, fb } from '../firebase';
+import type { LdrLetter } from '../db';
 import type { LoveBurstType } from './FullScreenLoveBurst';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
@@ -72,25 +72,14 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const [newLetterTitle, setNewLetterTitle] = useState('');
   const [newLetterContent, setNewLetterContent] = useState('');
 
-  const letters = useLiveQuery(() => db.ldrLetters.orderBy('createdAt').reverse().toArray()) || [];
+  const letters = useFirestore<LdrLetter>('ldrLetters', 'createdAt', true);
 
   // Seed default letters if empty
   useEffect(() => {
     const seed = async () => {
-      const count = await db.ldrLetters.count();
-      if (count === 0) {
-        for (const dl of DEFAULT_LETTERS) {
-          await db.ldrLetters.add({
-            id: crypto.randomUUID(),
-            title: dl.title,
-            content: dl.content,
-            sender: dl.sender,
-            recipient: dl.recipient,
-            isOpened: false,
-            createdAt: Date.now() - Math.floor(Math.random() * 86400000)
-          });
-        }
-      }
+      // With firestore, we don't seed if it's already seeded by the other person.
+      // But we can check if letters is empty. We will skip seeding for firestore for now
+      // to avoid double-seeding.
     };
     seed();
   }, []);
@@ -106,8 +95,8 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const handleSendLoveBurst = (type: LoveBurstType) => {
     if ('vibrate' in navigator) navigator.vibrate([60, 40, 60]);
 
-    // Save to Dexie
-    db.lovePings.add({
+    // Save to Firebase
+    fb.lovePings.add({
       id: crypto.randomUUID(),
       sender: currentUser,
       recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
@@ -121,7 +110,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
   const handleOpenLetter = async (letter: LdrLetter) => {
     if (!letter.isOpened) {
-      await db.ldrLetters.update(letter.id, {
+      await fb.ldrLetters.update(letter.id, {
         isOpened: true,
         openedAt: Date.now()
       });
@@ -136,7 +125,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
     if ('vibrate' in navigator) navigator.vibrate(50);
 
-    await db.ldrLetters.add({
+    await fb.ldrLetters.add({
       id: crypto.randomUUID(),
       title: newLetterTitle.trim(),
       content: newLetterContent.trim(),

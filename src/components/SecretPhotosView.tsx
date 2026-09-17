@@ -12,8 +12,8 @@ import {
   KeyRound,
   Download
 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type VaultPhoto } from '../db';
+import { useFirestore, fb } from '../firebase';
+import type { VaultPhoto } from '../db';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
 
@@ -35,7 +35,7 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
   const [tempDataUrl, setTempDataUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const photos = useLiveQuery(() => db.vaultPhotos.orderBy('createdAt').reverse().toArray()) || [];
+  const photos = useFirestore<VaultPhoto>('vaultPhotos', 'createdAt', true);
 
   const handleDownload = (dataUrl: string, caption: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -89,7 +89,7 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
 
     if ('vibrate' in navigator) navigator.vibrate(50);
 
-    await db.vaultPhotos.add({
+    await fb.vaultPhotos.add({
       id: crypto.randomUUID(),
       dataUrl: tempDataUrl,
       caption: caption.trim() || 'A sweet memory with you',
@@ -105,7 +105,7 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
   };
 
   const handleDeletePhoto = async (id: string) => {
-    await db.vaultPhotos.delete(id);
+    await fb.vaultPhotos.delete(id);
     if (selectedPhoto?.id === id) {
       setSelectedPhoto(null);
     }

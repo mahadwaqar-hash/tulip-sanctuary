@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { FileText, Heart, Sparkles, Check } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useFirestore, fb } from '../firebase';
 
 interface ScratchpadViewProps {
   currentUser: 'Mahad' | 'Ifa';
 }
 
 export default function ScratchpadView({ currentUser }: ScratchpadViewProps) {
-  const scratchpad = useLiveQuery(() => db.scratchpad.get('shared-pad'));
+  const scratchpads = useFirestore<any>('scratchpad', 'updatedAt', true);
+  const scratchpad = scratchpads.find((s) => s.id === 'shared-pad');
   const [content, setContent] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
@@ -17,19 +17,19 @@ export default function ScratchpadView({ currentUser }: ScratchpadViewProps) {
       setContent(scratchpad.content);
     } else {
       const initial = `# Our Secret Notebook 🌸\n\n- [ ] Midnight movie date\n- [ ] Try that new gelato spot\n- [ ] Trip to the mountains together\n\nLeave little letters, bucket list dreams, and cute thoughts here anytime... 💕`;
-      db.scratchpad.put({
+      fb.scratchpad.add({
         id: 'shared-pad',
         content: initial,
         updatedAt: Date.now()
       });
       setContent(initial);
     }
-  }, [scratchpad]);
+  }, [scratchpad?.content]);
 
   const handleChange = async (newVal: string) => {
     setContent(newVal);
     setIsSaved(true);
-    await db.scratchpad.put({
+    await fb.scratchpad.add({
       id: 'shared-pad',
       content: newVal,
       updatedAt: Date.now()
