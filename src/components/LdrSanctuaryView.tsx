@@ -23,6 +23,14 @@ interface LdrSanctuaryViewProps {
   onTriggerBurst: (type: LoveBurstType, sender: 'Mahad' | 'Ifa') => void;
 }
 
+const ALL_TIMEZONES = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch (e) {
+    return ['Europe/London', 'Asia/Karachi', 'America/New_York', 'America/Los_Angeles', 'Asia/Dubai', 'Australia/Sydney'];
+  }
+})();
+
 const DEFAULT_LETTERS: Array<{ title: string; content: string; sender: 'Mahad' | 'Ifa'; recipient: 'Mahad' | 'Ifa' }> = [
   {
     title: 'Open when you miss me at night 🌙',
@@ -50,6 +58,28 @@ const DEFAULT_LETTERS: Array<{ title: string; content: string; sender: 'Mahad' |
   }
 ];
 
+function WorldClock({ timezone }: { timezone: string }) {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  let formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  try {
+    formattedTime = time.toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    // fallback if timezone is invalid
+  }
+
+  return (
+    <h3 className="text-3xl font-bold font-serif-italic text-text-main">
+      {formattedTime}
+    </h3>
+  );
+}
+
 export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSanctuaryViewProps) {
   // Reunion target date (stored in localStorage)
   const [reunionDateStr, setReunionDateStr] = useState(() => {
@@ -57,12 +87,18 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   });
   const [isEditingReunion, setIsEditingReunion] = useState(false);
 
-  // Custom Cities State
+  // Custom Cities & Timezones State
   const [mahadCity, setMahadCity] = useState(() => {
     return localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
   });
+  const [mahadTz, setMahadTz] = useState(() => {
+    return localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
+  });
   const [ifaCity, setIfaCity] = useState(() => {
     return localStorage.getItem('tulip_ifa_city') || 'London, UK';
+  });
+  const [ifaTz, setIfaTz] = useState(() => {
+    return localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
   });
   const [isEditingCities, setIsEditingCities] = useState(false);
 
@@ -149,6 +185,8 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     e.preventDefault();
     localStorage.setItem('tulip_mahad_city', mahadCity);
     localStorage.setItem('tulip_ifa_city', ifaCity);
+    localStorage.setItem('tulip_mahad_tz', mahadTz);
+    localStorage.setItem('tulip_ifa_tz', ifaTz);
     setIsEditingCities(false);
   };
 
@@ -208,9 +246,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               <Clock className="w-4 h-4 text-text-muted" />
             </div>
             <div>
-              <h3 className="text-3xl font-bold font-serif-italic text-text-main">
-                {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </h3>
+              <WorldClock timezone={mahadTz} />
               <p className="text-xs text-text-muted mt-1 font-medium flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-pastel-pink-400" /> {mahadCity}
               </p>
@@ -268,9 +304,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               <Moon className="w-4 h-4 text-text-muted" />
             </div>
             <div>
-              <h3 className="text-3xl font-bold font-serif-italic text-text-main">
-                {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </h3>
+              <WorldClock timezone={ifaTz} />
               <p className="text-xs text-text-muted mt-1 font-medium flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-pastel-pink-400" /> {ifaCity}
               </p>
@@ -423,6 +457,15 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     value={mahadCity}
                     onChange={(e) => setMahadCity(e.target.value)}
                     placeholder="e.g. Lahore, PK or Karachi"
+                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
+                    required
+                  />
+                  <input
+                    type="text"
+                    list="timezones"
+                    value={mahadTz}
+                    onChange={(e) => setMahadTz(e.target.value)}
+                    placeholder="Search Timezone (e.g. Asia/Karachi)"
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
                   />
@@ -437,10 +480,23 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     value={ifaCity}
                     onChange={(e) => setIfaCity(e.target.value)}
                     placeholder="e.g. London, UK or Islamabad"
+                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
+                    required
+                  />
+                  <input
+                    type="text"
+                    list="timezones"
+                    value={ifaTz}
+                    onChange={(e) => setIfaTz(e.target.value)}
+                    placeholder="Search Timezone (e.g. Europe/London)"
                     className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
                   />
                 </div>
+
+                <datalist id="timezones">
+                  {ALL_TIMEZONES.map(tz => <option key={tz} value={tz} />)}
+                </datalist>
 
                 <div className="flex justify-end gap-3 mt-4">
                   <button
