@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, MapPin, Moon, Sparkles } from 'lucide-react';
 import { useFirestore } from '../firebase';
+import { resolveTimezone, formatTimeInZone } from '../utils/timezone';
 
 function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; city: string; label: string; icon: any }) {
   const [time, setTime] = useState(new Date());
@@ -10,13 +11,8 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
     return () => clearInterval(timer);
   }, []);
 
-  let formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  let isDaytime = true;
-  try {
-    formattedTime = time.toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
-    const hour = parseInt(time.toLocaleTimeString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }));
-    isDaytime = hour >= 6 && hour < 18;
-  } catch (e) {}
+  const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
+  const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
     <div className={`p-5 rounded-[1.5rem] glass-panel border border-border flex flex-col justify-between overflow-hidden relative ${
@@ -58,10 +54,10 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
   const inLoveSinceStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
 
-  const mahadCity = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
-  const mahadTz = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
-  const ifaCity = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTz = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
+  const mahadCity = mahadSettings.city || 'Lahore, PK';
+  const mahadTz = mahadSettings.tz || 'Asia/Karachi';
+  const ifaCity = ifaSettings.city || 'London, UK';
+  const ifaTz = ifaSettings.tz || 'Europe/London';
 
   const [inLoveSince, setInLoveSince] = useState(() => new Date(`${inLoveSinceStr}T00:00:00`).getTime());
   useEffect(() => {

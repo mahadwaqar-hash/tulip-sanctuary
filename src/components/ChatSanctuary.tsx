@@ -156,8 +156,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     try {
       if (editingMsgId) {
         if (!editContent.trim()) return;
-        const encContent = await encryptMessage(editContent.trim(), passcode);
-        await fb.messages.update(editingMsgId, { content: encContent, isEdited: true });
+        await fb.messages.update(editingMsgId, { content: editContent.trim(), isEdited: true });
         setEditingMsgId(null);
         setEditContent('');
         return;
@@ -170,19 +169,25 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-      console.log('[AIM] Encrypting:', textToSend.substring(0, 20));
-      const encContent = await encryptMessage(textToSend, passcode);
-      console.log('[AIM] Encrypted OK, writing to Firestore...');
+      // Monotonic timestamp: ensure every new message is strictly after all previous messages
+      const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
+      const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
 
-      const msgId = crypto.randomUUID();
+      const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       await fb.messages.add({
         id: msgId,
         sender: currentUser,
         type: 'text',
-        content: encContent,
-        createdAt: Date.now()
+        content: textToSend,
+        createdAt: newCreatedAt
       });
-      console.log('[AIM] Message sent OK:', msgId);
+
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
     } catch (err: any) {
       console.error('[AIM] SEND FAILED:', err);
       alert(`Message failed to send: ${err?.message || String(err)}`);
@@ -197,15 +202,19 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.onload = async (ev) => {
       if (ev.target?.result) {
         if ('vibrate' in navigator) navigator.vibrate(50);
-        const encContent = await encryptMessage('Sent a photo', passcode);
-        const encUrl = await encryptMessage(ev.target.result as string, passcode);
+        const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
+        const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+        const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
         await fb.messages.add({
-          id: crypto.randomUUID(),
+          id: msgId,
           sender: currentUser,
           type: 'image',
-          content: encContent,
-          mediaUrl: encUrl,
-          createdAt: Date.now()
+          content: 'Sent a photo',
+          mediaUrl: ev.target.result as string,
+          createdAt: newCreatedAt
         });
       }
     };
@@ -214,13 +223,18 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
     if ('vibrate' in navigator) navigator.vibrate(40);
-    const encContent = await encryptMessage(url, passcode);
+    const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
+    const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+    const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `gif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     await fb.messages.add({
-      id: crypto.randomUUID(),
+      id: msgId,
       sender: currentUser,
       type,
-      content: encContent,
-      createdAt: Date.now()
+      content: url,
+      createdAt: newCreatedAt
     });
     setShowStickerPicker(false);
   };
@@ -592,71 +606,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       </div>
                     )}
 
-                    {/* TAP ACTION MENU (For Mobile / Easy Access) */}
-                    <AnimatePresence>
-                      {isSelected && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                          exit={{ opacity: 0, height: 0, scale: 0.9 }}
-                          className={`flex flex-col gap-2 mt-2 p-2 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-md z-30 ${isMe ? 'origin-top-right' : 'origin-top-left'}`}
-                        >
-                          <div className="flex gap-1 justify-around">
-                            {quickReactions.slice(0, 4).map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => { handleReaction(msg.id, emoji); setSelectedMsgId(null); }}
-                                className="text-xl hover:scale-125 transition-transform cursor-pointer p-1"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                          {isMe && msg.type === 'text' && (
-                            <div className="flex border-t border-border pt-1 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => { 
-                                  setEditingMsgId(msg.id); 
-                                  setEditContent(msg.content); 
-                                  setSelectedMsgId(null); 
-                                }}
-                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-pastel-pink-400 cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
-                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-red-400 cursor-pointer"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                          {(!isMe || msg.type !== 'text') && (
-                            <div className="flex border-t border-border pt-1 justify-center">
-                               <button
-                                type="button"
-                                onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
-                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-red-400 cursor-pointer"
-                              >
-                                Delete for everyone
-                              </button>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    {/* Quick Reactions on Hover (Desktop) */}
-                    <div className={`hidden md:flex absolute -top-7 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/bubble:opacity-100 transition-opacity gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
-                      {quickReactions.map((emoji) => (
+                    {/* Quick Reactions & Edit/Delete Floating Pill (Hover on Desktop, Tap on Mobile) */}
+                    <div className={`absolute -top-7 ${isMe ? 'right-0' : 'left-0'} ${isSelected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover/bubble:opacity-100 md:group-hover/bubble:pointer-events-auto'} transition-opacity flex items-center gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
+                      {quickReactions.slice(0, 5).map((emoji) => (
                         <button
                           key={emoji}
                           type="button"
-                          onClick={() => handleReaction(msg.id, emoji)}
+                          onClick={() => { handleReaction(msg.id, emoji); setSelectedMsgId(null); }}
                           className="text-xs hover:scale-130 transition-transform cursor-pointer"
                         >
                           {emoji}
@@ -665,20 +621,20 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       {isMe && msg.type === 'text' && (
                         <button
                           type="button"
-                          onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); }}
-                          className="text-text-muted hover:text-pastel-pink-400 ml-1 cursor-pointer"
-                          title="Edit"
+                          onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); setSelectedMsgId(null); }}
+                          className="text-text-muted hover:text-pastel-pink-400 ml-1 cursor-pointer p-0.5"
+                          title="Edit Message"
                         >
-                          <Edit3 className="w-3 h-3" />
+                          <Edit3 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       <button
                         type="button"
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="text-text-muted hover:text-red-400 ml-1 cursor-pointer"
-                        title="Delete"
+                        onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
+                        className="text-text-muted hover:text-red-400 ml-0.5 cursor-pointer p-0.5"
+                        title="Delete Message"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

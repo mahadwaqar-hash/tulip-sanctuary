@@ -58,6 +58,8 @@ const DEFAULT_LETTERS: Array<{ title: string; content: string; sender: 'Mahad' |
   }
 ];
 
+import { resolveTimezone, formatTimeInZone, POPULAR_CITIES, getAllTimezones } from '../utils/timezone';
+
 function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; city: string; label: string; icon: any }) {
   const [time, setTime] = useState(new Date());
 
@@ -66,13 +68,8 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
     return () => clearInterval(timer);
   }, []);
 
-  let formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  let isDaytime = true;
-  try {
-    formattedTime = time.toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
-    const hour = parseInt(time.toLocaleTimeString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }));
-    isDaytime = hour >= 6 && hour < 18;
-  } catch (e) {}
+  const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
+  const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
     <div className={`p-5 rounded-[1.5rem] glass-panel border border-border flex flex-col justify-between overflow-hidden relative shadow-sm ${
@@ -113,21 +110,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
 
-  const isValidTz = (tz: string | null) => tz && ALL_TIMEZONES.includes(tz);
+  const mahadCityStr = mahadSettings.city || 'Lahore, PK';
+  const mahadTzStr = resolveTimezone(mahadCityStr, mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || undefined, 'Asia/Karachi');
 
-  const mahadCityStr = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
-  const mahadTzLocal = localStorage.getItem('tulip_mahad_tz');
-  const mahadTzStr = isValidTz(mahadSettings.tz) ? mahadSettings.tz : (isValidTz(mahadTzLocal) ? mahadTzLocal : 'Asia/Karachi');
-
-  const ifaCityStr = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTzLocal = localStorage.getItem('tulip_ifa_tz');
-  const ifaTzStr = isValidTz(ifaSettings.tz) ? ifaSettings.tz : (isValidTz(ifaTzLocal) ? ifaTzLocal : 'Europe/London');
+  const ifaCityStr = ifaSettings.city || 'London, UK';
+  const ifaTzStr = resolveTimezone(ifaCityStr, ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || undefined, 'Europe/London');
 
   // Custom Cities & Timezones State (for editing)
-  const [mahadCity, setMahadCity] = useState(mahadCityStr as string);
-  const [mahadTz, setMahadTz] = useState(mahadTzStr as string);
-  const [ifaCity, setIfaCity] = useState(ifaCityStr as string);
-  const [ifaTz, setIfaTz] = useState(ifaTzStr as string);
+  const [mahadCity, setMahadCity] = useState(mahadCityStr);
+  const [mahadTz, setMahadTz] = useState(mahadTzStr);
+  const [ifaCity, setIfaCity] = useState(ifaCityStr);
+  const [ifaTz, setIfaTz] = useState(ifaTzStr);
   const [isEditingCities, setIsEditingCities] = useState(false);
 
   useEffect(() => {
@@ -220,14 +213,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
   const handleSaveCities = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanMahadTz = resolveTimezone(mahadCity, mahadTz, 'Asia/Karachi');
+    const cleanIfaTz = resolveTimezone(ifaCity, ifaTz, 'Europe/London');
+
     localStorage.setItem('tulip_mahad_city', mahadCity);
     localStorage.setItem('tulip_ifa_city', ifaCity);
-    localStorage.setItem('tulip_mahad_tz', mahadTz);
-    localStorage.setItem('tulip_ifa_tz', ifaTz);
+    localStorage.setItem('tulip_mahad_tz', cleanMahadTz);
+    localStorage.setItem('tulip_ifa_tz', cleanIfaTz);
     
     // Save to Firebase for live sync
-    await fb.userSettings.set('Mahad', { city: mahadCity, tz: mahadTz });
-    await fb.userSettings.set('Ifa', { city: ifaCity, tz: ifaTz });
+    await fb.userSettings.set('Mahad', { city: mahadCity, tz: cleanMahadTz });
+    await fb.userSettings.set('Ifa', { city: ifaCity, tz: cleanIfaTz });
     
     setIsEditingCities(false);
   };
