@@ -156,7 +156,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     try {
       if (editingMsgId) {
         if (!editContent.trim()) return;
-        if ('vibrate' in navigator) navigator.vibrate(40);
         const encContent = await encryptMessage(editContent.trim(), passcode);
         await fb.messages.update(editingMsgId, { content: encContent, isEdited: true });
         setEditingMsgId(null);
@@ -166,24 +165,27 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       if (!inputText.trim()) return;
 
-      if ('vibrate' in navigator) navigator.vibrate(40);
       const textToSend = inputText.trim();
-      setInputText(''); // Clear immediately for snappy feel
+      setInputText('');
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
+      console.log('[AIM] Encrypting:', textToSend.substring(0, 20));
       const encContent = await encryptMessage(textToSend, passcode);
+      console.log('[AIM] Encrypted OK, writing to Firestore...');
 
+      const msgId = crypto.randomUUID();
       await fb.messages.add({
-        id: crypto.randomUUID(),
+        id: msgId,
         sender: currentUser,
         type: 'text',
         content: encContent,
         createdAt: Date.now()
       });
+      console.log('[AIM] Message sent OK:', msgId);
     } catch (err: any) {
-      console.error('SEND FAILED:', err);
-      alert(`Message failed to send: ${err.message || err}`);
+      console.error('[AIM] SEND FAILED:', err);
+      alert(`Message failed to send: ${err?.message || String(err)}`);
     }
   };
 
