@@ -40,6 +40,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  
+  const [tenorGifs, setTenorGifs] = useState<string[]>([]);
 
   // Live Settings
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
@@ -303,31 +305,29 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
          return;
        }
        
-       const reader = new FileReader();
-       reader.onloadend = async () => {
-         const base64data = reader.result as string;
-         try {
-           const encUrl = await encryptMessage(base64data, passcode);
-           const encContent = await encryptMessage('Voice note', passcode);
-           
-           await fb.messages.add({
-             id: crypto.randomUUID(),
-             sender: currentUser,
-             type: 'audio',
-             content: encContent,
-             mediaUrl: encUrl,
-             createdAt: Date.now()
-           });
-         } catch (err: any) {
-           console.error("Audio encryption/upload failed:", err);
-           if (err?.message?.toLowerCase().includes('size') || err?.message?.toLowerCase().includes('limit')) {
-             alert("Voice note is too long! Please keep voice notes under 60 seconds to ensure they can be encrypted safely.");
-           } else {
-             alert("Failed to send voice note. Please try again.");
-           }
-         }
-       };
-       reader.readAsDataURL(audioBlob);
+       try {
+         // Upload directly to Firebase Storage to bypass the 1MB Firestore limit for PC voice notes
+         const fileExt = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('webm') ? 'webm' : 'mp3';
+         const storageRef = ref(storage, `voiceNotes/${crypto.randomUUID()}.${fileExt}`);
+         
+         await uploadBytes(storageRef, audioBlob);
+         const downloadUrl = await getDownloadURL(storageRef);
+         
+         const encUrl = await encryptMessage(downloadUrl, passcode);
+         const encContent = await encryptMessage('Voice note', passcode);
+         
+         await fb.messages.add({
+           id: crypto.randomUUID(),
+           sender: currentUser,
+           type: 'audio',
+           content: encContent,
+           mediaUrl: encUrl,
+           createdAt: Date.now()
+         });
+       } catch (err: any) {
+         console.error("Audio upload failed:", err);
+         alert(`Failed to send voice note. Your Firebase Storage rules might be blocking uploads: ${err.message}`);
+       }
        
        if (streamRef.current) {
          streamRef.current.getTracks().forEach(track => track.stop());
@@ -934,20 +934,38 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 onChange={handleCustomStickerUpload}
               />
 
-              {/* TAB 1: PREMADE CUTE GIFS */}
+              {/* TAB 1: INFINITE TENOR GIFS */}
               {stickerTab === 'gifs' && (
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 max-h-[220px] overflow-y-auto pr-1">
-                  {PREMADE_GIFS_AND_STICKERS.map((item) => (
-                    <motion.button
-                      key={item.id}
-                      whileHover={{ scale: 1.08 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleSendGifOrSticker(item.url, 'gif')}
-                      className="aspect-square rounded-2xl overflow-hidden border border-border bg-surface-hover hover:border-pastel-pink-400 transition-all cursor-pointer p-1"
-                    >
-                      <img src={item.url} alt={item.name} className="w-full h-full object-cover rounded-xl" />
-                    </motion.button>
-                  ))}
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    placeholder="Search Tenor GIFs..."
+                    onChange={async (e) => {
+                      const q = e.target.value.trim();
+                      if (!q) return;
+                      try {
+                        const res = await fetch(`https://api.tenor.com/v1/search?q=${encodeURIComponent(q)}&key=LIVDSRZULELA&limit=30`);
+                        const data = await res.json();
+                        if (data.results) {
+                          const urls = data.results.map((r: any) => r.media[0].tinygif.url);
+                          // We dynamically update the grid, let's create a temporary state or just inject it
+                          setTenorGifs(urls);
+                        }
+                      } catch (err) {}
+                    }}
+                    className="w-full bg-surface border border-border rounded-xl py-2 px-3 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400"
+                  />
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                    {(tenorGifs.length > 0 ? tenorGifs : PREMADE_GIFS_AND_STICKERS.filter(s => s.type === 'gif')).map((gif: any, i: number) => (
+                      <div
+                        key={i}
+                        onClick={() => handleSendGifOrSticker(typeof gif === 'string' ? gif : gif.url, 'gif')}
+                        className="aspect-square rounded-xl overflow-hidden border border-border/50 hover:border-pastel-pink-400 cursor-pointer hover:scale-105 transition-all shadow-sm"
+                      >
+                        <img src={typeof gif === 'string' ? gif : gif.url} alt="gif" className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
