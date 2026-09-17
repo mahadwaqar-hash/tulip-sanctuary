@@ -92,20 +92,25 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const handleSendLoveBurst = (type: LoveBurstType) => {
+  const handleSendLoveBurst = async (type: LoveBurstType) => {
     if ('vibrate' in navigator) navigator.vibrate([60, 40, 60]);
 
-    // Save to Firebase
-    fb.lovePings.add({
-      id: crypto.randomUUID(),
-      sender: currentUser,
-      recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
-      type,
-      createdAt: Date.now()
-    });
+    try {
+      // Save to Firebase
+      await fb.lovePings.add({
+        id: crypto.randomUUID(),
+        sender: currentUser,
+        recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
+        type,
+        createdAt: Date.now()
+      });
 
-    // Immediately trigger full-screen fairytale animation!
-    onTriggerBurst(type, currentUser);
+      // Immediately trigger full-screen fairytale animation!
+      onTriggerBurst(type, currentUser);
+    } catch (error) {
+      console.error('Failed to send love burst:', error);
+      alert('Could not send love burst. Please check your connection.');
+    }
   };
 
   const handleOpenLetter = async (letter: LdrLetter) => {
