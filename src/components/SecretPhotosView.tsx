@@ -112,7 +112,7 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-panel shadow-2xl overflow-hidden md:border border-border relative">
       
       {/* 1. PHOTO VAULT PASSWORD BARRIER */}
       {!isUnlocked ? (

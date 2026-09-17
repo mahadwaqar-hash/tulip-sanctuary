@@ -488,29 +488,57 @@ export default function App() {
 
       {/* STEP 3: MAIN SANCTUARY */}
       {!loading && hasUnlockedPasscode && currentUser && (
-        <div className="h-[100dvh] w-full flex flex-col p-3 md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
+        <div className="h-[100dvh] w-full flex flex-col md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
           
-          {/* CUTESY TOP HEADER & TELEMETRY (Condensed for Mobile, Hidden on Desktop) */}
-          <div className="lg:hidden flex items-center justify-between pb-3 px-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
-                <Heart className="w-4 h-4 fill-white animate-pulse" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
-                  A.I.M. <span className="text-pastel-pink-400 font-fairytale text-xl lowercase whitespace-nowrap hidden sm:inline">Always Ifa & Mahad</span>
+          {/* MOBILE TOP NAV (Sits completely out of the way of the keyboard) */}
+          <div className="lg:hidden flex flex-col w-full bg-surface/95 backdrop-blur-xl border-b border-border shadow-sm z-50">
+            {/* Header row */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
+                  <Heart className="w-3.5 h-3.5 fill-white animate-pulse" />
+                </div>
+                <h1 className="text-base font-bold tracking-tight text-text-main leading-tight flex items-center gap-1 font-serif-italic">
+                  A.I.M.
                 </h1>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
+                  className="text-[10px] font-bold text-pastel-pink-400 cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
+                >
+                  <span>{currentUser}</span>
+                  <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
+                </button>
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main cursor-pointer"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-
-            <div className="flex items-center gap-2 text-xs font-medium text-text-main">
-              <button
-                onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
-              >
-                <span>{currentUser}</span>
-                <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
-              </button>
+            
+            {/* Scrollable Tabs */}
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar px-2 py-1.5">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                      isActive 
+                        ? 'bg-pastel-pink-400 text-white shadow-sm' 
+                        : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="text-[11px] font-bold">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -578,7 +606,7 @@ export default function App() {
             </div>
 
             {/* CENTER COLUMN (Active View) */}
-            <div className="flex-1 h-full w-full flex flex-col overflow-hidden pb-24 lg:pb-0">
+            <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
               <div className="w-full h-full max-w-4xl mx-auto lg:px-6">
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (
@@ -618,32 +646,7 @@ export default function App() {
             
           </div>
 
-          {/* BOTTOM NAVIGATION BAR (Mobile Only) */}
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 pb-safe bg-surface/90 backdrop-blur-xl border-t border-border shadow-[0_-8px_32px_rgba(0,0,0,0.12)]">
-            <div className="flex items-center justify-around gap-1 max-w-md mx-auto">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-2xl w-14 transition-all cursor-pointer ${
-                      isActive
-                        ? 'text-pastel-pink-400'
-                        : 'text-text-muted hover:text-text-main'
-                    }`}
-                  >
-                    <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-pastel-pink-400/15 shadow-sm' : ''}`}>
-                      <Icon className={`w-5 h-5 ${isActive ? 'fill-pastel-pink-400/20' : ''}`} />
-                    </div>
-                    <span className="text-[9px] font-bold mt-1 tracking-tight truncate w-full text-center">{tab.label.split(' ')[0]}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
+
 
           {/* PASSWORD SETTINGS MODAL */}
           <AnimatePresence>

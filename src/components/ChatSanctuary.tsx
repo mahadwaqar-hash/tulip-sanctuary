@@ -218,7 +218,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.readAsDataURL(file);
   };
 
-  // Real Voice Notes
+  // Real Voice Notes (Using Base64 to bypass Firebase Storage Rule issues)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -234,28 +234,30 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       mediaRecorderRef.current.onstop = async () => {
          setIsRecording(false);
-         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-         const fileName = `audio_${Date.now()}.webm`;
-         const storageRef = ref(storage, `voice_notes/${fileName}`);
+         // Don't specify mime type, let the browser figure out its native format (fixes iOS Safari issues)
+         const audioBlob = new Blob(audioChunksRef.current);
          
-         try {
-           await uploadBytes(storageRef, audioBlob);
-           const url = await getDownloadURL(storageRef);
-           
-           const encUrl = await encryptMessage(url, passcode);
-           const encContent = await encryptMessage('Voice note', passcode);
-           
-           await fb.messages.add({
-             id: crypto.randomUUID(),
-             sender: currentUser,
-             type: 'audio',
-             content: encContent,
-             mediaUrl: encUrl,
-             createdAt: Date.now()
-           });
-         } catch (err) {
-           console.error("Audio upload failed:", err);
-         }
+         const reader = new FileReader();
+         reader.onloadend = async () => {
+           const base64data = reader.result as string;
+           try {
+             const encUrl = await encryptMessage(base64data, passcode);
+             const encContent = await encryptMessage('Voice note', passcode);
+             
+             await fb.messages.add({
+               id: crypto.randomUUID(),
+               sender: currentUser,
+               type: 'audio',
+               content: encContent,
+               mediaUrl: encUrl,
+               createdAt: Date.now()
+             });
+           } catch (err) {
+             console.error("Audio encryption/upload failed:", err);
+             alert("Failed to send voice note.");
+           }
+         };
+         reader.readAsDataURL(audioBlob);
          
          stream.getTracks().forEach(track => track.stop());
       };
@@ -265,7 +267,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       if ('vibrate' in navigator) navigator.vibrate(50);
     } catch (err) {
       console.error("Mic error:", err);
-      alert("Could not access microphone.");
+      alert("Could not access microphone. Please check your browser permissions.");
     }
   };
 
@@ -295,38 +297,38 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   // Filter messages by search query
   const filteredMessages = messages.filter(m => 
     !searchQuery.trim() || 
-    m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.sender.toLowerCase().includes(searchQuery.toLowerCase())
+    (m.content && m.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (m.sender && m.sender.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2rem] glass-panel shadow-2xl overflow-hidden border-2 border-pastel-pink-300/30 relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[2rem] md:glass-panel md:shadow-2xl overflow-hidden md:border-2 md:border-pastel-pink-300/30 relative bg-surface/30 md:bg-transparent">
       
       {/* CHAT HEADER */}
-      <div className="px-5 py-3 border-b border-pastel-pink-300/20 bg-surface/85 backdrop-blur-md z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+      <div className="px-4 md:px-5 py-2 md:py-3 border-b border-pastel-pink-300/20 bg-surface/95 backdrop-blur-xl z-20 flex flex-row items-center justify-between gap-2 shadow-sm">
         
         {/* Left: User & Avatar */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white flex items-center justify-center shadow-md font-serif-italic font-bold text-lg">
+        <div className="flex items-center gap-2.5">
+          <div className="relative shrink-0">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white flex items-center justify-center shadow-md font-serif-italic font-bold text-base md:text-lg">
               {currentUser === 'Mahad' ? 'M' : 'I'}
             </div>
-            <span className="w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-charcoal absolute -bottom-0.5 -right-0.5 shadow-sm" />
+            <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-charcoal absolute -bottom-0.5 -right-0.5 shadow-sm" />
           </div>
 
-          <div>
-            <h2 className="text-sm font-bold text-text-main flex items-center gap-1.5 leading-tight">
+          <div className="flex flex-col overflow-hidden">
+            <h2 className="text-xs md:text-sm font-bold text-text-main flex items-center gap-1 leading-tight truncate">
               <span>Chatting as <strong className="text-pastel-pink-400">{currentUser}</strong></span>
-              <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400 animate-pulse" />
+              <Heart className="w-3 h-3 text-pastel-pink-400 fill-pastel-pink-400 animate-pulse shrink-0" />
             </h2>
-            <span className="text-[10px] text-text-muted font-medium">
-              Private 2-Player Haven • Online
+            <span className="text-[9px] md:text-[10px] text-text-muted font-medium truncate">
+              Private 2-Player Haven
             </span>
           </div>
         </div>
 
-        {/* Center: HOW LONG WE'VE BEEN IN LOVE BANNER */}
-        <div className="flex items-center justify-between md:justify-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-hover/80 border border-pastel-pink-300/30 shadow-xs">
+        {/* Center: HOW LONG WE'VE BEEN IN LOVE BANNER (HIDDEN ON MOBILE) */}
+        <div className="hidden lg:flex items-center justify-between md:justify-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-hover/80 border border-pastel-pink-300/30 shadow-xs">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center">
               <Heart className="w-3 h-3 fill-white" />
@@ -421,8 +423,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       </AnimatePresence>
 
       {/* MESSAGE STREAM */}
-      <div className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/5 dark:to-pastel-pink-900/10 overflow-y-auto p-6 scroll-smooth flex flex-col gap-4 relative">
-        <div ref={topElementRef} className="h-10 w-full shrink-0 flex items-center justify-center">
+      <div className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative">
+        <div ref={topElementRef} className="h-6 w-full shrink-0 flex items-center justify-center">
           {loadingMore && <div className="text-pastel-pink-400 font-bold text-xs animate-pulse">Loading older memories...</div>}
         </div>
         {filteredMessages.length === 0 ? (
@@ -430,14 +432,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             <motion.div 
               animate={{ scale: [1, 1.15, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-20 h-20 rounded-full bg-gradient-to-tr from-pastel-pink-200 to-pastel-pink-400 text-white flex items-center justify-center mb-4 shadow-lg glow-rose-sm"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-pastel-pink-200 to-pastel-pink-400 text-white flex items-center justify-center mb-4 shadow-lg glow-rose-sm"
             >
-              <Heart className="w-10 h-10 fill-white" />
+              <Heart className="w-8 h-8 md:w-10 md:h-10 fill-white" />
             </motion.div>
             <span className="font-fairytale text-3xl sm:text-4xl text-pastel-pink-400 lowercase mb-1">
               our secret conversation
             </span>
-            <h3 className="font-serif-italic text-2xl sm:text-3xl font-bold text-text-main">
+            <h3 className="font-serif-italic text-xl sm:text-3xl font-bold text-text-main">
               {currentUser === 'Mahad' ? 'Mahad loves Ifa' : 'Ifa loves Mahad'}
             </h3>
             <p className="text-xs text-text-muted mt-2 font-medium max-w-xs">
@@ -609,20 +611,20 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="p-3 lg:p-4 shrink-0 bg-surface/90 backdrop-blur-2xl border-t border-border z-20 w-full relative">
-        <div className="p-1.5 border border-pastel-pink-300/40 bg-surface rounded-[2rem] shadow-lg flex items-center relative z-20">
-          <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1.5">
+      <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-2xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
+        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20">
+          <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1">
             
             {/* Sticker / GIF Picker Toggle */}
             <button
               type="button"
               onClick={() => setShowStickerPicker(!showStickerPicker)}
-              className={`p-2.5 rounded-full transition-all cursor-pointer ${
+              className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
                 showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
               }`}
               title="GIFs & Stickers"
             >
-              <SmilePlus className="w-5 h-5" />
+              <SmilePlus className="w-5 h-5 md:w-5 md:h-5" />
             </button>
 
             {/* Photo Attachment */}
@@ -636,10 +638,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             <button
               type="button"
               onClick={() => imageMsgRef.current?.click()}
-              className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer"
+              className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer shrink-0"
               title="Send Photo"
             >
-              <ImageIcon className="w-5 h-5" />
+              <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
             </button>
 
             {/* Main Input Field */}
@@ -647,8 +649,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               type="text"
               value={inputText}
               onChange={(e) => handleInputChange(e.target.value)}
-              placeholder={`Say something sweet to ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-              className="flex-1 bg-transparent py-2.5 px-3 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60"
+              placeholder={`Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
+              className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
             />
 
             {/* Voice Note Toggle Button */}

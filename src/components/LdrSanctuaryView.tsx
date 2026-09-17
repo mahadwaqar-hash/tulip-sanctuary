@@ -230,7 +230,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const daysUntilReunion = calculateDaysLeft();
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-panel shadow-2xl overflow-hidden md:border border-border relative">
       
       {/* HEADER */}
       <div className="px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-2xl flex flex-wrap items-center justify-between gap-4">
