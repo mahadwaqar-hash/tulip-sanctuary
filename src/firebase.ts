@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
-import { useState, useEffect } from 'react';
+import { getFirestore, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, limit, startAfter, getDocs, DocumentSnapshot } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCplL39Q5XixraueBrp6foest9JKSAndo4",
@@ -14,6 +15,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const firestoreDB = getFirestore(app);
+export const storage = getStorage(app);
 
 // Generic hook to subscribe to a collection
 export function useFirestore<T>(collectionName: string, orderField: string = 'createdAt', desc: boolean = false) {
@@ -33,6 +35,66 @@ export function useFirestore<T>(collectionName: string, orderField: string = 'cr
   }, [collectionName, orderField, desc]);
 
   return data;
+}
+
+// Optimized Chat Fetching Hook
+export function useChatMessages(limitCount = 30) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const lastDocRef = useRef<DocumentSnapshot | null>(null);
+
+  useEffect(() => {
+    // Initial fetch for the latest messages
+    const q = query(
+      collection(firestoreDB, 'messages'), 
+      orderBy('createdAt', 'desc'), 
+      limit(limitCount)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
+      }
+      const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // We fetch desc so newest is first. We reverse to render oldest at top.
+      setMessages(newMessages.reverse());
+      
+      if (snapshot.docs.length < limitCount) {
+        setHasMore(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [limitCount]);
+
+  const fetchMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !lastDocRef.current) return;
+    setLoadingMore(true);
+
+    const q = query(
+      collection(firestoreDB, 'messages'),
+      orderBy('createdAt', 'desc'),
+      startAfter(lastDocRef.current),
+      limit(limitCount)
+    );
+
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
+      const olderMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+      
+      setMessages(prev => [...olderMessages, ...prev]);
+    }
+
+    if (snapshot.docs.length < limitCount) {
+      setHasMore(false);
+    }
+    setLoadingMore(false);
+  }, [loadingMore, hasMore, limitCount]);
+
+  return { messages, fetchMore, loadingMore, hasMore };
 }
 
 // Wrapper to mimic Dexie's API for easy migration

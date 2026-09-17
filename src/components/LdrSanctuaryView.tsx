@@ -16,7 +16,7 @@ import { useFirestore, fb } from '../firebase';
 import type { LdrLetter } from '../db';
 import type { LoveBurstType } from './FullScreenLoveBurst';
 
-const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
+const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
 
 interface LdrSanctuaryViewProps {
   currentUser: 'Mahad' | 'Ifa';

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   Send, 
@@ -6,6 +6,7 @@ import {
   Image as ImageIcon, 
   X, 
   Mic, 
+  Square,
   Search, 
   Heart, 
   Sparkles, 
@@ -15,10 +16,12 @@ import {
   Film,
   Edit3
 } from 'lucide-react';
-import { useFirestore, fb } from '../firebase';
+import { useFirestore, fb, useChatMessages, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
+import { encryptMessage, decryptMessage } from '../crypto';
 
-const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
+const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
 const quickReactions = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍'];
 
 interface ChatSanctuaryProps {
@@ -70,14 +73,53 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const imageMsgRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Live Messages & Custom Stickers
-  const messages = useFirestore<any>('messages', 'createdAt', false);
+  // Live Messages & Pagination
+  const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
+  const [messages, setMessages] = useState<any[]>([]);
+  const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '2026';
+
+  // Decrypt messages dynamically
+  useEffect(() => {
+    const decryptAll = async () => {
+      const decrypted = await Promise.all(encryptedMessages.map(async (msg) => {
+        let content = msg.content;
+        let mediaUrl = msg.mediaUrl;
+        if (content) {
+          try { content = await decryptMessage(content, passcode); } catch(e){}
+        }
+        if (mediaUrl) {
+          try { mediaUrl = await decryptMessage(mediaUrl, passcode); } catch(e){}
+        }
+        return { ...msg, content, mediaUrl };
+      }));
+      setMessages(decrypted);
+    };
+    decryptAll();
+  }, [encryptedMessages, passcode]);
+
+  // Infinite Scroll Observer
+  const observer = useRef<IntersectionObserver | null>(null);
+  const topElementRef = useCallback((node: any) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchMore();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, fetchMore]);
+
   const customStickers = useFirestore<any>('stickers', 'createdAt', true);
 
-  // Scroll to bottom on new message
+  // Auto-scroll logic: only scroll to bottom if we were already at bottom or if it's the initial load.
+  // For simplicity, let's just scroll to bottom if the new message is from us.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    // Only scroll if we are not loading older messages
+    if (!loadingMore) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [encryptedMessages.length, loadingMore]);
 
   const typingStatuses = useFirestore<any>('typing', 'updatedAt', true);
   const otherUser = currentUser === 'Mahad' ? 'Ifa' : 'Mahad';
@@ -106,12 +148,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     if (!inputText.trim()) return;
 
     if ('vibrate' in navigator) navigator.vibrate(40);
+    const encContent = await encryptMessage(inputText.trim(), passcode);
 
     await fb.messages.add({
       id: crypto.randomUUID(),
       sender: currentUser,
       type: 'text',
-      content: inputText.trim(),
+      content: encContent,
       createdAt: Date.now()
     });
 
@@ -128,12 +171,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.onload = async (ev) => {
       if (ev.target?.result) {
         if ('vibrate' in navigator) navigator.vibrate(50);
+        const encContent = await encryptMessage('Sent a photo', passcode);
+        const encUrl = await encryptMessage(ev.target.result as string, passcode);
         await fb.messages.add({
           id: crypto.randomUUID(),
           sender: currentUser,
           type: 'image',
-          content: 'Sent a photo',
-          mediaUrl: ev.target.result as string,
+          content: encContent,
+          mediaUrl: encUrl,
           createdAt: Date.now()
         });
       }
@@ -143,11 +188,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
     if ('vibrate' in navigator) navigator.vibrate(40);
+    const encContent = await encryptMessage(url, passcode);
     await fb.messages.add({
       id: crypto.randomUUID(),
       sender: currentUser,
       type,
-      content: url,
+      content: encContent,
       createdAt: Date.now()
     });
     setShowStickerPicker(false);
@@ -160,7 +206,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       if (ev.target?.result) {
-        await db.stickers.add({
+        await fb.stickers.add({
           id: crypto.randomUUID(),
           name: file.name,
           dataUrl: ev.target.result as string,
@@ -171,22 +217,61 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.readAsDataURL(file);
   };
 
-  const handleSendAudioNote = async () => {
-    setIsRecording(true);
-    if ('vibrate' in navigator) navigator.vibrate(50);
+  // Real Voice Notes
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-    setTimeout(async () => {
-      setIsRecording(false);
-      await fb.messages.add({
-        id: crypto.randomUUID(),
-        sender: currentUser,
-        type: 'audio',
-        content: 'Voice note (0:14)',
-        audioDuration: 14,
-        createdAt: Date.now()
-      });
-      if ('vibrate' in navigator) navigator.vibrate([40, 60]);
-    }, 2000);
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+         setIsRecording(false);
+         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+         const fileName = `audio_${Date.now()}.webm`;
+         const storageRef = ref(storage, `voice_notes/${fileName}`);
+         
+         try {
+           await uploadBytes(storageRef, audioBlob);
+           const url = await getDownloadURL(storageRef);
+           
+           const encUrl = await encryptMessage(url, passcode);
+           const encContent = await encryptMessage('Voice note', passcode);
+           
+           await fb.messages.add({
+             id: crypto.randomUUID(),
+             sender: currentUser,
+             type: 'audio',
+             content: encContent,
+             mediaUrl: encUrl,
+             createdAt: Date.now()
+           });
+         } catch (err) {
+           console.error("Audio upload failed:", err);
+         }
+         
+         stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      if ('vibrate' in navigator) navigator.vibrate(50);
+    } catch (err) {
+      console.error("Mic error:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
   };
 
   const handleReaction = async (msgId: string, emoji: string) => {
@@ -335,7 +420,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       </AnimatePresence>
 
       {/* MESSAGE STREAM */}
-      <div className="flex-1 bg-surface-hover/20 overflow-y-auto p-6 scroll-smooth flex flex-col gap-4">
+      <div className="flex-1 bg-surface-hover/20 overflow-y-auto p-6 scroll-smooth flex flex-col gap-4 relative">
+        <div ref={topElementRef} className="h-10 w-full shrink-0 flex items-center justify-center">
+          {loadingMore && <div className="text-pastel-pink-400 font-bold text-xs animate-pulse">Loading older memories...</div>}
+        </div>
         {filteredMessages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none">
             <motion.div 
@@ -424,26 +512,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
                     {msg.type === 'audio' && (
                       <div
-                        className={`px-5 py-3 flex items-center gap-3 shadow-sm ${corners} ${
+                        className={`px-3 py-2 flex items-center shadow-sm ${corners} ${
                           isMe
                             ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
                             : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
                         }`}
                       >
-                        <button className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer">
-                          <Play className="w-4 h-4 fill-current ml-0.5" />
-                        </button>
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1">
-                            <span className="w-1 h-3 bg-current rounded-full animate-pulse" />
-                            <span className="w-1 h-5 bg-current rounded-full" />
-                            <span className="w-1 h-2 bg-current rounded-full" />
-                            <span className="w-1 h-6 bg-current rounded-full animate-pulse" />
-                            <span className="w-1 h-4 bg-current rounded-full" />
-                            <span className="w-1 h-2 bg-current rounded-full" />
-                          </div>
-                          <span className="text-[10px] opacity-80 mt-1">Voice note • 0:14</span>
-                        </div>
+                        <audio controls src={msg.mediaUrl} className="h-10 w-48 outline-none grayscale" />
                       </div>
                     )}
 
@@ -578,13 +653,15 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             {/* Voice Note Button */}
             <button
               type="button"
-              onClick={handleSendAudioNote}
-              className={`p-3 rounded-full transition-colors cursor-pointer ${
-                isRecording ? 'bg-red-400 text-white' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              onPointerDown={handleStartRecording}
+              onPointerUp={handleStopRecording}
+              onPointerLeave={handleStopRecording}
+              className={`p-3 rounded-full transition-colors cursor-pointer select-none touch-none ${
+                isRecording ? 'bg-red-400 text-white shadow-[0_0_15px_rgba(248,113,113,0.6)] scale-110' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
               }`}
-              title="Voice Note"
+              title="Hold to Record Voice Note"
             >
-              <Mic className="w-5 h-5" />
+              {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
             </button>
 
             {/* Send Button */}

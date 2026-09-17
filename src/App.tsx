@@ -27,7 +27,7 @@ import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
 import { useFirestore, fb } from './firebase';
 
-const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
+const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
 
 function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   // 50/50 Chance between "Mahad loves Ifa" and "Ifa loves Mahad"
@@ -148,8 +148,8 @@ function PasswordLockScreen({ onUnlock }: { onUnlock: () => void }) {
           <KeyRound className="w-8 h-8" />
         </div>
 
-        <h2 className="text-3xl font-bold font-serif-italic text-text-main">Tulip Sanctuary</h2>
-        <span className="font-fairytale text-2xl text-pastel-pink-400 lowercase -mt-1 mb-2">our fairy garden</span>
+        <h2 className="text-3xl font-bold font-serif-italic text-text-main">A.I.M. Sanctuary</h2>
+        <span className="font-fairytale text-2xl text-pastel-pink-400 lowercase -mt-1 mb-2">always ifa & mahad</span>
         <p className="text-xs text-text-muted mb-6 font-medium">
           Exclusive haven for Mahad & Ifa. Whisper the secret passcode to enter.
         </p>
@@ -330,10 +330,38 @@ function PasswordSettingsModal({ onClose }: { onClose: () => void }) {
             />
           </div>
 
+          <div className="flex items-center justify-between p-4 bg-surface-hover rounded-2xl border border-border mt-2">
+            <div>
+              <label className="text-xs font-bold text-text-main uppercase tracking-wider block mb-1">
+                Visual Theme
+              </label>
+              <span className="text-[11px] text-text-muted">Toggle between Light and OLED Dark</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const isDark = document.documentElement.classList.contains('dark');
+                if (isDark) {
+                  document.documentElement.classList.remove('dark');
+                  localStorage.setItem('tulip_theme', 'light');
+                  window.dispatchEvent(new Event('theme_changed'));
+                } else {
+                  document.documentElement.classList.add('dark');
+                  localStorage.setItem('tulip_theme', 'dark');
+                  window.dispatchEvent(new Event('theme_changed'));
+                }
+              }}
+              className="p-3 bg-pastel-pink-400 text-white rounded-full shadow-md cursor-pointer hover:scale-105 transition-transform"
+            >
+              <Sun className="w-4 h-4 dark:hidden" />
+              <Moon className="w-4 h-4 hidden dark:block" />
+            </button>
+          </div>
+
           <div className="flex items-center justify-between mt-4">
             {savedNotice ? (
               <span className="text-xs font-bold text-emerald-500 animate-pulse">
-                ✓ Passcodes saved!
+                ✓ Saved!
               </span>
             ) : <span />}
 
@@ -369,7 +397,9 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'photos' | 'scratchpad'>('chat');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('tulip_theme') !== 'light'; // Default to dark OLED
+  });
   const [showSettings, setShowSettings] = useState(false);
 
   // Global Full Screen Love Burst state
@@ -391,10 +421,20 @@ export default function App() {
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('tulip_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('tulip_theme', 'light');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setDarkMode(localStorage.getItem('tulip_theme') !== 'light');
+    };
+    window.addEventListener('theme_changed', handleThemeChange);
+    return () => window.removeEventListener('theme_changed', handleThemeChange);
+  }, []);
 
   const handlePasscodeUnlock = () => {
     setHasUnlockedPasscode(true);
@@ -448,7 +488,7 @@ export default function App() {
 
       {/* STEP 3: MAIN SANCTUARY */}
       {!loading && hasUnlockedPasscode && currentUser && (
-        <div className="h-screen w-full flex flex-col p-3 md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
+        <div className="h-[100dvh] w-full flex flex-col p-3 md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
           
           {/* CUTESY TOP HEADER & TELEMETRY (Condensed for Mobile, Hidden on Desktop) */}
           <div className="lg:hidden flex items-center justify-between pb-3 px-2">
@@ -458,7 +498,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
-                  Tulip <span className="text-pastel-pink-400 font-fairytale text-xl lowercase">Sanctuary</span>
+                  A.I.M. <span className="text-pastel-pink-400 font-fairytale text-xl lowercase whitespace-nowrap hidden sm:inline">Always Ifa & Mahad</span>
                 </h1>
               </div>
             </div>
@@ -483,8 +523,9 @@ export default function App() {
                 <div className="p-3 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-lg glow-rose-sm flex items-center justify-center w-12 h-12 mb-4">
                   <Heart className="w-6 h-6 fill-white animate-pulse" />
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex items-center gap-2 font-serif-italic mb-1">
-                  Tulip <span className="text-pastel-pink-400 font-fairytale text-4xl lowercase translate-y-1">Sanctuary</span>
+                <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex flex-col gap-0 font-serif-italic mb-1">
+                  <span>A.I.M.</span>
+                  <span className="text-pastel-pink-400 font-fairytale text-2xl lowercase translate-y-0.5 whitespace-nowrap">Always Ifa & Mahad</span>
                 </h1>
                 <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium mt-3">
                   <span>Logged in as</span>

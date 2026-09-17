@@ -13,7 +13,7 @@ import {
 import { useFirestore, fb } from '../firebase';
 import type { CalendarEvent } from '../db';
 
-const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
+const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
 
 interface CalendarViewProps {
   currentUser: 'Mahad' | 'Ifa';

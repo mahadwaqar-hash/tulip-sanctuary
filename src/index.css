@@ -20,21 +20,21 @@
 }
 
 :root {
-  /* Default OLED Dark Theme - Premium Glassmorphism */
-  --pink-100: #FFB6C1; /* Soft tulip pink */
-  --pink-200: #FF69B4; 
-  --pink-300: #FF1493; /* Deep magenta */
-  --pink-400: #E0115F; /* Warm neon crimson */
-  --peach: #FF8C69;
+  /* Default Light Theme - Frosted White Glass on Pastel */
+  --pink-100: #FFD1DC;
+  --pink-200: #FFB6C1; 
+  --pink-300: #FF69B4;
+  --pink-400: #FF1493;
+  --peach: #FFDAB9;
   --lavender: #E6E6FA;
   
-  --bg-start: #0A0A0A; /* OLED Black */
-  --bg-end: #0F0F13;
-  --surface: rgba(15, 15, 19, 0.65);
-  --surface-hover: rgba(25, 25, 30, 0.75);
-  --text-main: #FFFFFF;
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --border: rgba(255, 255, 255, 0.08);
+  --bg-start: #FFF0F5; /* Lavender Blush */
+  --bg-end: #FFE4E1; /* Misty Rose */
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-hover: rgba(255, 255, 255, 0.9);
+  --text-main: #333333;
+  --text-muted: rgba(51, 51, 51, 0.6);
+  --border: rgba(255, 105, 180, 0.2);
 }
 
 .dark {
