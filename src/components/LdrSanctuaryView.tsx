@@ -58,14 +58,19 @@ const DEFAULT_LETTERS: Array<{ title: string; content: string; sender: 'Mahad' |
   }
 ];
 
-import { resolveTimezone, formatTimeInZone, POPULAR_CITIES, getAllTimezones } from '../utils/timezone';
+import { resolveTimezone, formatTimeInZone, POPULAR_CITIES, MAJOR_TIMEZONES, isValidTimezone, getAllTimezones, getNetworkDate, getNetworkNow } from '../utils/timezone';
 
 function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; city: string; label: string; icon: any }) {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(getNetworkDate());
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const handleSync = () => setTime(getNetworkDate());
+    window.addEventListener('aim:timesync', handleSync);
+    const timer = setInterval(() => setTime(getNetworkDate()), 1000);
+    return () => {
+      window.removeEventListener('aim:timesync', handleSync);
+      clearInterval(timer);
+    };
   }, []);
 
   const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
@@ -152,7 +157,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
   const calculateDaysLeft = () => {
     const target = new Date(reunionDateStr + 'T00:00:00').getTime();
-    const now = Date.now();
+    const now = getNetworkNow();
     const diff = target - now;
     if (diff <= 0) return 0;
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -213,17 +218,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
   const handleSaveCities = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanMahadTz = resolveTimezone(mahadCity, mahadTz, 'Asia/Karachi');
-    const cleanIfaTz = resolveTimezone(ifaCity, ifaTz, 'Europe/London');
+    const cleanMahadTz = isValidTimezone(mahadTz) ? mahadTz : resolveTimezone(mahadCity, undefined, 'Asia/Karachi');
+    const cleanIfaTz = isValidTimezone(ifaTz) ? ifaTz : resolveTimezone(ifaCity, undefined, 'Europe/London');
 
-    localStorage.setItem('tulip_mahad_city', mahadCity);
-    localStorage.setItem('tulip_ifa_city', ifaCity);
+    localStorage.setItem('tulip_mahad_city', mahadCity.trim());
+    localStorage.setItem('tulip_ifa_city', ifaCity.trim());
     localStorage.setItem('tulip_mahad_tz', cleanMahadTz);
     localStorage.setItem('tulip_ifa_tz', cleanIfaTz);
     
     // Save to Firebase for live sync
-    await fb.userSettings.set('Mahad', { city: mahadCity, tz: cleanMahadTz });
-    await fb.userSettings.set('Ifa', { city: ifaCity, tz: cleanIfaTz });
+    await fb.userSettings.set('Mahad', { city: mahadCity.trim(), tz: cleanMahadTz });
+    await fb.userSettings.set('Ifa', { city: ifaCity.trim(), tz: cleanIfaTz });
     
     setIsEditingCities(false);
   };
@@ -470,55 +475,151 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               </p>
 
               <form onSubmit={handleSaveCities} className="flex flex-col gap-4">
-                <div>
-                  <label className="text-xs font-bold text-text-main uppercase tracking-wider block mb-1">
-                    Mahad's Location 🌹
-                  </label>
+                {/* Mahad's City & Timezone */}
+                <div className="p-3.5 rounded-2xl bg-surface-hover/60 border border-border flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-text-main uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🌹 Mahad's Location</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-pastel-pink-400">
+                      Live: {formatTimeInZone(getNetworkDate(), mahadTz).formattedTime}
+                    </span>
+                  </div>
+
                   <input
                     type="text"
                     value={mahadCity}
-                    onChange={(e) => setMahadCity(e.target.value)}
-                    placeholder="e.g. Lahore, PK or Karachi"
-                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMahadCity(val);
+                      const detected = resolveTimezone(val, undefined, '');
+                      if (detected && detected !== 'Asia/Karachi') {
+                        setMahadTz(detected);
+                      }
+                    }}
+                    placeholder="City Name (e.g. Lahore, PK)"
+                    className="w-full bg-surface p-2.5 rounded-xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
                   />
-                  <select
-                    value={mahadTz}
-                    onChange={(e) => setMahadTz(e.target.value)}
-                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
-                    required
-                  >
-                    {ALL_TIMEZONES.map(tz => (
-                      <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+
+                  {/* Quick Presets for Mahad */}
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {[
+                      { city: 'Lahore, PK', tz: 'Asia/Karachi', label: 'Lahore' },
+                      { city: 'Islamabad, PK', tz: 'Asia/Karachi', label: 'Islamabad' },
+                      { city: 'Karachi, PK', tz: 'Asia/Karachi', label: 'Karachi' },
+                      { city: 'Dubai, UAE', tz: 'Asia/Dubai', label: 'Dubai' },
+                      { city: 'London, UK', tz: 'Europe/London', label: 'London' },
+                      { city: 'New York, US', tz: 'America/New_York', label: 'New York' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setMahadCity(p.city);
+                          setMahadTz(p.tz);
+                        }}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors cursor-pointer ${
+                          mahadCity === p.city
+                            ? 'bg-pastel-pink-400 text-white border-pastel-pink-400'
+                            : 'bg-surface hover:border-pastel-pink-400 text-text-muted hover:text-text-main border-border'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
+
+                  {/* Timezone Select */}
+                  <div className="flex flex-col gap-1 mt-1">
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                      Selected Timezone
+                    </span>
+                    <select
+                      value={mahadTz}
+                      onChange={(e) => setMahadTz(e.target.value)}
+                      className="w-full bg-surface p-2 rounded-xl border border-border text-xs text-text-main outline-none focus:border-pastel-pink-400 font-medium cursor-pointer"
+                    >
+                      {MAJOR_TIMEZONES.map(m => (
+                        <option key={m.tz} value={m.tz}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-text-main uppercase tracking-wider block mb-1">
-                    Ifa's Location 🌷
-                  </label>
+                {/* Ifa's City & Timezone */}
+                <div className="p-3.5 rounded-2xl bg-surface-hover/60 border border-border flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-text-main uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🌷 Ifa's Location</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-pastel-pink-400">
+                      Live: {formatTimeInZone(getNetworkDate(), ifaTz).formattedTime}
+                    </span>
+                  </div>
+
                   <input
                     type="text"
                     value={ifaCity}
-                    onChange={(e) => setIfaCity(e.target.value)}
-                    placeholder="e.g. London, UK or Islamabad"
-                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium mb-3"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setIfaCity(val);
+                      const detected = resolveTimezone(val, undefined, '');
+                      if (detected && detected !== 'Europe/London') {
+                        setIfaTz(detected);
+                      }
+                    }}
+                    placeholder="City Name (e.g. London, UK)"
+                    className="w-full bg-surface p-2.5 rounded-xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
                   />
-                  <select
-                    value={ifaTz}
-                    onChange={(e) => setIfaTz(e.target.value)}
-                    className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
-                    required
-                  >
-                    {ALL_TIMEZONES.map(tz => (
-                      <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+
+                  {/* Quick Presets for Ifa */}
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {[
+                      { city: 'London, UK', tz: 'Europe/London', label: 'London' },
+                      { city: 'Manchester, UK', tz: 'Europe/London', label: 'Manchester' },
+                      { city: 'Birmingham, UK', tz: 'Europe/London', label: 'Birmingham' },
+                      { city: 'Lahore, PK', tz: 'Asia/Karachi', label: 'Lahore' },
+                      { city: 'Dubai, UAE', tz: 'Asia/Dubai', label: 'Dubai' },
+                      { city: 'New York, US', tz: 'America/New_York', label: 'New York' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setIfaCity(p.city);
+                          setIfaTz(p.tz);
+                        }}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors cursor-pointer ${
+                          ifaCity === p.city
+                            ? 'bg-pastel-pink-400 text-white border-pastel-pink-400'
+                            : 'bg-surface hover:border-pastel-pink-400 text-text-muted hover:text-text-main border-border'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
+
+                  {/* Timezone Select */}
+                  <div className="flex flex-col gap-1 mt-1">
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                      Selected Timezone
+                    </span>
+                    <select
+                      value={ifaTz}
+                      onChange={(e) => setIfaTz(e.target.value)}
+                      className="w-full bg-surface p-2 rounded-xl border border-border text-xs text-text-main outline-none focus:border-pastel-pink-400 font-medium cursor-pointer"
+                    >
+                      {MAJOR_TIMEZONES.map(m => (
+                        <option key={m.tz} value={m.tz}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-4">
+                <div className="flex justify-end gap-3 mt-2">
                   <button
                     type="button"
                     onClick={() => setIsEditingCities(false)}

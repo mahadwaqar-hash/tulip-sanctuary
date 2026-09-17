@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Clock, MapPin, Moon, Sparkles } from 'lucide-react';
 import { useFirestore } from '../firebase';
-import { resolveTimezone, formatTimeInZone } from '../utils/timezone';
+import { resolveTimezone, formatTimeInZone, getNetworkDate, getNetworkNow } from '../utils/timezone';
 
 function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; city: string; label: string; icon: any }) {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(getNetworkDate());
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const handleSync = () => setTime(getNetworkDate());
+    window.addEventListener('aim:timesync', handleSync);
+    const timer = setInterval(() => setTime(getNetworkDate()), 1000);
+    return () => {
+      window.removeEventListener('aim:timesync', handleSync);
+      clearInterval(timer);
+    };
   }, []);
 
   const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
@@ -54,10 +59,10 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
   const inLoveSinceStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
 
-  const mahadCity = mahadSettings.city || 'Lahore, PK';
-  const mahadTz = mahadSettings.tz || 'Asia/Karachi';
-  const ifaCity = ifaSettings.city || 'London, UK';
-  const ifaTz = ifaSettings.tz || 'Europe/London';
+  const mahadCity = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
+  const mahadTz = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
+  const ifaCity = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
+  const ifaTz = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
 
   const [inLoveSince, setInLoveSince] = useState(() => new Date(`${inLoveSinceStr}T00:00:00`).getTime());
   useEffect(() => {
@@ -68,8 +73,8 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
 
   useEffect(() => {
     const timer = setInterval(() => {
-      const now = Date.now();
-      const diff = now - inLoveSince;
+      const now = getNetworkNow();
+      const diff = Math.max(0, now - inLoveSince);
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const minutes = Math.floor((diff / 1000 / 60) % 60);
@@ -80,7 +85,7 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   }, [inLoveSince]);
 
   const target = new Date(reunionDateStr + 'T00:00:00').getTime();
-  const diff = target - Date.now();
+  const diff = target - getNetworkNow();
   const daysLeft = diff <= 0 ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24));
 
   return (

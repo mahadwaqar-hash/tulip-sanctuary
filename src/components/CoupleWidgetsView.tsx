@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, type Transition } from 'framer-motion';
 import { 
   Sparkles, 
@@ -10,6 +10,8 @@ import {
   Gift, 
   Check
 } from 'lucide-react';
+import { useFirestore, fb } from '../firebase';
+import { getNetworkNow } from '../utils/timezone';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
 
@@ -61,11 +63,22 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
   // Widget 4: Ambient Audio Sim
   const [ambientPlaying, setAmbientPlaying] = useState<'none' | 'rain' | 'fire'>('none');
 
-  // Widget 5: Relationship Days Together
+  // Widget 5: Relationship Days Together (Synced with Firestore)
+  const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
+  const globalSettings = settingsArray.find(s => s.id === 'global') || {};
+  const firestoreStart = globalSettings.relationshipStart;
+
   const [startDateStr, setStartDateStr] = useState(() => {
     return localStorage.getItem('tulip_relationship_start') || '2023-08-14';
   });
   const [isEditingStart, setIsEditingStart] = useState(false);
+
+  useEffect(() => {
+    if (firestoreStart && firestoreStart !== startDateStr) {
+      setStartDateStr(firestoreStart);
+      localStorage.setItem('tulip_relationship_start', firestoreStart);
+    }
+  }, [firestoreStart]);
 
   // Widget 6: Redeemed Coupons
   const [redeemedCoupons, setRedeemedCoupons] = useState<string[]>(() => {
@@ -97,7 +110,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
   // Calculate Days Together
   const calculateDaysTogether = () => {
     const start = new Date(startDateStr + 'T00:00:00').getTime();
-    const now = Date.now();
+    const now = getNetworkNow();
     const diff = now - start;
     if (diff <= 0) return 0;
     return Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -196,9 +209,11 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
               <input
                 type="date"
                 value={startDateStr}
-                onChange={(e) => {
-                  setStartDateStr(e.target.value);
-                  localStorage.setItem('tulip_relationship_start', e.target.value);
+                onChange={async (e) => {
+                  const val = e.target.value;
+                  setStartDateStr(val);
+                  localStorage.setItem('tulip_relationship_start', val);
+                  await fb.userSettings.set('global', { relationshipStart: val });
                 }}
                 className="p-2 rounded-xl bg-surface-hover border border-border text-text-main text-xs outline-none"
               />

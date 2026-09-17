@@ -20,6 +20,7 @@ import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
 import { encryptMessage, decryptMessage } from '../crypto';
+import { getNetworkNow, formatMessageTime } from '../utils/timezone';
 
 const springConfig: Transition = { type: 'spring', bounce: 0.6, duration: 0.8 };
 const quickReactions = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍'];
@@ -56,7 +57,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   useEffect(() => {
     const updateLoveTimer = () => {
       const start = new Date(`${startDateStr}T00:00:00`).getTime();
-      const now = Date.now();
+      const now = getNetworkNow();
       const diff = Math.max(0, now - start);
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -136,6 +137,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     t => t.id === otherUser && t.isTyping && (Date.now() - t.updatedAt < 5000)
   );
 
+  // Synchronize timezone with user's settings so timestamps match their clock
+  const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
+  const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
+  const userTz = currentUser === 'Mahad' 
+    ? (mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi')
+    : (ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London');
+
   // Typing debounce
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -150,6 +158,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     typingTimeoutRef.current = setTimeout(() => {
       fb.typing.set(currentUser, false);
     }, 3000);
+  };
+
+  const getSafeNewTimestamp = () => {
+    const now = getNetworkNow();
+    const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
+    // If the latest message has the exact same millisecond or up to 2 seconds ahead, just nudge by 1ms
+    if (maxExistingTime >= now && maxExistingTime <= now + 2000) {
+      return maxExistingTime + 1;
+    }
+    return now;
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -171,10 +189,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-      // Monotonic timestamp: ensure every new message is strictly after all previous messages
-      const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
-      const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
-
+      const newCreatedAt = getSafeNewTimestamp();
       const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? crypto.randomUUID()
         : `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -204,8 +219,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     reader.onload = async (ev) => {
       if (ev.target?.result) {
         if ('vibrate' in navigator) navigator.vibrate(50);
-        const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
-        const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+        const newCreatedAt = getSafeNewTimestamp();
         const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
           ? crypto.randomUUID()
           : `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -225,8 +239,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
     if ('vibrate' in navigator) navigator.vibrate(40);
-    const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
-    const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+    const newCreatedAt = getSafeNewTimestamp();
     const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : `gif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -354,8 +367,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
        reader.onloadend = async () => {
          try {
            const base64data = reader.result as string;
-           const maxExistingTime = messages.reduce((max, m) => Math.max(max, Number(m.createdAt) || 0), 0);
-           const newCreatedAt = Math.max(Date.now(), maxExistingTime + 50);
+           const newCreatedAt = getSafeNewTimestamp();
            const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
              ? crypto.randomUUID() 
              : `voice_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -702,7 +714,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   {/* Timestamp & Action Buttons (Always Visible!) */}
                   <div className="flex items-center gap-1.5 mt-1 px-2">
                     <span className="text-[10px] text-text-muted font-medium">
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatMessageTime(msg.createdAt, userTz)}
                     </span>
                     {msg.isEdited && (
                       <span className="text-[9px] text-pastel-pink-400 font-medium italic">
