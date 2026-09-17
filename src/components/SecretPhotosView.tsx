@@ -116,44 +116,60 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
       
       {/* 1. PHOTO VAULT PASSWORD BARRIER */}
       {!isUnlocked ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-surface/85 backdrop-blur-3xl">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-surface-hover/20 backdrop-blur-md z-10 relative">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={springConfig}
-            className="w-full max-w-sm p-8 rounded-[2.5rem] glass-panel border border-border shadow-2xl flex flex-col items-center text-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-sm p-8 rounded-[2.5rem] glass-panel shadow-2xl flex flex-col items-center text-center border border-border"
           >
-            <div className="w-16 h-16 rounded-full bg-pastel-pink-100 dark:bg-pastel-pink-400/20 text-pastel-pink-400 flex items-center justify-center mb-5 shadow-inner">
-              <KeyRound className="w-8 h-8" />
+            <div className="w-16 h-16 rounded-full bg-surface-hover border border-border flex items-center justify-center mb-6 shadow-inner relative">
+              <Lock className="w-7 h-7 text-pastel-pink-400 animate-pulse" />
+              <div className="absolute inset-0 rounded-full border-2 border-pastel-pink-400/30 animate-[ping_3s_ease-in-out_infinite]" />
             </div>
 
-            <h3 className="text-2xl font-bold font-serif-italic text-text-main">Secret Photo Vault</h3>
-            <p className="text-xs text-text-muted mt-2 mb-6 font-medium leading-relaxed">
-              Our private scrapbook is password-protected. Enter our memory passcode to unlock our polaroids:
+            <h2 className="text-2xl font-bold font-serif-italic text-text-main">Secret Scrapbook</h2>
+            <p className="text-[11px] text-text-muted mt-2 font-medium mb-8">
+              A private vault for our eyes only. Enter the second passcode to view.
             </p>
 
-            <form onSubmit={handleUnlockPhotos} className="w-full flex flex-col gap-3.5">
+            <form onSubmit={handleUnlockPhotos} className="w-full flex flex-col gap-4">
               <input
                 type="password"
-                placeholder="Passcode..."
+                placeholder="Photo vault passcode..."
                 value={passInput}
                 onChange={(e) => {
                   setPassInput(e.target.value);
                   setPassError(false);
                 }}
-                className={`w-full py-3.5 px-6 rounded-full bg-surface-hover border ${
-                  passError ? 'border-red-400 text-red-500' : 'border-border text-text-main'
-                } text-center font-medium text-sm outline-none focus:border-pastel-pink-400 focus:ring-4 focus:ring-pastel-pink-100/20 transition-all`}
+                className={`w-full bg-surface py-3.5 px-6 rounded-full border text-center text-sm font-medium outline-none transition-all ${
+                  passError 
+                    ? 'border-red-500 text-red-500 animate-[shake_0.4s_ease-in-out]' 
+                    : 'border-border text-text-main focus:border-pastel-pink-400'
+                }`}
                 autoFocus
               />
 
+              <style>{`
+                @keyframes shake {
+                  0%, 100% { transform: translateX(0); }
+                  25% { transform: translateX(-8px); }
+                  75% { transform: translateX(8px); }
+                }
+              `}</style>
+
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 type="submit"
-                className="w-full py-3.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-widest shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className={`w-full py-3.5 rounded-full text-white font-bold text-xs uppercase tracking-widest shadow-md transition-colors ${
+                  passInput.trim().toLowerCase() === 'ifa' || passInput.trim().toLowerCase() === 'mahad' || passInput.trim().toLowerCase() === '2026' || passInput.trim().toLowerCase() === (localStorage.getItem('tulip_custom_photo_pass') || '2026').trim().toLowerCase()
+                    ? 'bg-emerald-500 hover:bg-emerald-400'
+                    : 'bg-pastel-pink-400 hover:bg-pastel-pink-300'
+                }`}
               >
-                <Unlock className="w-4 h-4" /> Unlock Pictures 💕
+                Unlock Pictures
               </motion.button>
             </form>
 

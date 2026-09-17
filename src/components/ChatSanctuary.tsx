@@ -356,31 +356,47 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             </p>
           </div>
         ) : (
-          filteredMessages.map((msg) => {
+          filteredMessages.map((msg, index) => {
             const isMe = msg.sender === currentUser;
+            const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
+            const nextMsg = index < filteredMessages.length - 1 ? filteredMessages[index + 1] : null;
+            
+            const isFirstInCluster = prevMsg?.sender !== msg.sender;
+            const isLastInCluster = nextMsg?.sender !== msg.sender;
+            const showName = isFirstInCluster;
+
+            let corners = 'rounded-[1.5rem]';
+            if (isMe) {
+              corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tr-[4px]' : ''} ${!isLastInCluster ? 'rounded-br-[4px]' : 'rounded-br-[2px]'}`;
+            } else {
+              corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tl-[4px]' : ''} ${!isLastInCluster ? 'rounded-bl-[4px]' : 'rounded-bl-[2px]'}`;
+            }
+
             return (
               <motion.div
                 key={msg.id}
                 initial={{ opacity: 0, scale: 0.95, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={springConfig}
-                className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group`}
+                className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'}`}
               >
                 <div className={`max-w-[80%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
                   
-                  {/* Sender Tag */}
-                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 px-1">
-                    {msg.sender}
-                  </span>
+                  {/* Sender Tag (Only show for first in cluster) */}
+                  {showName && (
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 px-1">
+                      {msg.sender}
+                    </span>
+                  )}
 
                   {/* Bubble Container */}
                   <div className="relative group/bubble">
                     {msg.type === 'text' && (
                       <div
-                        className={`px-5 py-3.5 rounded-[1.8rem] shadow-sm font-medium text-[15px] leading-relaxed transition-all ${
+                        className={`px-5 py-3.5 shadow-sm font-medium text-[15px] leading-relaxed transition-all ${corners} ${
                           isMe
-                            ? 'bg-gradient-to-br from-pastel-pink-400 to-pastel-pink-300 text-white rounded-br-xs shadow-pastel-pink-200/50'
-                            : 'bg-surface border border-border text-text-main rounded-bl-xs backdrop-blur-md'
+                            ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
+                            : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
                         }`}
                       >
                         {msg.content}
@@ -390,9 +406,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     {(msg.type === 'image' || msg.type === 'gif') && (
                       <div 
                         onClick={() => setPreviewImage(msg.mediaUrl || msg.content)}
-                        className="rounded-[1.8rem] overflow-hidden border border-border/60 shadow-md cursor-pointer hover:opacity-95 transition-opacity max-w-xs sm:max-w-sm"
+                        className={`${corners} overflow-hidden border border-border/60 shadow-md cursor-pointer hover:opacity-95 transition-opacity max-w-xs sm:max-w-sm`}
                       >
-                        <img src={msg.mediaUrl || msg.content} alt="media" className="w-full max-h-72 object-cover" />
+                        <img src={msg.mediaUrl || msg.content} alt="media" className="w-full max-h-72 object-cover dark:mix-blend-screen" />
                       </div>
                     )}
 
@@ -401,17 +417,17 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                         <img
                           src={msg.content}
                           alt="sticker"
-                          className="w-36 h-36 object-contain drop-shadow-xl hover:scale-105 transition-transform"
+                          className="w-36 h-36 object-contain drop-shadow-xl hover:scale-105 transition-transform dark:mix-blend-screen"
                         />
                       </div>
                     )}
 
                     {msg.type === 'audio' && (
                       <div
-                        className={`px-5 py-3 rounded-[1.8rem] flex items-center gap-3 shadow-sm ${
+                        className={`px-5 py-3 flex items-center gap-3 shadow-sm ${corners} ${
                           isMe
-                            ? 'bg-pastel-pink-400 text-white rounded-br-xs'
-                            : 'bg-surface border border-border text-text-main rounded-bl-xs'
+                            ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
+                            : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
                         }`}
                       >
                         <button className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center cursor-pointer">
@@ -517,69 +533,71 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="p-4 border-t border-border bg-surface/90 backdrop-blur-md relative z-20">
-        <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
-          
-          {/* Sticker / GIF Picker Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowStickerPicker(!showStickerPicker)}
-            className={`p-3 rounded-full transition-all cursor-pointer ${
-              showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
-            }`}
-            title="GIFs & Stickers"
-          >
-            <SmilePlus className="w-5 h-5" />
-          </button>
+      <div className="absolute bottom-6 left-4 right-4 lg:bottom-8 lg:left-8 lg:right-8 z-20">
+        <div className="p-2 border border-border/50 bg-surface/80 backdrop-blur-xl rounded-[2.5rem] shadow-xl">
+          <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+            
+            {/* Sticker / GIF Picker Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowStickerPicker(!showStickerPicker)}
+              className={`p-3 rounded-full transition-all cursor-pointer ${
+                showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              }`}
+              title="GIFs & Stickers"
+            >
+              <SmilePlus className="w-5 h-5" />
+            </button>
 
-          {/* Photo Attachment */}
-          <input
-            type="file"
-            ref={imageMsgRef}
-            className="hidden"
-            accept="image/*"
-            onChange={handleSendImage}
-          />
-          <button
-            type="button"
-            onClick={() => imageMsgRef.current?.click()}
-            className="p-3 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main transition-colors cursor-pointer"
-            title="Send Photo"
-          >
-            <ImageIcon className="w-5 h-5" />
-          </button>
+            {/* Photo Attachment */}
+            <input
+              type="file"
+              ref={imageMsgRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleSendImage}
+            />
+            <button
+              type="button"
+              onClick={() => imageMsgRef.current?.click()}
+              className="p-3 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main transition-colors cursor-pointer"
+              title="Send Photo"
+            >
+              <ImageIcon className="w-5 h-5" />
+            </button>
 
-          {/* Main Input Field */}
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => handleInputChange(e.target.value)}
-            placeholder={`Say something sweet to ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-            className="flex-1 bg-surface-hover border border-border rounded-full py-3.5 px-6 outline-none focus:border-pastel-pink-400 focus:ring-4 focus:ring-pastel-pink-100/20 transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted"
-          />
+            {/* Main Input Field */}
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => handleInputChange(e.target.value)}
+              placeholder={`Say something sweet to ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
+              className="flex-1 bg-transparent py-3.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60"
+            />
 
-          {/* Voice Note Button */}
-          <button
-            type="button"
-            onClick={handleSendAudioNote}
-            className={`p-3 rounded-full transition-colors cursor-pointer ${
-              isRecording ? 'bg-red-400 text-white' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
-            }`}
-            title="Voice Note"
-          >
-            <Mic className="w-5 h-5" />
-          </button>
+            {/* Voice Note Button */}
+            <button
+              type="button"
+              onClick={handleSendAudioNote}
+              className={`p-3 rounded-full transition-colors cursor-pointer ${
+                isRecording ? 'bg-red-400 text-white' : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+              }`}
+              title="Voice Note"
+            >
+              <Mic className="w-5 h-5" />
+            </button>
 
-          {/* Send Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            type="submit"
-            className="p-3.5 rounded-full bg-pastel-pink-400 text-white shadow-md hover:bg-pastel-pink-300 transition-colors cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-          </motion.button>
-        </form>
+            {/* Send Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="submit"
+              className="p-3.5 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-md hover:brightness-110 transition-all cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+            </motion.button>
+          </form>
+        </div>
 
         {/* STICKER & GIF VAULT POPUP */}
         <AnimatePresence>

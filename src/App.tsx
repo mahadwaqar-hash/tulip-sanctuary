@@ -24,6 +24,7 @@ import ScratchpadView from './components/ScratchpadView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
+import RightSidebarHUD from './components/RightSidebarHUD';
 import { useFirestore, fb } from './firebase';
 
 const springConfig: Transition = { type: 'spring', stiffness: 350, damping: 25 };
@@ -449,123 +450,158 @@ export default function App() {
       {!loading && hasUnlockedPasscode && currentUser && (
         <div className="h-screen w-full flex flex-col p-3 md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
           
-          {/* CUTESY TOP HEADER & TELEMETRY */}
-          <div className="flex items-center justify-between pb-3 px-2">
+          {/* CUTESY TOP HEADER & TELEMETRY (Condensed for Mobile, Hidden on Desktop) */}
+          <div className="lg:hidden flex items-center justify-between pb-3 px-2">
             <div className="flex items-center gap-3">
-              {/* Cute Logo Icon with Glow */}
-              <div className="p-2.5 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
-                <Heart className="w-5 h-5 fill-white animate-pulse" />
+              <div className="p-2 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
+                <Heart className="w-4 h-4 fill-white animate-pulse" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
-                  Tulip <span className="text-pastel-pink-400 font-fairytale text-2xl lowercase">Sanctuary</span>
+                <h1 className="text-lg font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
+                  Tulip <span className="text-pastel-pink-400 font-fairytale text-xl lowercase">Sanctuary</span>
                 </h1>
-                <div className="flex items-center gap-1.5 text-[11px] text-text-muted font-medium">
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-medium text-text-main">
+              <button
+                onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
+                className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
+              >
+                <span>{currentUser}</span>
+                <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* MAIN 3-PANE LAYOUT */}
+          <div className="flex-1 w-full h-full overflow-hidden flex flex-col lg:flex-row relative">
+            
+            {/* LEFT SIDEBAR (Desktop Only) */}
+            <div className="hidden lg:flex flex-col w-60 shrink-0 h-full border-r border-border/50 pr-6 pt-4 gap-8">
+              <div>
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-lg glow-rose-sm flex items-center justify-center w-12 h-12 mb-4">
+                  <Heart className="w-6 h-6 fill-white animate-pulse" />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex items-center gap-2 font-serif-italic mb-1">
+                  Tulip <span className="text-pastel-pink-400 font-fairytale text-4xl lowercase translate-y-1">Sanctuary</span>
+                </h1>
+                <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium mt-3">
                   <span>Logged in as</span>
                   <button
                     onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
-                    title="Click to switch profile"
+                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-2 py-0.5 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20 transition-colors"
                   >
                     <span>{currentUser}</span>
                     <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Ambient Telemetry & Controls (No Battery) */}
-            <div className="flex items-center gap-2 sm:gap-3 text-xs font-medium text-text-main">
-              <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface/80 glass-panel text-[11px] shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-pastel-pink-400" />
-                <span className="font-handwriting text-base text-pastel-pink-400">Mahad & Ifa forever</span>
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2 px-3">Sanctuary</span>
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <motion.button
+                      key={tab.id}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveTab(tab.id as any)}
+                      className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-3 shadow-xs ${
+                        isActive
+                          ? 'bg-gradient-to-r from-pastel-pink-400 to-pastel-pink-300 text-white shadow-md shadow-pastel-pink-300/50 glow-rose-sm'
+                          : 'bg-surface/50 glass-panel border border-transparent text-text-muted hover:text-text-main hover:bg-surface-hover hover:border-border/50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </motion.button>
+                  );
+                })}
               </div>
-              
-              {/* Settings / Password change modal toggle */}
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-2.5 rounded-full glass-panel border border-border text-text-muted hover:text-pastel-pink-400 hover:scale-105 transition-all cursor-pointer shadow-xs"
-                title="Change Passcodes"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
 
-              {/* Dark mode toggle */}
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2.5 rounded-full glass-panel border border-border text-text-muted hover:text-pastel-pink-400 hover:scale-105 transition-all cursor-pointer shadow-xs"
-                title="Toggle Theme"
-              >
-                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
-
-              {/* Fast Lock Sanctuary */}
-              <button
-                onClick={handleLock}
-                className="p-2.5 rounded-full glass-panel border border-border text-text-muted hover:text-red-400 hover:scale-105 transition-all cursor-pointer shadow-xs"
-                title="Lock Sanctuary"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
+              <div className="mt-auto flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-3">Settings</span>
+                <button onClick={() => setShowSettings(true)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                  <Settings className="w-4 h-4" /> Passcodes
+                </button>
+                <button onClick={() => setDarkMode(!darkMode)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                  {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} Theme
+                </button>
+                <button onClick={handleLock} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                  <Lock className="w-4 h-4" /> Lock Sanctuary
+                </button>
+              </div>
             </div>
+
+            {/* CENTER COLUMN (Active View) */}
+            <div className="flex-1 h-full w-full flex flex-col overflow-hidden pb-16 lg:pb-0">
+              <div className="w-full h-full max-w-4xl mx-auto lg:px-6">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'chat' && (
+                    <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                      <ChatSanctuary currentUser={currentUser} />
+                    </motion.div>
+                  )}
+                  {activeTab === 'ldr' && (
+                    <motion.div key="ldr" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                      <LdrSanctuaryView
+                        currentUser={currentUser}
+                        onTriggerBurst={(type, sender) => setCurrentBurst({ type, sender })}
+                      />
+                    </motion.div>
+                  )}
+                  {activeTab === 'calendar' && (
+                    <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                      <CalendarView currentUser={currentUser} />
+                    </motion.div>
+                  )}
+                  {activeTab === 'photos' && (
+                    <motion.div key="photos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                      <SecretPhotosView currentUser={currentUser} />
+                    </motion.div>
+                  )}
+                  {activeTab === 'scratchpad' && (
+                    <motion.div key="scratchpad" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                      <ScratchpadView currentUser={currentUser} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* RIGHT SIDEBAR HUD (Desktop Only) */}
+            <RightSidebarHUD currentUser={currentUser} />
+            
           </div>
 
-          {/* CUTESY TOP TAB NAVIGATION BAR */}
-          <div className="flex items-center gap-2 mb-4 px-2 overflow-x-auto pb-1 scrollbar-hide">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <motion.button
-                  key={tab.id}
-                  whileHover={{ scale: 1.04, y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs whitespace-nowrap ${
-                    isActive
-                      ? 'bg-gradient-to-r from-pastel-pink-400 to-pastel-pink-300 text-white shadow-md shadow-pastel-pink-300/50 glow-rose-sm scale-102'
-                      : 'bg-surface/80 glass-panel border border-border/60 text-text-muted hover:text-text-main hover:bg-surface-hover'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* ACTIVE TAB CONTENT VIEW */}
-          <div className="flex-1 h-full overflow-hidden">
-            <AnimatePresence mode="wait">
-              {activeTab === 'chat' && (
-                <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-                  <ChatSanctuary currentUser={currentUser} />
-                </motion.div>
-              )}
-              {activeTab === 'ldr' && (
-                <motion.div key="ldr" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-                  <LdrSanctuaryView
-                    currentUser={currentUser}
-                    onTriggerBurst={(type, sender) => setCurrentBurst({ type, sender })}
-                  />
-                </motion.div>
-              )}
-              {activeTab === 'calendar' && (
-                <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-                  <CalendarView currentUser={currentUser} />
-                </motion.div>
-              )}
-              {activeTab === 'photos' && (
-                <motion.div key="photos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-                  <SecretPhotosView currentUser={currentUser} />
-                </motion.div>
-              )}
-              {activeTab === 'scratchpad' && (
-                <motion.div key="scratchpad" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-                  <ScratchpadView currentUser={currentUser} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+          {/* BOTTOM NAVIGATION BAR (Mobile Only) */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 pb-safe bg-surface/90 backdrop-blur-xl border-t border-border shadow-[0_-8px_32px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center justify-around gap-1 max-w-md mx-auto">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex flex-col items-center justify-center p-2 rounded-2xl w-14 transition-all cursor-pointer ${
+                      isActive
+                        ? 'text-pastel-pink-400'
+                        : 'text-text-muted hover:text-text-main'
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-pastel-pink-400/15 shadow-sm' : ''}`}>
+                      <Icon className={`w-5 h-5 ${isActive ? 'fill-pastel-pink-400/20' : ''}`} />
+                    </div>
+                    <span className="text-[9px] font-bold mt-1 tracking-tight truncate w-full text-center">{tab.label.split(' ')[0]}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
 
           {/* PASSWORD SETTINGS MODAL */}

@@ -58,7 +58,7 @@ const DEFAULT_LETTERS: Array<{ title: string; content: string; sender: 'Mahad' |
   }
 ];
 
-function WorldClock({ timezone }: { timezone: string }) {
+function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; city: string; label: string; icon: any }) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -67,16 +67,38 @@ function WorldClock({ timezone }: { timezone: string }) {
   }, []);
 
   let formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  let isDaytime = true;
   try {
     formattedTime = time.toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
-  } catch (e) {
-    // fallback if timezone is invalid
-  }
+    const hour = parseInt(time.toLocaleTimeString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }));
+    isDaytime = hour >= 6 && hour < 18;
+  } catch (e) {}
 
   return (
-    <h3 className="text-3xl font-bold font-serif-italic text-text-main">
-      {formattedTime}
-    </h3>
+    <div className={`p-5 rounded-[1.5rem] glass-panel border border-border flex flex-col justify-between overflow-hidden relative shadow-sm ${
+      isDaytime 
+        ? 'bg-gradient-to-br from-amber-500/20 to-surface/40' 
+        : 'bg-gradient-to-br from-indigo-900/40 to-surface/40'
+    }`}>
+      <div className="absolute -right-4 -top-4 opacity-20 pointer-events-none">
+        {isDaytime ? <Sparkles className="w-24 h-24 text-amber-300" /> : <Moon className="w-24 h-24 text-indigo-300" />}
+      </div>
+      
+      <div className="flex items-center justify-between mb-3 relative z-10">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
+          {label}
+        </span>
+        <Icon className="w-4 h-4 text-text-muted" />
+      </div>
+      <div className="relative z-10">
+        <h3 className="text-3xl font-bold font-sans text-text-main tracking-tight">
+          {formattedTime}
+        </h3>
+        <p className="text-[11px] text-text-muted mt-1 font-medium flex items-center gap-1 leading-none truncate">
+          <MapPin className="w-3 h-3 text-pastel-pink-400 shrink-0" /> {city}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -87,20 +109,31 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   });
   const [isEditingReunion, setIsEditingReunion] = useState(false);
 
-  // Custom Cities & Timezones State
-  const [mahadCity, setMahadCity] = useState(() => {
-    return localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
-  });
-  const [mahadTz, setMahadTz] = useState(() => {
-    return localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
-  });
-  const [ifaCity, setIfaCity] = useState(() => {
-    return localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  });
-  const [ifaTz, setIfaTz] = useState(() => {
-    return localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
-  });
+  const settingsArray = useFirestore<any>('userSettings', 'id', false);
+  
+  const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
+  const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
+
+  const mahadCityStr = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
+  const mahadTzStr = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
+  const ifaCityStr = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
+  const ifaTzStr = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
+
+  // Custom Cities & Timezones State (for editing)
+  const [mahadCity, setMahadCity] = useState(mahadCityStr);
+  const [mahadTz, setMahadTz] = useState(mahadTzStr);
+  const [ifaCity, setIfaCity] = useState(ifaCityStr);
+  const [ifaTz, setIfaTz] = useState(ifaTzStr);
   const [isEditingCities, setIsEditingCities] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingCities) {
+      setMahadCity(mahadCityStr);
+      setMahadTz(mahadTzStr);
+      setIfaCity(ifaCityStr);
+      setIfaTz(ifaTzStr);
+    }
+  }, [mahadCityStr, mahadTzStr, ifaCityStr, ifaTzStr, isEditingCities]);
 
   // Letter Reader & Writer
   const [selectedLetter, setSelectedLetter] = useState<LdrLetter | null>(null);
@@ -181,12 +214,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     setShowWriteModal(false);
   };
 
-  const handleSaveCities = (e: React.FormEvent) => {
+  const handleSaveCities = async (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('tulip_mahad_city', mahadCity);
     localStorage.setItem('tulip_ifa_city', ifaCity);
     localStorage.setItem('tulip_mahad_tz', mahadTz);
     localStorage.setItem('tulip_ifa_tz', ifaTz);
+    
+    // Save to Firebase for live sync
+    await fb.userSettings.set('Mahad', { city: mahadCity, tz: mahadTz });
+    await fb.userSettings.set('Ifa', { city: ifaCity, tz: ifaTz });
+    
     setIsEditingCities(false);
   };
 
@@ -238,20 +276,12 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Mahad's Time Card */}
-          <div className="p-6 rounded-3xl glass-panel border border-border shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
-                Mahad's Clock 🌹
-              </span>
-              <Clock className="w-4 h-4 text-text-muted" />
-            </div>
-            <div>
-              <WorldClock timezone={mahadTz} />
-              <p className="text-xs text-text-muted mt-1 font-medium flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-pastel-pink-400" /> {mahadCity}
-              </p>
-            </div>
-          </div>
+          <WorldClock 
+            timezone={mahadTz} 
+            city={mahadCity} 
+            label="Mahad's Clock 🌹" 
+            icon={Clock} 
+          />
 
           {/* Reunion Countdown Card */}
           <div className="p-6 rounded-3xl bg-gradient-to-br from-pastel-pink-400 to-pastel-pink-300 text-white shadow-lg flex flex-col justify-between relative overflow-hidden">
@@ -279,7 +309,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               />
             ) : (
               <div className="my-2">
-                <h3 className="text-4xl font-bold font-serif-italic">
+                <h3 className="text-4xl font-bold font-sans tabular-nums tracking-tight">
                   {daysUntilReunion} <span className="text-lg font-sans font-medium">Days</span>
                 </h3>
                 <p className="text-xs text-white/90 mt-1 font-medium">
@@ -296,20 +326,12 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           </div>
 
           {/* Ifa's Time Card */}
-          <div className="p-6 rounded-3xl glass-panel border border-border shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
-                Ifa's Clock 🌷
-              </span>
-              <Moon className="w-4 h-4 text-text-muted" />
-            </div>
-            <div>
-              <WorldClock timezone={ifaTz} />
-              <p className="text-xs text-text-muted mt-1 font-medium flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-pastel-pink-400" /> {ifaCity}
-              </p>
-            </div>
-          </div>
+          <WorldClock 
+            timezone={ifaTz} 
+            city={ifaCity} 
+            label="Ifa's Clock 🌷" 
+            icon={Moon} 
+          />
 
         </div>
 

@@ -74,5 +74,8 @@ export const fb = {
     set: async (user: string, isTyping: boolean) => {
       await setDoc(doc(firestoreDB, 'typing', user), { isTyping, updatedAt: Date.now() });
     }
+  },
+  userSettings: {
+    set: async (user: string, data: any) => await setDoc(doc(firestoreDB, 'userSettings', user), data, { merge: true }),
   }
 };

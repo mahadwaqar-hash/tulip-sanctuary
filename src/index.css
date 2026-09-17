@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Playfair+Display:ital,wght@0,600;1,500;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sacramento&display=swap');
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --color-pastel-pink-100: var(--pink-100);
@@ -19,39 +20,38 @@
 }
 
 :root {
-  /* Light Theme - Dreamy Rosy Fairytale */
-  --pink-100: #FFEAF0;
-  --pink-200: #FFD4DF;
-  --pink-300: #FFA8BE;
-  --pink-400: #FF6685;
-  --peach: #FFE5D9;
-  --lavender: #EADCF8;
+  /* Default OLED Dark Theme - Premium Glassmorphism */
+  --pink-100: #FFB6C1; /* Soft tulip pink */
+  --pink-200: #FF69B4; 
+  --pink-300: #FF1493; /* Deep magenta */
+  --pink-400: #E0115F; /* Warm neon crimson */
+  --peach: #FF8C69;
+  --lavender: #E6E6FA;
   
-  --bg-start: #FFF9FA;
-  --bg-end: #FFE4EC;
-  --surface: rgba(255, 255, 255, 0.65);
-  --surface-hover: rgba(255, 255, 255, 0.88);
-  --text-main: #2D1822;
-  --text-muted: rgba(69, 32, 48, 0.6);
-  --border: rgba(255, 168, 190, 0.35);
+  --bg-start: #0A0A0A; /* OLED Black */
+  --bg-end: #0F0F13;
+  --surface: rgba(15, 15, 19, 0.65);
+  --surface-hover: rgba(25, 25, 30, 0.75);
+  --text-main: #FFFFFF;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
 }
 
 .dark {
-  /* Dark Theme - Midnight Velvet Rose */
-  --pink-100: #381520;
-  --pink-200: #551D2C;
-  --pink-300: #882D44;
-  --pink-400: #FF6685; 
-  --peach: #3D231E;
-  --lavender: #291C38;
+  --pink-100: #FFB6C1;
+  --pink-200: #FF69B4;
+  --pink-300: #FF1493;
+  --pink-400: #E0115F;
+  --peach: #FF8C69;
+  --lavender: #E6E6FA;
 
-  --bg-start: #11090D;
-  --bg-end: #1E0F17;
-  --surface: rgba(36, 18, 26, 0.65);
-  --surface-hover: rgba(54, 28, 40, 0.85);
-  --text-main: #FFF5F7;
-  --text-muted: rgba(255, 225, 235, 0.6);
-  --border: rgba(180, 70, 100, 0.4);
+  --bg-start: #0A0A0A;
+  --bg-end: #0F0F13;
+  --surface: rgba(15, 15, 19, 0.65);
+  --surface-hover: rgba(25, 25, 30, 0.75);
+  --text-main: #FFFFFF;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
@@ -86,23 +86,23 @@
 @layer utilities {
   .glass-panel {
     background: var(--surface);
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
-    border: 1.5px solid var(--border);
-    box-shadow: 0 12px 40px -10px rgba(255, 102, 133, 0.12), 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(224, 17, 95, 0.25);
     transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
   /* Optimize glassmorphism for mobile devices */
   @media (max-width: 640px) {
     .glass-panel {
-      backdrop-filter: blur(8px) saturate(120%);
-      -webkit-backdrop-filter: blur(8px) saturate(120%);
+      backdrop-filter: blur(12px) saturate(120%);
+      -webkit-backdrop-filter: blur(12px) saturate(120%);
     }
   }
 
   .glass-panel:hover {
-    box-shadow: 0 16px 45px -8px rgba(255, 102, 133, 0.18), 0 2px 6px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: 0 12px 45px rgba(224, 17, 95, 0.35);
   }
   
   .font-serif-italic {
