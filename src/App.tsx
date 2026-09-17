@@ -15,7 +15,9 @@ import {
   Plane,
   Settings,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
@@ -115,16 +117,16 @@ function LoadingScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 // STEP 1: Password Gate Screen
-function PasswordLockScreen({ onUnlock }: { onUnlock: () => void }) {
+function PasswordLockScreen({ onUnlock, activePassword }: { onUnlock: () => void; activePassword?: string }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = password.trim().toLowerCase();
-    const customPass = (localStorage.getItem('tulip_custom_sanctuary_pass') || '2026').trim().toLowerCase();
+    const clean = password.trim();
+    const target = (activePassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212').trim();
 
-    if (clean === customPass || clean === 'ifa' || clean === 'mahad' || clean === '2026') {
+    if (clean.toLowerCase() === target.toLowerCase()) {
       if ('vibrate' in navigator) navigator.vibrate([40, 40]);
       onUnlock();
     } else {
@@ -180,9 +182,19 @@ function PasswordLockScreen({ onUnlock }: { onUnlock: () => void }) {
           </motion.button>
         </form>
 
-        <span className="text-[11px] text-text-muted/70 mt-6 font-medium">
-          Hint: <span className="text-pastel-pink-400 font-bold">ifa</span>, <span className="text-pastel-pink-400 font-bold">mahad</span> or <span className="text-pastel-pink-400 font-bold">2026</span>
-        </span>
+        {error ? (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-xs font-bold text-red-500 mt-4"
+          >
+            Incorrect passcode. Please try again.
+          </motion.p>
+        ) : (
+          <span className="text-[11px] text-text-muted/70 mt-6 font-medium">
+            Whisper the secret sanctuary password to enter
+          </span>
+        )}
       </motion.div>
     </div>
   );
@@ -253,29 +265,26 @@ function ProfileSelectScreen({ onSelect }: { onSelect: (user: 'Mahad' | 'Ifa') =
 }
 
 // Settings Modal for changing passcodes
-function PasswordSettingsModal({ onClose }: { onClose: () => void }) {
+function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => void; currentPassword?: string }) {
   const [sanctuaryPass, setSanctuaryPass] = useState(() => {
-    return localStorage.getItem('tulip_custom_sanctuary_pass') || '';
+    return currentPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
   });
-  const [photoPass, setPhotoPass] = useState(() => {
-    return localStorage.getItem('tulip_custom_photo_pass') || '';
-  });
+  const [showPass, setShowPass] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (sanctuaryPass.trim()) {
-      localStorage.setItem('tulip_custom_sanctuary_pass', sanctuaryPass.trim());
-    }
-    if (photoPass.trim()) {
-      localStorage.setItem('tulip_custom_photo_pass', photoPass.trim());
-    }
+    const clean = sanctuaryPass.trim();
+    if (!clean) return;
+
+    await fb.userSettings.set('global', { sanctuaryPassword: clean });
+    localStorage.setItem('tulip_custom_sanctuary_pass', clean);
     setSavedNotice(true);
-    if ('vibrate' in navigator) navigator.vibrate(50);
+    if ('vibrate' in navigator) navigator.vibrate([40, 40]);
     setTimeout(() => {
       setSavedNotice(false);
       onClose();
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -295,39 +304,38 @@ function PasswordSettingsModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex items-center gap-2 mb-2 text-pastel-pink-400 font-bold text-xs uppercase tracking-wider">
           <ShieldCheck className="w-4 h-4" />
-          <span>Security & Passcodes</span>
+          <span>Security & Password</span>
         </div>
 
-        <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Update Passcodes</h3>
+        <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Change Password</h3>
         <p className="text-xs text-text-muted mb-6">
-          Change the password required to enter the website and the secret scrapbook.
+          Change the password required to enter our sanctuary. Updating it here immediately syncs across all devices for both of you.
         </p>
 
         <form onSubmit={handleSave} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-bold text-text-main uppercase tracking-wider block mb-1">
-              Sanctuary Gate Passcode
+              Sanctuary Password
             </label>
-            <input
-              type="text"
-              value={sanctuaryPass}
-              onChange={(e) => setSanctuaryPass(e.target.value)}
-              placeholder="e.g. ifa / mahad / 2026 or custom"
-              className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-text-main uppercase tracking-wider block mb-1">
-              Secret Photo Scrapbook Passcode
-            </label>
-            <input
-              type="text"
-              value={photoPass}
-              onChange={(e) => setPhotoPass(e.target.value)}
-              placeholder="e.g. 2026 or sweet code"
-              className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
-            />
+            <div className="relative flex items-center">
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={sanctuaryPass}
+                onChange={(e) => setSanctuaryPass(e.target.value)}
+                placeholder="e.g. 311212 or custom password"
+                className="w-full bg-surface-hover p-3.5 pr-12 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3.5 p-1 text-text-muted hover:text-text-main cursor-pointer"
+              >
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <span className="text-[11px] text-text-muted/70 mt-1.5 block">
+              Default password: <strong className="text-pastel-pink-400">311212</strong>
+            </span>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-surface-hover rounded-2xl border border-border mt-2">
@@ -401,6 +409,17 @@ export default function App() {
     return localStorage.getItem('tulip_theme') !== 'light'; // Default to dark OLED
   });
   const [showSettings, setShowSettings] = useState(false);
+
+  // Live Settings & Passwords from Firestore
+  const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
+  const globalSettings = settingsArray.find(s => s.id === 'global') || {};
+  const activePassword = globalSettings.sanctuaryPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
+
+  useEffect(() => {
+    if (globalSettings.sanctuaryPassword) {
+      localStorage.setItem('tulip_custom_sanctuary_pass', globalSettings.sanctuaryPassword);
+    }
+  }, [globalSettings.sanctuaryPassword]);
 
   // Global Full Screen Love Burst state
   const [currentBurst, setCurrentBurst] = useState<{ type: LoveBurstType; sender: 'Mahad' | 'Ifa' } | null>(null);
@@ -478,7 +497,7 @@ export default function App() {
 
       {/* STEP 1: PASSWORD GATE */}
       {!loading && !hasUnlockedPasscode && (
-        <PasswordLockScreen onUnlock={handlePasscodeUnlock} />
+        <PasswordLockScreen onUnlock={handlePasscodeUnlock} activePassword={activePassword} />
       )}
 
       {/* STEP 2: USER SELECTION GATE */}
@@ -594,7 +613,7 @@ export default function App() {
               <div className="mt-auto flex flex-col gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-3">Settings</span>
                 <button onClick={() => setShowSettings(true)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
-                  <Settings className="w-4 h-4" /> Passcodes
+                  <Settings className="w-4 h-4" /> Password
                 </button>
                 <button onClick={() => setDarkMode(!darkMode)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} Theme
@@ -629,7 +648,7 @@ export default function App() {
                   )}
                   {activeTab === 'photos' && (
                     <motion.div key="photos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
-                      <SecretPhotosView currentUser={currentUser} />
+                      <SecretPhotosView currentUser={currentUser} sanctuaryPassword={activePassword} />
                     </motion.div>
                   )}
                   {activeTab === 'scratchpad' && (
@@ -651,7 +670,7 @@ export default function App() {
           {/* PASSWORD SETTINGS MODAL */}
           <AnimatePresence>
             {showSettings && (
-              <PasswordSettingsModal onClose={() => setShowSettings(false)} />
+              <PasswordSettingsModal onClose={() => setShowSettings(false)} currentPassword={activePassword} />
             )}
           </AnimatePresence>
 

@@ -87,7 +87,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   // Live Messages & Pagination
   const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
-  const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '2026';
+  const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
 
   // Instant synchronous message decoding - zero flash, zero lag, 100% 60fps
   const messages = useMemo(() => {

@@ -25,7 +25,7 @@ export function encryptMessage(text: string, _passcode?: string): string {
  * Decrypts legacy messages (XOR) or returns clean plain text synchronously.
  * Zero lag, zero promises, 100% instant rendering on all devices.
  */
-export function decryptMessage(encryptedText: string, passcode = '2026'): string {
+export function decryptMessage(encryptedText: string, passcode = '311212'): string {
   if (!encryptedText) return '';
   if (typeof encryptedText !== 'string') return String(encryptedText);
 
@@ -34,7 +34,7 @@ export function decryptMessage(encryptedText: string, passcode = '2026'): string
     try {
       const b64 = encryptedText.slice(4);
       const decoded = decodeURIComponent(atob(b64));
-      return xorWithKey(decoded, passcode || '2026');
+      return xorWithKey(decoded, passcode || '311212');
     } catch (e) {
       try {
         return atob(encryptedText.slice(4));

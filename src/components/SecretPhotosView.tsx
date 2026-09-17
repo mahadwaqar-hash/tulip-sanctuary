@@ -19,12 +19,11 @@ const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 }
 
 interface SecretPhotosViewProps {
   currentUser: 'Mahad' | 'Ifa';
+  sanctuaryPassword?: string;
 }
 
-export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps) {
-  const [isUnlocked, setIsUnlocked] = useState(() => {
-    return sessionStorage.getItem('tulip_photos_unlocked') === 'true';
-  });
+export default function SecretPhotosView({ currentUser, sanctuaryPassword }: SecretPhotosViewProps) {
+  const [isUnlocked, setIsUnlocked] = useState(true);
   const [passInput, setPassInput] = useState('');
   const [passError, setPassError] = useState(false);
 
@@ -50,12 +49,11 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
   const handleUnlockPhotos = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = passInput.trim().toLowerCase();
-    const customPass = (localStorage.getItem('tulip_custom_photo_pass') || '2026').trim().toLowerCase();
+    const targetPass = (sanctuaryPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212').trim().toLowerCase();
 
-    if (clean === customPass || clean === 'ifa' || clean === 'mahad' || clean === '2026') {
+    if (clean === targetPass) {
       if ('vibrate' in navigator) navigator.vibrate([40, 40]);
       setIsUnlocked(true);
-      sessionStorage.setItem('tulip_photos_unlocked', 'true');
       setPassError(false);
     } else {
       setPassError(true);
@@ -131,13 +129,13 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
 
             <h2 className="text-2xl font-bold font-serif-italic text-text-main">Secret Scrapbook</h2>
             <p className="text-[11px] text-text-muted mt-2 font-medium mb-8">
-              A private vault for our eyes only. Enter the second passcode to view.
+              A private vault for our eyes only. Enter sanctuary password to view.
             </p>
 
             <form onSubmit={handleUnlockPhotos} className="w-full flex flex-col gap-4">
               <input
                 type="password"
-                placeholder="Photo vault passcode..."
+                placeholder="Sanctuary password..."
                 value={passInput}
                 onChange={(e) => {
                   setPassInput(e.target.value);
@@ -163,19 +161,11 @@ export default function SecretPhotosView({ currentUser }: SecretPhotosViewProps)
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 type="submit"
-                className={`w-full py-3.5 rounded-full text-white font-bold text-xs uppercase tracking-widest shadow-md transition-colors ${
-                  passInput.trim().toLowerCase() === 'ifa' || passInput.trim().toLowerCase() === 'mahad' || passInput.trim().toLowerCase() === '2026' || passInput.trim().toLowerCase() === (localStorage.getItem('tulip_custom_photo_pass') || '2026').trim().toLowerCase()
-                    ? 'bg-emerald-500 hover:bg-emerald-400'
-                    : 'bg-pastel-pink-400 hover:bg-pastel-pink-300'
-                }`}
+                className="w-full py-3.5 rounded-full text-white font-bold text-xs uppercase tracking-widest shadow-md transition-colors bg-pastel-pink-400 hover:bg-pastel-pink-300 cursor-pointer"
               >
                 Unlock Pictures
               </motion.button>
             </form>
-
-            <span className="text-[11px] text-text-muted/70 mt-5 font-medium">
-              Hint: <span className="text-pastel-pink-400 font-bold">ifa</span> or <span className="text-pastel-pink-400 font-bold">2026</span>
-            </span>
           </motion.div>
         </div>
       ) : (
