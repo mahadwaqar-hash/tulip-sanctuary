@@ -194,7 +194,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border relative">
       
       {/* CHAT HEADER */}
-      <div className="px-5 py-3 border-b border-border bg-surface/85 backdrop-blur-2xl z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+      <div className="px-5 py-3 border-b border-border bg-surface/85 backdrop-blur-md z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         
         {/* Left: User & Avatar */}
         <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="p-4 border-t border-border bg-surface/90 backdrop-blur-2xl relative z-20">
+      <div className="p-4 border-t border-border bg-surface/90 backdrop-blur-md relative z-20">
         <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
           
           {/* Sticker / GIF Picker Toggle */}
@@ -547,7 +547,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={springConfig}
-              className="absolute bottom-[85px] left-4 right-4 bg-surface/98 backdrop-blur-3xl border border-border rounded-[2.5rem] p-6 shadow-2xl z-30"
+              className="absolute bottom-[85px] left-4 right-4 bg-surface/98 backdrop-blur-lg border border-border rounded-[2.5rem] p-6 shadow-2xl z-30"
             >
               {/* Header with Tabs */}
               <div className="flex justify-between items-center mb-4 pb-3 border-b border-border">

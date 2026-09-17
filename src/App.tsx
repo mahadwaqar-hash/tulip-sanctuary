@@ -132,7 +132,7 @@ function PasswordLockScreen({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gradient-to-br from-bg-start via-bg-end to-bg-start backdrop-blur-3xl select-none">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gradient-to-br from-bg-start via-bg-end to-bg-start select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 25 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -189,7 +189,7 @@ function PasswordLockScreen({ onUnlock }: { onUnlock: () => void }) {
 // STEP 2: Profile Selection Screen (Mahad or Ifa)
 function ProfileSelectScreen({ onSelect }: { onSelect: (user: 'Mahad' | 'Ifa') => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gradient-to-br from-bg-start via-bg-end to-bg-start backdrop-blur-3xl select-none">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gradient-to-br from-bg-start via-bg-end to-bg-start select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 25 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

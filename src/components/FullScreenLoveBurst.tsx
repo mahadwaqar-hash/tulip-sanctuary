@@ -73,7 +73,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
                 opacity: 1 
               }}
               transition={{ duration: 0.9, type: 'spring', bounce: 0.45 }}
-              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-3xl border-2 border-white/60 shadow-[0_0_90px_rgba(255,102,133,0.6)] max-w-sm sm:max-w-md mx-4"
+              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-lg border-2 border-white/60 shadow-[0_0_90px_rgba(255,102,133,0.6)] max-w-sm sm:max-w-md mx-4"
             >
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-rose-400 to-pink-300 text-white flex items-center justify-center text-5xl mb-4 shadow-xl glow-rose animate-bounce">
                 💋
@@ -129,7 +129,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
               initial={{ scale: 0.3, opacity: 0 }}
               animate={{ scale: [0.3, 1.12, 1], opacity: 1 }}
               transition={{ duration: 1, type: 'spring', bounce: 0.4 }}
-              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-3xl border-2 border-white/60 shadow-[0_0_90px_rgba(255,180,120,0.6)] max-w-sm sm:max-w-md mx-4"
+              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-lg border-2 border-white/60 shadow-[0_0_90px_rgba(255,180,120,0.6)] max-w-sm sm:max-w-md mx-4"
             >
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-400 to-rose-400 text-white flex items-center justify-center text-5xl mb-4 shadow-xl glow-rose animate-pulse">
                 🫂
@@ -186,7 +186,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
               initial={{ scale: 0.4, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.9, type: 'spring' }}
-              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-3xl border-2 border-white/60 shadow-[0_0_90px_rgba(200,160,255,0.6)] max-w-sm sm:max-w-md mx-4"
+              className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-lg border-2 border-white/60 shadow-[0_0_90px_rgba(200,160,255,0.6)] max-w-sm sm:max-w-md mx-4"
             >
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-400 to-pink-300 text-white flex items-center justify-center text-5xl mb-4 shadow-xl glow-rose">
                 ✨
