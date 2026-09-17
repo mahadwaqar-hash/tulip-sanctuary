@@ -36,6 +36,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [stickerTab, setStickerTab] = useState<'gifs' | 'custom'>('gifs');
   const [isRecording, setIsRecording] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
 
   // Live Settings
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
@@ -146,7 +150,26 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    if (editingMsgId) {
+      if (!editContent.trim()) return;
+      if ('vibrate' in navigator) navigator.vibrate(40);
+      const encContent = await encryptMessage(editContent.trim(), passcode);
+      await fb.messages.update(editingMsgId, { content: encContent, isEdited: true });
+      setEditingMsgId(null);
+      setEditContent('');
+      return;
+    }
+
     if (!inputText.trim()) return;
+    
+    // Easter Egg Check
+    if (inputText.trim().toLowerCase() === 'aim') {
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      // Trigger a special visual effect in the chat
+      setInputText('I love you immensely, always and forever. ✨');
+      return;
+    }
 
     if ('vibrate' in navigator) navigator.vibrate(40);
     const encContent = await encryptMessage(inputText.trim(), passcode);
@@ -492,6 +515,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             const isFirstInCluster = prevMsg?.sender !== msg.sender;
             const isLastInCluster = nextMsg?.sender !== msg.sender;
             const showName = isFirstInCluster;
+            
+            const isSelected = selectedMsgId === msg.id;
 
             let corners = 'rounded-[1.5rem]';
             if (isMe) {
@@ -508,7 +533,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 transition={springConfig}
                 className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'}`}
               >
-                <div className={`max-w-[80%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
+                <div className={`max-w-[85%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
                   
                   {/* Sender Tag (Only show for first in cluster) */}
                   {showName && (
@@ -518,10 +543,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   )}
 
                   {/* Bubble Container */}
-                  <div className="relative group/bubble">
+                  <div className="relative group/bubble flex flex-col">
                     {msg.type === 'text' && (
                       <div
-                        className={`px-5 py-3.5 shadow-sm font-medium text-[15px] leading-relaxed transition-all ${corners} ${
+                        onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
+                        className={`px-5 py-3.5 shadow-sm font-medium text-[15px] leading-relaxed transition-all cursor-pointer ${corners} ${
                           isMe
                             ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
                             : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
@@ -552,7 +578,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
                     {msg.type === 'audio' && (
                       <div
-                        className={`px-3 py-2 flex items-center shadow-sm ${corners} ${
+                        onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
+                        className={`px-3 py-2 flex items-center shadow-sm cursor-pointer ${corners} ${
                           isMe
                             ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
                             : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
@@ -562,8 +589,66 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       </div>
                     )}
 
-                    {/* Quick Reactions on Hover */}
-                    <div className={`absolute -top-7 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/bubble:opacity-100 transition-opacity flex gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
+                    {/* TAP ACTION MENU (For Mobile / Easy Access) */}
+                    <AnimatePresence>
+                      {isSelected && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                          exit={{ opacity: 0, height: 0, scale: 0.9 }}
+                          className={`flex flex-col gap-2 mt-2 p-2 bg-surface/90 backdrop-blur-md rounded-2xl border border-border shadow-md z-30 ${isMe ? 'origin-top-right' : 'origin-top-left'}`}
+                        >
+                          <div className="flex gap-1 justify-around">
+                            {quickReactions.slice(0, 4).map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => { handleReaction(msg.id, emoji); setSelectedMsgId(null); }}
+                                className="text-xl hover:scale-125 transition-transform cursor-pointer p-1"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                          {isMe && msg.type === 'text' && (
+                            <div className="flex border-t border-border pt-1 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { 
+                                  setEditingMsgId(msg.id); 
+                                  setEditContent(msg.content); 
+                                  setSelectedMsgId(null); 
+                                }}
+                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-pastel-pink-400 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
+                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-red-400 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                          {(!isMe || msg.type !== 'text') && (
+                            <div className="flex border-t border-border pt-1 justify-center">
+                               <button
+                                type="button"
+                                onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
+                                className="flex-1 py-1 text-xs font-bold text-text-muted hover:text-red-400 cursor-pointer"
+                              >
+                                Delete for everyone
+                              </button>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Quick Reactions on Hover (Desktop) */}
+                    <div className={`hidden md:flex absolute -top-7 ${isMe ? 'right-0' : 'left-0'} opacity-0 group-hover/bubble:opacity-100 transition-opacity gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
                       {quickReactions.map((emoji) => (
                         <button
                           key={emoji}
@@ -574,6 +659,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           {emoji}
                         </button>
                       ))}
+                      {isMe && msg.type === 'text' && (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); }}
+                          className="text-text-muted hover:text-pastel-pink-400 ml-1 cursor-pointer"
+                          title="Edit"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDeleteMessage(msg.id)}
@@ -588,7 +683,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   {/* Reaction Badges */}
                   {msg.reactions && msg.reactions.length > 0 && (
                     <div className="flex gap-1 mt-1 px-1">
-                      {msg.reactions.map((r, i) => (
+                      {msg.reactions.map((r: string, i: number) => (
                         <span
                           key={i}
                           onClick={() => handleReaction(msg.id, r)}
@@ -600,10 +695,17 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </div>
                   )}
 
-                  {/* Timestamp */}
-                  <span className="text-[10px] text-text-muted mt-1 px-2 font-medium">
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  {/* Timestamp & Edited Tag */}
+                  <div className="flex items-center gap-1 mt-1 px-2">
+                    <span className="text-[10px] text-text-muted font-medium">
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {msg.isEdited && (
+                      <span className="text-[9px] text-text-muted/60 font-medium italic">
+                        (edited)
+                      </span>
+                    )}
+                  </div>
 
                 </div>
               </motion.div>
@@ -651,7 +753,34 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-2xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
         <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
           
-          {isRecording ? (
+          {editingMsgId ? (
+            <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
+              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider shrink-0 hidden sm:block">Editing</div>
+              <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="flex-1 bg-surface-hover/50 rounded-full py-1.5 px-3 outline-none text-sm font-medium text-text-main focus:border-pastel-pink-400 border border-transparent transition-all"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setEditingMsgId(null); setEditContent(''); }}
+                  className="p-2 text-text-muted hover:text-red-400 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editContent.trim()}
+                  className="px-4 py-1.5 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </form>
+            </div>
+          ) : isRecording ? (
             <div className="w-full flex items-center justify-between px-3 py-1.5 h-[42px] md:h-[46px]">
               <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
                 <span className="relative flex h-3 w-3 mr-1">

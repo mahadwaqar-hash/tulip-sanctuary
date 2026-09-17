@@ -113,16 +113,21 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
 
+  const isValidTz = (tz: string | null) => tz && ALL_TIMEZONES.includes(tz);
+
   const mahadCityStr = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
-  const mahadTzStr = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
+  const mahadTzLocal = localStorage.getItem('tulip_mahad_tz');
+  const mahadTzStr = isValidTz(mahadSettings.tz) ? mahadSettings.tz : (isValidTz(mahadTzLocal) ? mahadTzLocal : 'Asia/Karachi');
+
   const ifaCityStr = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTzStr = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
+  const ifaTzLocal = localStorage.getItem('tulip_ifa_tz');
+  const ifaTzStr = isValidTz(ifaSettings.tz) ? ifaSettings.tz : (isValidTz(ifaTzLocal) ? ifaTzLocal : 'Europe/London');
 
   // Custom Cities & Timezones State (for editing)
-  const [mahadCity, setMahadCity] = useState(mahadCityStr);
-  const [mahadTz, setMahadTz] = useState(mahadTzStr);
-  const [ifaCity, setIfaCity] = useState(ifaCityStr);
-  const [ifaTz, setIfaTz] = useState(ifaTzStr);
+  const [mahadCity, setMahadCity] = useState(mahadCityStr as string);
+  const [mahadTz, setMahadTz] = useState(mahadTzStr as string);
+  const [ifaCity, setIfaCity] = useState(ifaCityStr as string);
+  const [ifaTz, setIfaTz] = useState(ifaTzStr as string);
   const [isEditingCities, setIsEditingCities] = useState(false);
 
   useEffect(() => {
