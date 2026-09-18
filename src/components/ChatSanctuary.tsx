@@ -17,7 +17,10 @@ import {
   Edit3,
   Check,
   CheckCheck,
-  Reply
+  Reply,
+  Pin,
+  Copy,
+  Loader2
 } from 'lucide-react';
 import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -47,49 +50,134 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const [tenorGifs, setTenorGifs] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const [showLovePrompts, setShowLovePrompts] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [loveBurstMsgId, setLoveBurstMsgId] = useState<string | null>(null);
+  const [audioSpeeds, setAudioSpeeds] = useState<Record<string, number>>({});
   const chatInputRef = useRef<HTMLInputElement>(null);
 
+  // Expanded GIF Search & Pagination Engine
   const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifCategory, setGifCategory] = useState('🔥 Trending');
+  const [tenorGifs, setTenorGifs] = useState<string[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifOffset, setGifOffset] = useState(0);
 
-  const loadTrendingGifs = useCallback(async () => {
+  const GIF_CATEGORIES = [
+    { label: '🔥 Trending', query: '' },
+    { label: '❤️ Love & Hugs', query: 'love hug couple cute' },
+    { label: '😂 Funny & Memes', query: 'funny meme reaction' },
+    { label: '🐱 Cute Cats', query: 'cute cat kitty kitten' },
+    { label: '💋 Kisses', query: 'kiss couple romance' },
+    { label: '✨ Anime Love', query: 'anime couple romance' },
+    { label: '🥺 Miss You', query: 'miss you sad cute' },
+    { label: '🎉 Celebration', query: 'happy celebration yay' },
+  ];
+
+  const fetchGifs = useCallback(async (query: string, offset = 0, append = false) => {
+    setGifLoading(true);
     try {
-      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=love+cute+hug&limit=40&rating=pg-13`);
+      const cleanQ = query.trim();
+      const endpoint = cleanQ
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(cleanQ)}&limit=40&offset=${offset}`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=40&offset=${offset}`;
+
+      const res = await fetch(endpoint);
       const data = await res.json();
       if (data.data && Array.isArray(data.data)) {
-        const urls = data.data.map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url).filter(Boolean);
-        if (urls.length > 0) setTenorGifs(urls);
+        const urls = data.data
+          .map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url)
+          .filter(Boolean);
+        setTenorGifs(prev => (append ? [...prev, ...urls] : urls));
+        setGifOffset(offset + 40);
       }
-    } catch (e) {
-      console.error('Failed to load GIFs:', e);
+    } catch (err) {
+      console.error('GIF fetch failed:', err);
+    } finally {
+      setGifLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadTrendingGifs();
-  }, [loadTrendingGifs]);
+    fetchGifs('', 0, false);
+  }, [fetchGifs]);
 
   const handleSearchGifs = (query: string) => {
-    const q = query.trim();
+    setGifQuery(query);
     if ((window as any).__gifTimer) clearTimeout((window as any).__gifTimer);
-    if (!q) {
-      loadTrendingGifs();
-      return;
-    }
-    (window as any).__gifTimer = setTimeout(async () => {
-      try {
-        const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(q)}&limit=40&rating=pg-13`);
-        const data = await res.json();
-        if (data.data && Array.isArray(data.data)) {
-          const urls = data.data.map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url).filter(Boolean);
-          if (urls.length > 0) setTenorGifs(urls);
-        }
-      } catch (err) {
-        console.error('GIF search failed:', err);
-      }
+    (window as any).__gifTimer = setTimeout(() => {
+      fetchGifs(query, 0, false);
     }, 350);
+  };
+
+  const handleSelectGifCategory = (cat: { label: string; query: string }) => {
+    setGifCategory(cat.label);
+    setGifQuery(cat.query);
+    fetchGifs(cat.query, 0, false);
+  };
+
+  const handleLoadMoreGifs = () => {
+    fetchGifs(gifQuery, gifOffset, true);
+  };
+
+  const handleQuickLove = async (msgId: string) => {
+    setLoveBurstMsgId(msgId);
+    if ('vibrate' in navigator) navigator.vibrate([30, 30]);
+    handleReaction(msgId, '❤️');
+    setTimeout(() => setLoveBurstMsgId(null), 1000);
+  };
+
+  const handleCopyText = (text: string, msgId: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(msgId);
+    if ('vibrate' in navigator) navigator.vibrate(30);
+    setTimeout(() => setCopiedMsgId(null), 1800);
+  };
+
+  const toggleAudioSpeed = (msgId: string) => {
+    setAudioSpeeds(prev => {
+      const current = prev[msgId] || 1;
+      const next = current === 1 ? 1.5 : current === 1.5 ? 2 : 1;
+      const audioEl = document.querySelector(`[data-audio-id="${msgId}"]`) as HTMLAudioElement;
+      if (audioEl) audioEl.playbackRate = next;
+      return { ...prev, [msgId]: next };
+    });
+  };
+
+  const SWEET_NOTHINGS = [
+    "Thinking of you right now 💕",
+    "I miss your smile & warmth 🌹",
+    "Counting down the seconds until I hold you ✨",
+    "You're my favorite person in the whole universe 🌷",
+    "Sending you 1,000 warm kisses 💋",
+    "I'm so lucky you're mine 💍",
+    "Good morning my sunshine ☀️",
+    "Goodnight my beautiful angel 🌙"
+  ];
+
+  const handleSendLovePrompt = async (text: string) => {
+    setShowLovePrompts(false);
+    if ('vibrate' in navigator) navigator.vibrate(40);
+    const newCreatedAt = getSafeNewTimestamp();
+    const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `prompt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    await fb.messages.add({
+      id: msgId,
+      sender: currentUser,
+      type: 'text',
+      content: text,
+      createdAt: newCreatedAt
+    });
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
 
   const handleStartReply = (msg: any) => {
@@ -771,6 +859,53 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         )}
       </AnimatePresence>
 
+      {/* PINNED MEMORY BANNER */}
+      {(() => {
+        const pinnedMsg = globalSettings.pinnedMessageId ? messages.find(m => m.id === globalSettings.pinnedMessageId) : null;
+        if (!pinnedMsg) return null;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-2 border-b border-pastel-pink-300/30 bg-surface-hover/95 backdrop-blur-xl flex items-center justify-between gap-3 text-xs z-10 shadow-xs"
+          >
+            <div
+              onClick={() => scrollToMessage(pinnedMsg.id)}
+              className="flex items-center gap-2.5 overflow-hidden cursor-pointer flex-1 group"
+              title="Click to jump to pinned memory"
+            >
+              <div className="p-1.5 rounded-xl bg-pastel-pink-400 text-white shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                <Pin className="w-3.5 h-3.5 fill-white" />
+              </div>
+              <div className="flex flex-col text-left overflow-hidden">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-pastel-pink-400 flex items-center gap-1 leading-tight">
+                  Pinned Memory <Sparkles className="w-2.5 h-2.5 inline" />
+                </span>
+                <span className="text-xs text-text-main truncate font-medium mt-0.5">
+                  <strong className="text-pastel-pink-400">{pinnedMsg.sender}: </strong>
+                  {pinnedMsg.type === 'text' && pinnedMsg.content}
+                  {pinnedMsg.type === 'image' && '📷 Photo'}
+                  {pinnedMsg.type === 'gif' && '✨ GIF'}
+                  {pinnedMsg.type === 'sticker' && '🌸 Sticker'}
+                  {pinnedMsg.type === 'audio' && '🎤 Voice Note'}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                await fb.userSettings.set('global', { pinnedMessageId: null });
+              }}
+              className="p-1 rounded-full text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
+              title="Unpin Memory"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        );
+      })()}
+
       {/* MESSAGE STREAM */}
       <div 
         onClick={(e) => { if ((e.target as HTMLElement).closest('[data-msg-bubble]') === null) setSelectedMsgId(null); }}
@@ -869,12 +1004,23 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     {msg.type === 'text' && (
                       <div
                         onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
-                        className={`px-5 py-3.5 shadow-sm font-medium text-[15px] leading-relaxed transition-all cursor-pointer ${corners} ${
+                        onDoubleClick={() => handleQuickLove(msg.id)}
+                        className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text ${corners} ${
                           isMe
-                            ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
-                            : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
+                            ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
+                            : 'bubble-other-themed font-medium'
                         }`}
                       >
+                        {loveBurstMsgId === msg.id && (
+                          <motion.div
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: [0, 1.8, 0], opacity: [0, 1, 0] }}
+                            transition={{ duration: 0.8 }}
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+                          >
+                            <Heart className="w-12 h-12 fill-red-500 text-red-500 drop-shadow-2xl" />
+                          </motion.div>
+                        )}
                         {msg.content}
                       </div>
                     )}
@@ -901,17 +1047,33 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     {msg.type === 'audio' && (
                       <div
                         onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
-                        className={`px-3 py-2 flex items-center shadow-sm cursor-pointer ${corners} ${
+                        className={`px-3 py-2 flex items-center gap-2 shadow-md cursor-pointer ${corners} ${
                           isMe
-                            ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
-                            : 'bg-white/10 backdrop-blur-md border border-white/10 text-white'
+                            ? 'bubble-me-gradient text-white'
+                            : 'bubble-other-themed'
                         }`}
                       >
-                        <audio controls src={msg.mediaUrl} className="h-10 w-48 outline-none" />
+                        <audio
+                          controls
+                          data-audio-id={msg.id}
+                          src={msg.mediaUrl}
+                          className="h-10 w-44 sm:w-48 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAudioSpeed(msg.id);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-black/25 hover:bg-black/35 text-white text-[10px] font-extrabold uppercase tracking-wider transition-colors shrink-0"
+                          title="Playback Speed"
+                        >
+                          {audioSpeeds[msg.id] || 1}x
+                        </button>
                       </div>
                     )}
 
-                    {/* Quick Reactions & Edit/Delete Floating Pill (Hover on Desktop, Tap on Mobile) */}
+                    {/* Quick Reactions & Actions Floating Pill (Hover on Desktop, Tap on Mobile) */}
                     <div className={`absolute -top-7 ${isMe ? 'right-0' : 'left-0'} ${isSelected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover/bubble:opacity-100 md:group-hover/bubble:pointer-events-auto'} transition-opacity flex items-center gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
                       {quickReactions.slice(0, 5).map((emoji) => (
                         <button
@@ -932,6 +1094,34 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       >
                         <Reply className="w-3.5 h-3.5" />
                       </button>
+                      {/* Pin / Unpin Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const isPinned = globalSettings.pinnedMessageId === msg.id;
+                          fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msg.id });
+                          setSelectedMsgId(null);
+                        }}
+                        className={`ml-0.5 cursor-pointer p-0.5 ${globalSettings.pinnedMessageId === msg.id ? 'text-pastel-pink-400' : 'text-text-muted hover:text-pastel-pink-400'}`}
+                        title={globalSettings.pinnedMessageId === msg.id ? 'Unpin Memory' : 'Pin Memory'}
+                      >
+                        <Pin className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Copy Text Button */}
+                      {msg.type === 'text' && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(msg.content, msg.id)}
+                          className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
+                          title="Copy Message"
+                        >
+                          {copiedMsgId === msg.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
                       {isMe && msg.type === 'text' && (
                         <button
                           type="button"
@@ -1111,6 +1301,45 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </AnimatePresence>
 
+        {/* SWEET NOTHINGS / ROMANTIC QUICK-SEND POPUP */}
+        <AnimatePresence>
+          {showLovePrompts && (
+            <motion.div
+              initial={{ opacity: 0, y: 15, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                <span className="text-xs font-bold font-serif-italic text-text-main flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400 animate-pulse" /> Sweet Love Sparks
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowLovePrompts(false)}
+                  className="p-1 rounded-full text-text-muted hover:text-text-main cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1">
+                {SWEET_NOTHINGS.map((phrase, i) => (
+                  <motion.button
+                    key={i}
+                    whileHover={{ scale: 1.02, x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleSendLovePrompt(phrase)}
+                    className="w-full text-left p-2.5 rounded-xl bg-surface-hover/70 hover:bg-pastel-pink-400/15 hover:border-pastel-pink-400 border border-border/40 text-xs font-medium text-text-main transition-all cursor-pointer flex items-center justify-between group"
+                  >
+                    <span>{phrase}</span>
+                    <Send className="w-3 h-3 text-pastel-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
           
           {editingMsgId ? (
@@ -1172,10 +1401,28 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           ) : (
             <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1">
               
+              {/* Sweet Nothings / Romance Sparks Popover Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLovePrompts(!showLovePrompts);
+                  setShowStickerPicker(false);
+                }}
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
+                  showLovePrompts ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                }`}
+                title="Sweet Love Prompts"
+              >
+                <Heart className="w-5 h-5 fill-current" />
+              </button>
+
               {/* Sticker / GIF Picker Toggle */}
               <button
                 type="button"
-                onClick={() => setShowStickerPicker(!showStickerPicker)}
+                onClick={() => {
+                  setShowStickerPicker(!showStickerPicker);
+                  setShowLovePrompts(false);
+                }}
                 className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
                   showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
@@ -1241,10 +1488,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={springConfig}
-              className="absolute bottom-[85px] left-4 right-4 bg-surface/98 backdrop-blur-lg border border-border rounded-[2.5rem] p-6 shadow-2xl z-30"
+              className="absolute bottom-[85px] left-3 right-3 sm:left-4 sm:right-4 bg-surface/98 backdrop-blur-2xl border border-border rounded-[2.5rem] p-5 md:p-6 shadow-2xl z-30"
             >
               {/* Header with Tabs */}
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-border">
+              <div className="flex justify-between items-center mb-3 pb-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -1255,7 +1502,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                         : 'text-text-muted hover:text-text-main'
                     }`}
                   >
-                    <Film className="w-3.5 h-3.5" /> Cute GIFs
+                    <Film className="w-3.5 h-3.5" /> All GIFs
                   </button>
                   <button
                     type="button"
@@ -1301,22 +1548,89 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               {/* TAB 1: INFINITE GIPHY GIFS */}
               {stickerTab === 'gifs' && (
                 <div className="flex flex-col gap-3">
-                  <input
-                    type="text"
-                    placeholder="Search GIFs (love, hug, cat, crying...)"
-                    onChange={(e) => handleSearchGifs(e.target.value)}
-                    className="w-full bg-surface border border-border rounded-xl py-2 px-3 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400"
-                  />
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">
-                    {(tenorGifs.length > 0 ? tenorGifs : PREMADE_GIFS_AND_STICKERS.filter(s => s.type === 'gif').map(g => g.url)).map((gifUrl: string, i: number) => (
+                  {/* Search Bar with live loader */}
+                  <div className="relative flex items-center">
+                    <Search className="w-4 h-4 absolute left-3.5 text-text-muted" />
+                    <input
+                      type="text"
+                      value={gifQuery}
+                      placeholder="Search all GIFs (e.g. hug, love, dance, cat, meme...)"
+                      onChange={(e) => handleSearchGifs(e.target.value)}
+                      className="w-full bg-surface border border-border rounded-2xl py-2 pl-10 pr-10 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400 shadow-inner"
+                    />
+                    {gifLoading ? (
+                      <Loader2 className="w-4 h-4 absolute right-3.5 text-pastel-pink-400 animate-spin" />
+                    ) : gifQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGifQuery('');
+                          fetchGifs('', 0, false);
+                        }}
+                        className="absolute right-3 text-text-muted hover:text-text-main text-xs p-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {/* Category Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    {GIF_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.label}
+                        type="button"
+                        onClick={() => handleSelectGifCategory(cat)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                          gifCategory === cat.label
+                            ? 'bg-pastel-pink-400 text-white shadow-xs'
+                            : 'bg-surface-hover/80 text-text-muted hover:text-text-main hover:bg-surface-hover'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* GIF Grid with Expanded Height */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+                    {tenorGifs.map((gifUrl: string, i: number) => (
                       <div
                         key={i}
                         onClick={() => handleSendGifOrSticker(gifUrl, 'gif')}
-                        className="aspect-square rounded-xl overflow-hidden border border-border/50 hover:border-pastel-pink-400 cursor-pointer hover:scale-105 transition-all shadow-sm"
+                        className="aspect-square rounded-2xl overflow-hidden border border-border/50 hover:border-pastel-pink-400 cursor-pointer hover:scale-105 transition-all shadow-sm bg-surface-hover/40 group relative"
                       >
                         <img src={gifUrl} alt="gif" className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     ))}
+
+                    {tenorGifs.length === 0 && !gifLoading && (
+                      <div className="col-span-full py-10 text-center text-text-muted text-xs">
+                        No GIFs found for "{gifQuery}". Try another search term!
+                      </div>
+                    )}
+
+                    {/* Load More Button */}
+                    {tenorGifs.length > 0 && (
+                      <div className="col-span-full pt-2 pb-1 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={handleLoadMoreGifs}
+                          disabled={gifLoading}
+                          className="px-5 py-2 rounded-full bg-surface-hover border border-border text-xs font-bold text-text-main hover:border-pastel-pink-400 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+                        >
+                          {gifLoading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-pastel-pink-400" /> Loading more...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-pastel-pink-400" /> Load More GIFs
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
