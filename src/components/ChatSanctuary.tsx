@@ -99,6 +99,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [loveBurstMsgId, setLoveBurstMsgId] = useState<string | null>(null);
   const [audioSpeeds, setAudioSpeeds] = useState<Record<string, number>>({});
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; id: string } | null>(null);
 
   // Expanded GIF Search & Pagination Engine
   const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
@@ -174,10 +176,23 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const handleCopyText = (text: string, msgId: string) => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedMsgId(msgId);
-    if ('vibrate' in navigator) navigator.vibrate(30);
-    setTimeout(() => setCopiedMsgId(null), 1800);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedMsgId(msgId);
+      if ('vibrate' in navigator) navigator.vibrate(30);
+      setTimeout(() => setCopiedMsgId(null), 1800);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
   };
 
   const toggleAudioSpeed = (msgId: string) => {
@@ -733,16 +748,23 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   };
 
   const handleReaction = async (msgId: string, emoji: string) => {
-    const msg = await fb.messages.get(msgId);
-    if (!msg) return;
+    try {
+      const targetMsg = messages.find(m => m.id === msgId);
+      let currentReactions = targetMsg?.reactions;
+      if (!currentReactions) {
+        const fetched = await fb.messages.get(msgId);
+        currentReactions = fetched?.reactions || [];
+      }
 
-    const currentReactions = msg.reactions || [];
-    const updated = currentReactions.includes(emoji)
-      ? currentReactions.filter(r => r !== emoji)
-      : [...currentReactions, emoji];
+      const updated = currentReactions.includes(emoji)
+        ? currentReactions.filter(r => r !== emoji)
+        : [...currentReactions, emoji];
 
-    await fb.messages.update(msgId, { reactions: updated });
-    if ('vibrate' in navigator) navigator.vibrate(30);
+      await fb.messages.update(msgId, { reactions: updated });
+      if ('vibrate' in navigator) navigator.vibrate(30);
+    } catch (err) {
+      console.error('Reaction failed:', err);
+    }
   };
 
   const handleDeleteMessage = async (msgId: string) => {
@@ -977,7 +999,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       {/* MESSAGE STREAM */}
       <div 
-        onClick={(e) => { if ((e.target as HTMLElement).closest('[data-msg-bubble]') === null) setSelectedMsgId(null); }}
+        onClick={(e) => { 
+          const target = e.target as HTMLElement;
+          if (!target.closest('[data-msg-bubble]') && !target.closest('[data-action-row]')) {
+            setSelectedMsgId(null); 
+          }
+        }}
         className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative"
       >
         <div ref={topElementRef} className="h-6 w-full shrink-0 flex items-center justify-center">
@@ -1028,11 +1055,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 initial={{ opacity: 0, scale: 0.95, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={springConfig}
+                onMouseEnter={() => setHoveredMsgId(msg.id)}
+                onMouseLeave={() => setHoveredMsgId(null)}
                 className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'} transition-all duration-500 rounded-3xl ${
                   highlightedMsgId === msg.id ? 'ring-2 ring-pastel-pink-400 bg-pastel-pink-400/20 p-1.5' : ''
                 }`}
               >
-                <div className={`max-w-[85%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
+                <div className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
                   
                   {/* Sender Tag (Only show for first in cluster) */}
                   {showName && (
@@ -1041,26 +1070,44 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </span>
                   )}
 
-                  {/* Bubble Container with Swipe-to-Reply */}
+                  {/* Swipeable Message Bubble with 100% Reliable Touch + Mouse Swipe */}
                   <motion.div
                     data-msg-bubble="true"
                     drag="x"
                     dragDirectionLock
                     dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.4}
+                    dragElastic={0.35}
                     onDragEnd={(_e, info) => {
-                      if ((!isMe && info.offset.x > 45) || (isMe && info.offset.x < -45)) {
+                      if (Math.abs(info.offset.x) > 35) {
                         handleStartReply(msg);
                         if ('vibrate' in navigator) navigator.vibrate([25, 25]);
                       }
                     }}
+                    onTouchStart={(e) => {
+                      touchStartRef.current = {
+                        x: e.touches[0].clientX,
+                        y: e.touches[0].clientY,
+                        id: msg.id
+                      };
+                    }}
+                    onTouchEnd={(e) => {
+                      if (!touchStartRef.current || touchStartRef.current.id !== msg.id) return;
+                      const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+                      const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+                      touchStartRef.current = null;
+                      if (Math.abs(deltaX) > 35 && Math.abs(deltaY) < 55) {
+                        handleStartReply(msg);
+                        if ('vibrate' in navigator) navigator.vibrate([25, 25]);
+                      }
+                    }}
+                    style={{ touchAction: 'pan-y' }}
                     className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing"
                   >
                     {/* Swipe-to-Reply Hint Indicator */}
                     <div
                       className={`absolute top-1/2 -translate-y-1/2 ${
                         isMe ? '-left-8' : '-right-8'
-                      } text-pastel-pink-400 opacity-0 group-active/bubble:opacity-75 transition-opacity pointer-events-none`}
+                      } text-pastel-pink-400 opacity-0 group-active/bubble:opacity-80 transition-opacity pointer-events-none`}
                     >
                       <Reply className="w-5 h-5" />
                     </div>
@@ -1094,8 +1141,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
                     {msg.type === 'text' && (
                       <div
-                        onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
-                        onDoubleClick={() => handleQuickLove(msg.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMsgId(isSelected ? null : msg.id);
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickLove(msg.id);
+                        }}
                         className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text ${corners} ${
                           isMe
                             ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
@@ -1137,7 +1190,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
                     {msg.type === 'audio' && (
                       <div
-                        onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMsgId(isSelected ? null : msg.id);
+                        }}
                         className={`px-3 py-2 flex items-center gap-2 shadow-md cursor-pointer ${corners} ${
                           isMe
                             ? 'bubble-me-gradient text-white'
@@ -1163,110 +1219,19 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                         </button>
                       </div>
                     )}
-
-                    {/* Quick Reactions & Actions Floating Pill */}
-                    <div className={`absolute -top-9 ${isMe ? 'right-0' : 'left-0'} ${isSelected ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none md:group-hover/bubble:opacity-100 md:group-hover/bubble:pointer-events-auto scale-95 md:group-hover/bubble:scale-100'} transition-all duration-200 flex items-center gap-1 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 px-2.5 py-1.5 rounded-full shadow-xl z-40 max-w-[calc(100vw-32px)]`}>
-                      {customReactions.slice(0, 7).map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => { handleReaction(msg.id, emoji); setSelectedMsgId(null); }}
-                          className="text-sm sm:text-base hover:scale-130 active:scale-90 transition-transform cursor-pointer px-0.5"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-
-                      {/* Customize Emoji Row Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowEmojiCustomizer(true);
-                          setSelectedMsgId(null);
-                        }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center bg-pastel-pink-400/15 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-bold shrink-0 cursor-pointer ml-0.5"
-                        title="Customize reaction emojis"
-                      >
-                        +
-                      </button>
-
-                      <div className="w-px h-3.5 bg-border/80 mx-0.5" />
-
-                      {/* Reply Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleStartReply(msg)}
-                        className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
-                        title="Reply to Message"
-                      >
-                        <Reply className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Pin / Unpin Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const isPinned = globalSettings.pinnedMessageId === msg.id;
-                          fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msg.id });
-                          setSelectedMsgId(null);
-                        }}
-                        className={`p-1 rounded-full cursor-pointer transition-colors ${globalSettings.pinnedMessageId === msg.id ? 'text-pastel-pink-400 bg-pastel-pink-400/10' : 'text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10'}`}
-                        title={globalSettings.pinnedMessageId === msg.id ? 'Unpin Memory' : 'Pin Memory'}
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Copy Text Button */}
-                      {msg.type === 'text' && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(msg.content, msg.id)}
-                          className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
-                          title="Copy Message"
-                        >
-                          {copiedMsgId === msg.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      )}
-
-                      {/* Edit Button */}
-                      {isMe && msg.type === 'text' && (
-                        <button
-                          type="button"
-                          onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); setSelectedMsgId(null); }}
-                          className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
-                          title="Edit Message"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {/* Delete Button */}
-                      {isMe && (
-                        <button
-                          type="button"
-                          onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
-                          className="text-text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full p-1 cursor-pointer transition-colors"
-                          title="Delete Message"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
                   </motion.div>
 
-                  {/* Reaction Badges */}
+                  {/* Reaction Badges on Message */}
                   {msg.reactions && msg.reactions.length > 0 && (
-                    <div className="flex gap-1 mt-1 px-1">
+                    <div className="flex gap-1 mt-1 px-1 flex-wrap">
                       {msg.reactions.map((r: string, i: number) => (
                         <span
                           key={i}
-                          onClick={() => handleReaction(msg.id, r)}
-                          className="text-xs bg-surface-hover border border-border px-2 py-0.5 rounded-full shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReaction(msg.id, r);
+                          }}
+                          className="text-xs bg-surface-hover border border-border px-2 py-0.5 rounded-full shadow-2xs cursor-pointer hover:scale-110 active:scale-95 transition-transform"
                         >
                           {r}
                         </span>
@@ -1274,13 +1239,57 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </div>
                   )}
 
-                  {/* Timestamp & Quick Action Buttons (Always Visible & Easily Accessible!) */}
-                  <div className="flex items-center gap-1.5 mt-1 px-2 flex-wrap">
-                    <span className="text-[10px] text-text-muted font-medium">
+                  {/* Quick Reaction Popup Drawer (Opens when tapped or clicked React) */}
+                  <AnimatePresence>
+                    {(isSelected || hoveredMsgId === msg.id) && (
+                      <motion.div
+                        data-action-row="true"
+                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`mt-1.5 flex items-center gap-1 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/50 px-2.5 py-1 rounded-full shadow-xl z-30 max-w-[calc(100vw-32px)] overflow-x-auto`}
+                      >
+                        {customReactions.slice(0, 8).map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReaction(msg.id, emoji);
+                              setSelectedMsgId(null);
+                            }}
+                            className="text-base sm:text-lg hover:scale-130 active:scale-90 transition-transform cursor-pointer px-1 py-0.5"
+                            title={`React ${emoji}`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+
+                        {/* + Customize Emojis Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowEmojiCustomizer(true);
+                            setSelectedMsgId(null);
+                          }}
+                          className="w-6 h-6 rounded-full flex items-center justify-center bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-extrabold shrink-0 cursor-pointer ml-0.5"
+                          title="Customize reaction emojis"
+                        >
+                          +
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Interactive Action Row (Always Visible & 100% Functional!) */}
+                  <div data-action-row="true" className="flex items-center gap-1.5 mt-1.5 px-1 flex-wrap">
+                    <span className="text-[10px] text-text-muted font-medium mr-0.5">
                       {formatMessageTime(msg.createdAt, userTz)}
                     </span>
                     {msg.isEdited && (
-                      <span className="text-[9px] text-pastel-pink-400 font-medium italic">
+                      <span className="text-[9px] text-pastel-pink-400 font-medium italic mr-0.5">
                         (edited)
                       </span>
                     )}
@@ -1288,7 +1297,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     {/* Seen / Just Read Status */}
                     {isMe && (
                       <span 
-                        className="flex items-center gap-0.5 text-[10px] select-none"
+                        className="flex items-center gap-0.5 text-[10px] select-none mr-1"
                         title={msg.isRead ? (msg.readAt ? `Read at ${formatMessageTime(msg.readAt, userTz)}` : 'Seen') : 'Sent'}
                       >
                         {msg.isRead ? (
@@ -1311,38 +1320,78 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       </span>
                     )}
 
-                    {/* 1-Tap Reply Button - Instant Access */}
+                    {/* 1-Tap Reply Button */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartReply(msg);
                       }}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/70 hover:bg-surface border border-border/50 hover:border-pastel-pink-400/50 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none group/replybtn"
+                      className="flex items-center gap-1 text-[11px] font-bold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs group/replybtn select-none"
                       title="Reply to this message"
                     >
-                      <Reply className="w-3 h-3 group-hover/replybtn:-translate-x-0.5 transition-transform" />
+                      <Reply className="w-3.5 h-3.5 group-hover/replybtn:-translate-x-0.5 transition-transform" />
                       <span>Reply</span>
                     </button>
 
-                    {/* Quick React Button */}
+                    {/* 1-Tap React Button */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMsgId(isSelected ? null : msg.id);
                       }}
-                      className={`flex items-center gap-1 text-[11px] font-semibold transition-all px-2 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
+                      className={`flex items-center gap-1 text-[11px] font-bold transition-all px-2.5 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
                         isSelected
                           ? 'bg-pastel-pink-400 text-white border-pastel-pink-400 shadow-xs'
-                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/70 hover:bg-surface border-border/50 hover:border-pastel-pink-400/50'
+                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
                       }`}
-                      title="Reactions & message options"
+                      title="Open reaction drawer"
                     >
-                      <SmilePlus className="w-3 h-3" />
-                      <span className="hidden sm:inline">React</span>
+                      <SmilePlus className="w-3.5 h-3.5" />
+                      <span>React</span>
                     </button>
 
+                    {/* Copy Text Button */}
+                    {msg.type === 'text' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyText(msg.content, msg.id);
+                        }}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none"
+                        title="Copy text"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        <span className="hidden sm:inline">Copy</span>
+                      </button>
+                    )}
+
+                    {/* Pin / Unpin Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isPinned = globalSettings.pinnedMessageId === msg.id;
+                        fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msg.id });
+                      }}
+                      className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer active:scale-95 shadow-2xs select-none ${
+                        globalSettings.pinnedMessageId === msg.id
+                          ? 'text-pastel-pink-400 bg-pastel-pink-400/15 border-pastel-pink-400/50'
+                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
+                      }`}
+                      title={globalSettings.pinnedMessageId === msg.id ? 'Unpin Memory' : 'Pin Memory'}
+                    >
+                      <Pin className="w-3 h-3" />
+                      <span className="hidden sm:inline">{globalSettings.pinnedMessageId === msg.id ? 'Pinned' : 'Pin'}</span>
+                    </button>
+
+                    {/* Edit Button */}
                     {isMe && msg.type === 'text' && (
                       <button
                         type="button"
@@ -1351,13 +1400,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           setEditingMsgId(msg.id);
                           setEditContent(msg.content);
                         }}
-                        className="text-text-muted/70 hover:text-pastel-pink-400 p-0.5 rounded cursor-pointer transition-colors flex items-center gap-0.5 text-[10px]"
+                        className="text-text-muted/70 hover:text-pastel-pink-400 p-1 rounded-full cursor-pointer transition-colors"
                         title="Edit message"
                       >
-                        <Edit3 className="w-3 h-3" />
-                        <span className="hidden sm:inline">edit</span>
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     )}
+
+                    {/* Delete Button */}
                     {isMe && (
                       <button
                         type="button"
@@ -1365,10 +1415,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           e.stopPropagation();
                           handleDeleteMessage(msg.id);
                         }}
-                        className="text-text-muted/70 hover:text-red-400 p-0.5 rounded cursor-pointer transition-colors"
+                        className="text-text-muted/70 hover:text-red-400 p-1 rounded-full cursor-pointer transition-colors"
                         title="Delete message"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
