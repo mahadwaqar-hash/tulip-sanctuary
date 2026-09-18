@@ -16,7 +16,8 @@ import {
   Film,
   Edit3,
   Check,
-  CheckCheck
+  CheckCheck,
+  Reply
 } from 'lucide-react';
 import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -47,6 +48,99 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const [tenorGifs, setTenorGifs] = useState<string[]>([]);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
+
+  const loadTrendingGifs = useCallback(async () => {
+    try {
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=love+cute+hug&limit=40&rating=pg-13`);
+      const data = await res.json();
+      if (data.data && Array.isArray(data.data)) {
+        const urls = data.data.map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url).filter(Boolean);
+        if (urls.length > 0) setTenorGifs(urls);
+      }
+    } catch (e) {
+      console.error('Failed to load GIFs:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTrendingGifs();
+  }, [loadTrendingGifs]);
+
+  const handleSearchGifs = (query: string) => {
+    const q = query.trim();
+    if ((window as any).__gifTimer) clearTimeout((window as any).__gifTimer);
+    if (!q) {
+      loadTrendingGifs();
+      return;
+    }
+    (window as any).__gifTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(q)}&limit=40&rating=pg-13`);
+        const data = await res.json();
+        if (data.data && Array.isArray(data.data)) {
+          const urls = data.data.map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url).filter(Boolean);
+          if (urls.length > 0) setTenorGifs(urls);
+        }
+      } catch (err) {
+        console.error('GIF search failed:', err);
+      }
+    }, 350);
+  };
+
+  const handleStartReply = (msg: any) => {
+    setReplyingTo({
+      id: msg.id,
+      sender: msg.sender,
+      content: msg.content || '',
+      type: msg.type || 'text',
+      mediaUrl: msg.mediaUrl || null
+    });
+    setSelectedMsgId(null);
+    setTimeout(() => chatInputRef.current?.focus(), 80);
+  };
+
+  const scrollToMessage = (id: string) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMsgId(id);
+      setTimeout(() => setHighlightedMsgId(null), 2000);
+    }
+  };
+
+  const resizeImageToSticker = (dataUrl: string, maxSize = 256): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
 
   // Live Settings
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
@@ -217,6 +311,15 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
+      const replyData = replyingTo ? {
+        id: replyingTo.id,
+        sender: replyingTo.sender,
+        content: replyingTo.content || '',
+        type: replyingTo.type || 'text',
+        mediaUrl: replyingTo.mediaUrl || null
+      } : null;
+      if (replyingTo) setReplyingTo(null);
+
       const newCreatedAt = getSafeNewTimestamp();
       const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? crypto.randomUUID()
@@ -227,7 +330,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         sender: currentUser,
         type: 'text',
         content: textToSend,
-        createdAt: newCreatedAt
+        createdAt: newCreatedAt,
+        ...(replyData ? { replyTo: replyData } : {})
       });
 
       setTimeout(() => {
@@ -252,17 +356,28 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           ? crypto.randomUUID()
           : `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+        const replyData = replyingTo ? {
+          id: replyingTo.id,
+          sender: replyingTo.sender,
+          content: replyingTo.content || '',
+          type: replyingTo.type || 'text',
+          mediaUrl: replyingTo.mediaUrl || null
+        } : null;
+        if (replyingTo) setReplyingTo(null);
+
         await fb.messages.add({
           id: msgId,
           sender: currentUser,
           type: 'image',
           content: 'Sent a photo',
           mediaUrl: ev.target.result as string,
-          createdAt: newCreatedAt
+          createdAt: newCreatedAt,
+          ...(replyData ? { replyTo: replyData } : {})
         });
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
@@ -272,12 +387,22 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       ? crypto.randomUUID()
       : `gif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+    const replyData = replyingTo ? {
+      id: replyingTo.id,
+      sender: replyingTo.sender,
+      content: replyingTo.content || '',
+      type: replyingTo.type || 'text',
+      mediaUrl: replyingTo.mediaUrl || null
+    } : null;
+    if (replyingTo) setReplyingTo(null);
+
     await fb.messages.add({
       id: msgId,
       sender: currentUser,
       type,
       content: url,
-      createdAt: newCreatedAt
+      createdAt: newCreatedAt,
+      ...(replyData ? { replyTo: replyData } : {})
     });
     setShowStickerPicker(false);
   };
@@ -289,15 +414,27 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       if (ev.target?.result) {
-        await fb.stickers.add({
-          id: crypto.randomUUID(),
-          name: file.name,
-          dataUrl: ev.target.result as string,
-          createdAt: Date.now()
-        });
+        try {
+          const compressed = await resizeImageToSticker(ev.target.result as string, 256);
+          const stickerId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `stk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+          await fb.stickers.add({
+            id: stickerId,
+            name: file.name || 'custom_sticker',
+            dataUrl: compressed,
+            createdAt: Date.now()
+          });
+          if ('vibrate' in navigator) navigator.vibrate([40, 40]);
+        } catch (err: any) {
+          console.error('Failed to upload custom sticker:', err);
+          alert('Could not upload sticker: ' + (err?.message || String(err)));
+        }
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Real Voice Notes (Using Base64 to bypass Firebase Storage Rule issues)
@@ -404,13 +541,23 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
              ? `${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, '0')}`
              : '0:05';
 
+           const replyData = replyingTo ? {
+             id: replyingTo.id,
+             sender: replyingTo.sender,
+             content: replyingTo.content || '',
+             type: replyingTo.type || 'text',
+             mediaUrl: replyingTo.mediaUrl || null
+           } : null;
+           if (replyingTo) setReplyingTo(null);
+
            await fb.messages.add({
              id: msgId,
              sender: currentUser,
              type: 'audio',
              content: `Voice note (${durationStr})`,
              mediaUrl: base64data,
-             createdAt: newCreatedAt
+             createdAt: newCreatedAt,
+             ...(replyData ? { replyTo: replyData } : {})
            });
 
            setTimeout(() => {
@@ -552,6 +699,49 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         </div>
       </div>
 
+      {/* MOBILE LOVE TIMER TICKER STRIP (Visible on mobile & tablets < lg) */}
+      <div className="lg:hidden flex items-center justify-between px-3.5 py-2 bg-surface-hover/90 border-b border-pastel-pink-300/20 backdrop-blur-md text-xs z-10 shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Heart className="w-3 h-3 fill-white" />
+          </div>
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">In Love For:</span>
+            <span className="text-pastel-pink-400 font-extrabold text-xs tracking-tight whitespace-nowrap">
+              {timeTogether.days}d {timeTogether.hours}h {timeTogether.mins}m {timeTogether.secs}s
+            </span>
+          </div>
+        </div>
+        {isEditingStart ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <input
+              type="date"
+              defaultValue={startDateStr}
+              onChange={(e) => {
+                if (e.target.value) handleSaveStartDate(e.target.value);
+              }}
+              className="text-[10px] bg-surface p-1 rounded-md border border-pastel-pink-300 text-text-main outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setIsEditingStart(false)}
+              className="p-1 rounded text-text-muted hover:text-text-main text-[10px]"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditingStart(true)}
+            className="p-1 text-text-muted hover:text-pastel-pink-400 rounded-full cursor-pointer shrink-0"
+            title="Change In Love Date"
+          >
+            <Edit3 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
       {/* SEARCH BAR DROPDOWN */}
       <AnimatePresence>
         {showSearch && (
@@ -630,10 +820,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             return (
               <motion.div
                 key={msg.id}
+                id={`msg-${msg.id}`}
                 initial={{ opacity: 0, scale: 0.95, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={springConfig}
-                className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'}`}
+                className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'} transition-all duration-500 rounded-3xl ${
+                  highlightedMsgId === msg.id ? 'ring-2 ring-pastel-pink-400 bg-pastel-pink-400/20 p-1.5' : ''
+                }`}
               >
                 <div className={`max-w-[85%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
                   
@@ -646,6 +839,33 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
                   {/* Bubble Container */}
                   <div data-msg-bubble="true" className="relative group/bubble flex flex-col">
+                    {/* Reply Quoted Preview Block (Discord / WhatsApp Style) */}
+                    {msg.replyTo && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          scrollToMessage(msg.replyTo.id);
+                        }}
+                        className={`mb-1.5 px-3 py-1.5 rounded-2xl border-l-4 border-pastel-pink-400 text-xs cursor-pointer hover:opacity-90 transition-opacity flex flex-col select-none max-w-full ${
+                          isMe
+                            ? 'bg-black/25 text-white shadow-sm'
+                            : 'bg-surface-hover/80 text-text-main border border-border/40 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1 font-bold text-pastel-pink-400 text-[11px] leading-tight">
+                          <Reply className="w-3 h-3 rotate-180 inline shrink-0" />
+                          <span>{msg.replyTo.sender}</span>
+                        </div>
+                        <span className="truncate text-[12px] mt-0.5 max-w-[220px] sm:max-w-xs font-normal opacity-90">
+                          {msg.replyTo.type === 'text' && (msg.replyTo.content || 'Message')}
+                          {msg.replyTo.type === 'image' && '📷 Photo'}
+                          {msg.replyTo.type === 'gif' && '✨ GIF'}
+                          {msg.replyTo.type === 'sticker' && '🌸 Sticker'}
+                          {msg.replyTo.type === 'audio' && '🎤 Voice Note'}
+                        </span>
+                      </div>
+                    )}
+
                     {msg.type === 'text' && (
                       <div
                         onClick={() => setSelectedMsgId(isSelected ? null : msg.id)}
@@ -703,11 +923,20 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           {emoji}
                         </button>
                       ))}
+                      {/* Reply Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleStartReply(msg)}
+                        className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
+                        title="Reply to Message"
+                      >
+                        <Reply className="w-3.5 h-3.5" />
+                      </button>
                       {isMe && msg.type === 'text' && (
                         <button
                           type="button"
                           onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); setSelectedMsgId(null); }}
-                          className="text-text-muted hover:text-pastel-pink-400 ml-1 cursor-pointer p-0.5"
+                          className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
                           title="Edit Message"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -843,6 +1072,45 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       {/* INPUT BAR */}
       <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-2xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
+        
+        {/* Reply Preview Banner (Discord / WhatsApp Style) */}
+        <AnimatePresence>
+          {replyingTo && !editingMsgId && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              className="mb-2 px-4 py-2 rounded-2xl bg-surface/95 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-lg flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="p-1.5 rounded-xl bg-pastel-pink-400 text-white shrink-0 shadow-xs">
+                  <Reply className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex flex-col text-left overflow-hidden">
+                  <span className="text-[11px] font-bold text-pastel-pink-400 leading-tight">
+                    Replying to {replyingTo.sender}
+                  </span>
+                  <span className="text-xs text-text-muted truncate max-w-xs sm:max-w-md font-medium">
+                    {replyingTo.type === 'text' && (replyingTo.content || 'Message')}
+                    {replyingTo.type === 'image' && '📷 Photo'}
+                    {replyingTo.type === 'gif' && '✨ GIF'}
+                    {replyingTo.type === 'sticker' && '🌸 Sticker'}
+                    {replyingTo.type === 'audio' && '🎤 Voice Note'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="p-1 rounded-full text-text-muted hover:text-text-main hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
+                title="Cancel reply"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
           
           {editingMsgId ? (
@@ -935,10 +1203,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
               {/* Main Input Field */}
               <input
+                ref={chatInputRef}
                 type="text"
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
-                placeholder={`Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
+                placeholder={replyingTo ? `Reply to ${replyingTo.sender}...` : `Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
                 className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
               />
 
@@ -1025,7 +1294,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept="image/png,image/webp"
+                accept="image/*"
                 onChange={handleCustomStickerUpload}
               />
 
@@ -1035,31 +1304,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   <input
                     type="text"
                     placeholder="Search GIFs (love, hug, cat, crying...)"
-                    onChange={(e) => {
-                      const q = e.target.value.trim();
-                      // Debounce: clear previous timer
-                      if ((window as any).__gifTimer) clearTimeout((window as any).__gifTimer);
-                      if (!q) {
-                        // Show trending when search is cleared
-                        fetch(`https://api.giphy.com/v1/gifs/trending?api_key=dc6zaTOxFJmzC&limit=30&rating=pg-13`)
-                          .then(r => r.json())
-                          .then(data => {
-                            if (data.data) setTenorGifs(data.data.map((g: any) => g.images.fixed_width_small.url));
-                          }).catch(() => {});
-                        return;
-                      }
-                      (window as any).__gifTimer = setTimeout(async () => {
-                        try {
-                          const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(q)}&limit=30&rating=pg-13`);
-                          const data = await res.json();
-                          if (data.data) {
-                            setTenorGifs(data.data.map((g: any) => g.images.fixed_width_small.url));
-                          }
-                        } catch (err) {
-                          console.error('GIF search failed:', err);
-                        }
-                      }, 400);
-                    }}
+                    onChange={(e) => handleSearchGifs(e.target.value)}
                     className="w-full bg-surface border border-border rounded-xl py-2 px-3 text-xs font-medium text-text-main outline-none focus:border-pastel-pink-400"
                   />
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto pr-1">

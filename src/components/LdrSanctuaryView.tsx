@@ -112,14 +112,21 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
   const [isEditingReunion, setIsEditingReunion] = useState(false);
 
+  const [, setCitySyncTick] = useState(0);
+  useEffect(() => {
+    const handleSync = () => setCitySyncTick(t => t + 1);
+    window.addEventListener('aim:citysync', handleSync);
+    return () => window.removeEventListener('aim:citysync', handleSync);
+  }, []);
+
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
 
-  const mahadCityStr = mahadSettings.city || 'Lahore, PK';
-  const mahadTzStr = resolveTimezone(mahadCityStr, mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || undefined, 'Asia/Karachi');
+  const mahadCityStr = mahadSettings.city || globalSettings.mahadCity || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
+  const mahadTzStr = mahadSettings.tz || globalSettings.mahadTz || localStorage.getItem('tulip_mahad_tz') || resolveTimezone(mahadCityStr, undefined, 'Asia/Karachi');
 
-  const ifaCityStr = ifaSettings.city || 'London, UK';
-  const ifaTzStr = resolveTimezone(ifaCityStr, ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || undefined, 'Europe/London');
+  const ifaCityStr = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'London, UK';
+  const ifaTzStr = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || resolveTimezone(ifaCityStr, undefined, 'Europe/London');
 
   // Custom Cities & Timezones State (for editing)
   const [mahadCity, setMahadCity] = useState(mahadCityStr);
@@ -127,6 +134,13 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const [ifaCity, setIfaCity] = useState(ifaCityStr);
   const [ifaTz, setIfaTz] = useState(ifaTzStr);
   const [isEditingCities, setIsEditingCities] = useState(false);
+
+  useEffect(() => {
+    if (mahadCityStr) localStorage.setItem('tulip_mahad_city', mahadCityStr);
+    if (mahadTzStr) localStorage.setItem('tulip_mahad_tz', mahadTzStr);
+    if (ifaCityStr) localStorage.setItem('tulip_ifa_city', ifaCityStr);
+    if (ifaTzStr) localStorage.setItem('tulip_ifa_tz', ifaTzStr);
+  }, [mahadCityStr, mahadTzStr, ifaCityStr, ifaTzStr]);
 
   useEffect(() => {
     if (!isEditingCities) {
@@ -218,18 +232,27 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
   const handleSaveCities = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanMahadTz = isValidTimezone(mahadTz) ? mahadTz : resolveTimezone(mahadCity, undefined, 'Asia/Karachi');
-    const cleanIfaTz = isValidTimezone(ifaTz) ? ifaTz : resolveTimezone(ifaCity, undefined, 'Europe/London');
+    const cleanMahadCity = mahadCity.trim() || 'Lahore, PK';
+    const cleanIfaCity = ifaCity.trim() || 'London, UK';
+    const cleanMahadTz = isValidTimezone(mahadTz) ? mahadTz : resolveTimezone(cleanMahadCity, undefined, 'Asia/Karachi');
+    const cleanIfaTz = isValidTimezone(ifaTz) ? ifaTz : resolveTimezone(cleanIfaCity, undefined, 'Europe/London');
 
-    localStorage.setItem('tulip_mahad_city', mahadCity.trim());
-    localStorage.setItem('tulip_ifa_city', ifaCity.trim());
+    localStorage.setItem('tulip_mahad_city', cleanMahadCity);
+    localStorage.setItem('tulip_ifa_city', cleanIfaCity);
     localStorage.setItem('tulip_mahad_tz', cleanMahadTz);
     localStorage.setItem('tulip_ifa_tz', cleanIfaTz);
     
     // Save to Firebase for live sync
-    await fb.userSettings.set('Mahad', { city: mahadCity.trim(), tz: cleanMahadTz });
-    await fb.userSettings.set('Ifa', { city: ifaCity.trim(), tz: cleanIfaTz });
+    await fb.userSettings.set('Mahad', { id: 'Mahad', city: cleanMahadCity, tz: cleanMahadTz });
+    await fb.userSettings.set('Ifa', { id: 'Ifa', city: cleanIfaCity, tz: cleanIfaTz });
+    await fb.userSettings.set('global', {
+      mahadCity: cleanMahadCity,
+      mahadTz: cleanMahadTz,
+      ifaCity: cleanIfaCity,
+      ifaTz: cleanIfaTz
+    });
     
+    window.dispatchEvent(new Event('aim:citysync'));
     setIsEditingCities(false);
   };
 

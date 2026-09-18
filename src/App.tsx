@@ -17,7 +17,8 @@ import {
   X,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Palette
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
@@ -27,6 +28,7 @@ import LdrSanctuaryView from './components/LdrSanctuaryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
+import ThemePickerModal, { applySanctuaryTheme } from './components/ThemePickerModal';
 import { useFirestore, fb } from './firebase';
 
 const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
@@ -405,15 +407,18 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'photos' | 'scratchpad'>('chat');
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('tulip_theme') !== 'light'; // Default to dark OLED
-  });
   const [showSettings, setShowSettings] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
 
   // Live Settings & Passwords from Firestore
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
   const globalSettings = settingsArray.find(s => s.id === 'global') || {};
   const activePassword = globalSettings.sanctuaryPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
+  const currentThemeId = globalSettings.sanctuaryTheme || localStorage.getItem('tulip_theme_id') || 'midnight';
+
+  useEffect(() => {
+    applySanctuaryTheme(currentThemeId);
+  }, [currentThemeId]);
 
   useEffect(() => {
     if (globalSettings.sanctuaryPassword) {
@@ -436,24 +441,6 @@ export default function App() {
       fb.lovePings.delete(ping.id); // Delete after receiving so we don't see it again
     }
   }, [lovePings, currentUser]);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('tulip_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('tulip_theme', 'light');
-    }
-  }, [darkMode]);
-
-  useEffect(() => {
-    const handleThemeChange = () => {
-      setDarkMode(localStorage.getItem('tulip_theme') !== 'light');
-    };
-    window.addEventListener('theme_changed', handleThemeChange);
-    return () => window.removeEventListener('theme_changed', handleThemeChange);
-  }, []);
 
   const handlePasscodeUnlock = () => {
     setHasUnlockedPasscode(true);
@@ -530,8 +517,16 @@ export default function App() {
                   <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
                 </button>
                 <button
+                  onClick={() => setShowThemePicker(true)}
+                  className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-pastel-pink-400 cursor-pointer"
+                  title="Aesthetic Themes"
+                >
+                  <Palette className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => setShowSettings(true)}
                   className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main cursor-pointer"
+                  title="Password Settings"
                 >
                   <Settings className="w-4 h-4" />
                 </button>
@@ -615,8 +610,8 @@ export default function App() {
                 <button onClick={() => setShowSettings(true)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   <Settings className="w-4 h-4" /> Password
                 </button>
-                <button onClick={() => setDarkMode(!darkMode)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
-                  {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} Theme
+                <button onClick={() => setShowThemePicker(true)} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                  <Palette className="w-4 h-4" /> Aesthetic Themes
                 </button>
                 <button onClick={handleLock} className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   <Lock className="w-4 h-4" /> Lock Sanctuary
@@ -671,6 +666,17 @@ export default function App() {
           <AnimatePresence>
             {showSettings && (
               <PasswordSettingsModal onClose={() => setShowSettings(false)} currentPassword={activePassword} />
+            )}
+          </AnimatePresence>
+
+          {/* THEME PICKER MODAL */}
+          <AnimatePresence>
+            {showThemePicker && (
+              <ThemePickerModal
+                currentThemeId={currentThemeId}
+                onSelectTheme={(id) => applySanctuaryTheme(id)}
+                onClose={() => setShowThemePicker(false)}
+              />
             )}
           </AnimatePresence>
 

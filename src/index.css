@@ -19,8 +19,8 @@
   --color-border: var(--border);
 }
 
-:root {
-  /* Default Light Theme - Frosted White Glass on Pastel */
+:root, [data-theme="tulip"] {
+  /* 1. Pastel Tulip - Soft Blossom & Lavender Blush (Light Mode) */
   --pink-100: #FFD1DC;
   --pink-200: #FFB6C1; 
   --pink-300: #FF69B4;
@@ -28,8 +28,8 @@
   --peach: #FFDAB9;
   --lavender: #E6E6FA;
   
-  --bg-start: #FFF0F5; /* Lavender Blush */
-  --bg-end: #FFE4E1; /* Misty Rose */
+  --bg-start: #FFF0F5;
+  --bg-end: #FFE4E1;
   --surface: rgba(255, 255, 255, 0.7);
   --surface-hover: rgba(255, 255, 255, 0.9);
   --text-main: #333333;
@@ -37,7 +37,8 @@
   --border: rgba(255, 105, 180, 0.2);
 }
 
-.dark {
+[data-theme="midnight"], .dark:not([data-theme]) {
+  /* 2. Midnight Velvet - Deep Obsidian OLED & Neon Rose (Dark Mode) */
   --pink-100: #FFB6C1;
   --pink-200: #FF69B4;
   --pink-300: #FF1493;
@@ -47,11 +48,83 @@
 
   --bg-start: #0A0A0A;
   --bg-end: #0F0F13;
-  --surface: rgba(15, 15, 19, 0.65);
-  --surface-hover: rgba(25, 25, 30, 0.75);
+  --surface: rgba(15, 15, 19, 0.75);
+  --surface-hover: rgba(25, 25, 30, 0.85);
   --text-main: #FFFFFF;
   --text-muted: rgba(255, 255, 255, 0.6);
-  --border: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="sunset"] {
+  /* 3. Sunset Romance - Warm Coral, Amber & Rose Gold */
+  --pink-100: #FFE4D6;
+  --pink-200: #FFB09C;
+  --pink-300: #FF7E67;
+  --pink-400: #E75438;
+  --peach: #FFC09F;
+  --lavender: #FFEBD6;
+
+  --bg-start: #180D12;
+  --bg-end: #27141C;
+  --surface: rgba(38, 20, 28, 0.75);
+  --surface-hover: rgba(52, 28, 38, 0.85);
+  --text-main: #FFF4EE;
+  --text-muted: rgba(255, 230, 220, 0.65);
+  --border: rgba(255, 126, 103, 0.22);
+}
+
+[data-theme="lavender"] {
+  /* 4. Lilac Fairytale - Starlight Violet & Dreamy Amethyst */
+  --pink-100: #EADCF8;
+  --pink-200: #CEB3F0;
+  --pink-300: #A876E6;
+  --pink-400: #9B51E0;
+  --peach: #F3E5F5;
+  --lavender: #D1C4E9;
+
+  --bg-start: #110B1C;
+  --bg-end: #1B122C;
+  --surface: rgba(26, 18, 42, 0.75);
+  --surface-hover: rgba(38, 26, 62, 0.85);
+  --text-main: #FAF5FF;
+  --text-muted: rgba(240, 230, 255, 0.65);
+  --border: rgba(168, 118, 230, 0.22);
+}
+
+[data-theme="emerald"] {
+  /* 5. Enchanted Forest - Botanical Sage & Romantic Emerald */
+  --pink-100: #D1E7DD;
+  --pink-200: #A3CFBB;
+  --pink-300: #20C997;
+  --pink-400: #10B981;
+  --peach: #D8F3DC;
+  --lavender: #B7E4C7;
+
+  --bg-start: #07120D;
+  --bg-end: #0D2017;
+  --surface: rgba(12, 32, 23, 0.75);
+  --surface-hover: rgba(18, 46, 33, 0.85);
+  --text-main: #E8F8F0;
+  --text-muted: rgba(210, 240, 225, 0.65);
+  --border: rgba(32, 201, 151, 0.22);
+}
+
+[data-theme="celestial"] {
+  /* 6. Midnight Starlight - Deep Sapphire Sky & Silver Stardust */
+  --pink-100: #D0E1FD;
+  --pink-200: #9BBDF8;
+  --pink-300: #5C93F5;
+  --pink-400: #3B82F6;
+  --peach: #DCE8FC;
+  --lavender: #B9D1F9;
+
+  --bg-start: #060B18;
+  --bg-end: #0C152B;
+  --surface: rgba(11, 20, 42, 0.75);
+  --surface-hover: rgba(17, 30, 60, 0.85);
+  --text-main: #F0F6FF;
+  --text-muted: rgba(215, 230, 255, 0.65);
+  --border: rgba(92, 147, 245, 0.22);
 }
 
 @layer base {

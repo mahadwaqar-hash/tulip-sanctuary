@@ -56,13 +56,20 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const mahadSettings = settingsArray.find(s => s.id === 'Mahad') || {};
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
 
+  const [, setCitySyncTick] = useState(0);
+  useEffect(() => {
+    const handleSync = () => setCitySyncTick(t => t + 1);
+    window.addEventListener('aim:citysync', handleSync);
+    return () => window.removeEventListener('aim:citysync', handleSync);
+  }, []);
+
   const reunionDateStr = globalSettings.reunionDate || localStorage.getItem('tulip_reunion_date') || '2026-10-25';
   const inLoveSinceStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
 
-  const mahadCity = mahadSettings.city || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
-  const mahadTz = mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
-  const ifaCity = ifaSettings.city || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTz = ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
+  const mahadCity = mahadSettings.city || globalSettings.mahadCity || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
+  const mahadTz = mahadSettings.tz || globalSettings.mahadTz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
+  const ifaCity = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'London, UK';
+  const ifaTz = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
 
   const [inLoveSince, setInLoveSince] = useState(() => new Date(`${inLoveSinceStr}T00:00:00`).getTime());
   useEffect(() => {

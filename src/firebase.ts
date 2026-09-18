@@ -22,10 +22,14 @@ export function useFirestore<T>(collectionName: string, orderField: string = 'cr
   const [data, setData] = useState<T[]>([]);
 
   useEffect(() => {
-    const q = query(collection(firestoreDB, collectionName), orderBy(orderField, desc ? 'desc' : 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const colRef = collection(firestoreDB, collectionName);
+    const q = (orderField && orderField !== 'none' && orderField !== 'id' && collectionName !== 'userSettings')
+      ? query(colRef, orderBy(orderField, desc ? 'desc' : 'asc'))
+      : colRef;
+
+    const unsubscribe = onSnapshot(q as any, (snapshot: any) => {
       const items: T[] = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((doc: any) => {
         items.push({ id: doc.id, ...doc.data() } as T);
       });
       setData(items);
@@ -138,6 +142,6 @@ export const fb = {
     }
   },
   userSettings: {
-    set: async (user: string, data: any) => await setDoc(doc(firestoreDB, 'userSettings', user), data, { merge: true }),
+    set: async (user: string, data: any) => await setDoc(doc(firestoreDB, 'userSettings', user), { id: user, ...data }, { merge: true }),
   }
 };
