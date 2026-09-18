@@ -20,7 +20,10 @@ import {
   Reply,
   Pin,
   Copy,
-  Loader2
+  Loader2,
+  Plus,
+  RotateCcw,
+  MoreHorizontal
 } from 'lucide-react';
 import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -29,7 +32,34 @@ import { encryptMessage, decryptMessage } from '../crypto';
 import { getNetworkNow, formatMessageTime } from '../utils/timezone';
 
 const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
-const quickReactions = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍'];
+
+const DEFAULT_REACTIONS = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍', '🥰'];
+
+const EMOJI_PRESETS = [
+  { name: '💕 Romance', emojis: ['❤️', '💖', '💋', '🥺', '💍', '🌹', '💌', '✨'] },
+  { name: '🌸 Soft & Cute', emojis: ['✨', '🥰', '🌸', '🐰', '🥺', '🫶', '🤍', '🧸'] },
+  { name: '🌙 Midnight', emojis: ['🌙', '🤍', '💫', '🧸', '🍷', '🕯️', '😴', '✨'] },
+  { name: '😂 Laughs', emojis: ['😂', '🤣', '😭', '🤪', '🫣', '💀', '🔥', '👀'] },
+];
+
+const EMOJI_CATEGORIES = [
+  {
+    title: '❤️ Romance & Hearts',
+    emojis: ['❤️', '💖', '💕', '💘', '💝', '💓', '💗', '🤍', '🖤', '💜', '🌹', '🌷', '💐', '💍', '💌', '💋', '🫶', '❤️‍🔥']
+  },
+  {
+    title: '🥰 Sweet & Cuddly',
+    emojis: ['🥰', '🥺', '😻', '😽', '🐰', '🐻', '🐥', '✨', '🌸', '🌙', '🧸', '🍼', '👉👈', '🕊️', '🧁', '🎀']
+  },
+  {
+    title: '😂 Fun & Expressions',
+    emojis: ['😂', '🤣', '🥹', '😭', '🤤', '🤭', '🤫', '😴', '🫠', '🤗', '🥳', '🫣', '🤪', '🤩', '💀', '👀']
+  },
+  {
+    title: '🔥 Vibes & Sparks',
+    emojis: ['🔥', '🌶️', '🫦', '👑', '🥂', '🍾', '🍓', '🍫', '🌟', '💫', '🌈', '⭐', '🔮', '💎', '🍷', '🎉']
+  }
+];
 
 interface ChatSanctuaryProps {
   currentUser: 'Mahad' | 'Ifa';
@@ -53,6 +83,18 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const [showLovePrompts, setShowLovePrompts] = useState(false);
+  const [showEmojiCustomizer, setShowEmojiCustomizer] = useState(false);
+  const [customEmojiInput, setCustomEmojiInput] = useState('');
+  const [customReactions, setCustomReactions] = useState<string[]>(() => {
+    try {
+      const local = localStorage.getItem('tulip_custom_reactions');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_REACTIONS;
+  });
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [loveBurstMsgId, setLoveBurstMsgId] = useState<string | null>(null);
   const [audioSpeeds, setAudioSpeeds] = useState<Record<string, number>>({});
@@ -233,6 +275,25 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   // Live Settings
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
   const globalSettings = settingsArray.find(s => s.id === 'global') || {};
+
+  // Sync custom reactions from Firestore if available
+  useEffect(() => {
+    if (globalSettings.customReactions && Array.isArray(globalSettings.customReactions) && globalSettings.customReactions.length > 0) {
+      setCustomReactions(globalSettings.customReactions);
+    }
+  }, [globalSettings.customReactions]);
+
+  const handleSaveCustomReactions = async (newReactions: string[]) => {
+    setCustomReactions(newReactions);
+    if ('vibrate' in navigator) navigator.vibrate(30);
+    try {
+      localStorage.setItem('tulip_custom_reactions', JSON.stringify(newReactions));
+      await fb.userSettings.set('global', { customReactions: newReactions });
+    } catch (e) {
+      console.error('Failed to save reactions:', e);
+    }
+  };
+
   const [isEditingStart, setIsEditingStart] = useState(false);
   const [timeTogether, setTimeTogether] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
@@ -773,8 +834,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </div>
 
-        {/* Right: Search Toggle */}
-        <div className="flex items-center gap-2 self-end md:self-auto">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1.5 self-end md:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowEmojiCustomizer(true)}
+            className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-all cursor-pointer"
+            title="Customize Reaction Emojis"
+          >
+            <SmilePlus className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setShowSearch(!showSearch)}
             className={`p-2.5 rounded-full transition-all cursor-pointer ${
@@ -972,8 +1041,30 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </span>
                   )}
 
-                  {/* Bubble Container */}
-                  <div data-msg-bubble="true" className="relative group/bubble flex flex-col">
+                  {/* Bubble Container with Swipe-to-Reply */}
+                  <motion.div
+                    data-msg-bubble="true"
+                    drag="x"
+                    dragDirectionLock
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.4}
+                    onDragEnd={(_e, info) => {
+                      if ((!isMe && info.offset.x > 45) || (isMe && info.offset.x < -45)) {
+                        handleStartReply(msg);
+                        if ('vibrate' in navigator) navigator.vibrate([25, 25]);
+                      }
+                    }}
+                    className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing"
+                  >
+                    {/* Swipe-to-Reply Hint Indicator */}
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 ${
+                        isMe ? '-left-8' : '-right-8'
+                      } text-pastel-pink-400 opacity-0 group-active/bubble:opacity-75 transition-opacity pointer-events-none`}
+                    >
+                      <Reply className="w-5 h-5" />
+                    </div>
+
                     {/* Reply Quoted Preview Block (Discord / WhatsApp Style) */}
                     {msg.replyTo && (
                       <div
@@ -1073,27 +1164,45 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                       </div>
                     )}
 
-                    {/* Quick Reactions & Actions Floating Pill (Hover on Desktop, Tap on Mobile) */}
-                    <div className={`absolute -top-7 ${isMe ? 'right-0' : 'left-0'} ${isSelected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover/bubble:opacity-100 md:group-hover/bubble:pointer-events-auto'} transition-opacity flex items-center gap-1 bg-surface/95 backdrop-blur-xl border border-border px-2 py-1 rounded-full shadow-lg z-30`}>
-                      {quickReactions.slice(0, 5).map((emoji) => (
+                    {/* Quick Reactions & Actions Floating Pill */}
+                    <div className={`absolute -top-9 ${isMe ? 'right-0' : 'left-0'} ${isSelected ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none md:group-hover/bubble:opacity-100 md:group-hover/bubble:pointer-events-auto scale-95 md:group-hover/bubble:scale-100'} transition-all duration-200 flex items-center gap-1 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 px-2.5 py-1.5 rounded-full shadow-xl z-40 max-w-[calc(100vw-32px)]`}>
+                      {customReactions.slice(0, 7).map((emoji) => (
                         <button
                           key={emoji}
                           type="button"
                           onClick={() => { handleReaction(msg.id, emoji); setSelectedMsgId(null); }}
-                          className="text-xs hover:scale-130 transition-transform cursor-pointer"
+                          className="text-sm sm:text-base hover:scale-130 active:scale-90 transition-transform cursor-pointer px-0.5"
                         >
                           {emoji}
                         </button>
                       ))}
+
+                      {/* Customize Emoji Row Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowEmojiCustomizer(true);
+                          setSelectedMsgId(null);
+                        }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center bg-pastel-pink-400/15 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-bold shrink-0 cursor-pointer ml-0.5"
+                        title="Customize reaction emojis"
+                      >
+                        +
+                      </button>
+
+                      <div className="w-px h-3.5 bg-border/80 mx-0.5" />
+
                       {/* Reply Button */}
                       <button
                         type="button"
                         onClick={() => handleStartReply(msg)}
-                        className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
+                        className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
                         title="Reply to Message"
                       >
                         <Reply className="w-3.5 h-3.5" />
                       </button>
+
                       {/* Pin / Unpin Button */}
                       <button
                         type="button"
@@ -1102,17 +1211,18 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msg.id });
                           setSelectedMsgId(null);
                         }}
-                        className={`ml-0.5 cursor-pointer p-0.5 ${globalSettings.pinnedMessageId === msg.id ? 'text-pastel-pink-400' : 'text-text-muted hover:text-pastel-pink-400'}`}
+                        className={`p-1 rounded-full cursor-pointer transition-colors ${globalSettings.pinnedMessageId === msg.id ? 'text-pastel-pink-400 bg-pastel-pink-400/10' : 'text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10'}`}
                         title={globalSettings.pinnedMessageId === msg.id ? 'Unpin Memory' : 'Pin Memory'}
                       >
                         <Pin className="w-3.5 h-3.5" />
                       </button>
+
                       {/* Copy Text Button */}
                       {msg.type === 'text' && (
                         <button
                           type="button"
                           onClick={() => handleCopyText(msg.content, msg.id)}
-                          className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
+                          className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
                           title="Copy Message"
                         >
                           {copiedMsgId === msg.id ? (
@@ -1122,26 +1232,32 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                           )}
                         </button>
                       )}
+
+                      {/* Edit Button */}
                       {isMe && msg.type === 'text' && (
                         <button
                           type="button"
                           onClick={() => { setEditingMsgId(msg.id); setEditContent(msg.content); setSelectedMsgId(null); }}
-                          className="text-text-muted hover:text-pastel-pink-400 ml-0.5 cursor-pointer p-0.5"
+                          className="text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full p-1 cursor-pointer transition-colors"
                           title="Edit Message"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
-                        className="text-text-muted hover:text-red-400 ml-0.5 cursor-pointer p-0.5"
-                        title="Delete Message"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+                      {/* Delete Button */}
+                      {isMe && (
+                        <button
+                          type="button"
+                          onClick={() => { handleDeleteMessage(msg.id); setSelectedMsgId(null); }}
+                          className="text-text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full p-1 cursor-pointer transition-colors"
+                          title="Delete Message"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Reaction Badges */}
                   {msg.reactions && msg.reactions.length > 0 && (
@@ -1158,8 +1274,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     </div>
                   )}
 
-                  {/* Timestamp & Action Buttons (Always Visible!) */}
-                  <div className="flex items-center gap-1.5 mt-1 px-2">
+                  {/* Timestamp & Quick Action Buttons (Always Visible & Easily Accessible!) */}
+                  <div className="flex items-center gap-1.5 mt-1 px-2 flex-wrap">
                     <span className="text-[10px] text-text-muted font-medium">
                       {formatMessageTime(msg.createdAt, userTz)}
                     </span>
@@ -1194,6 +1310,39 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                         )}
                       </span>
                     )}
+
+                    {/* 1-Tap Reply Button - Instant Access */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartReply(msg);
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/70 hover:bg-surface border border-border/50 hover:border-pastel-pink-400/50 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none group/replybtn"
+                      title="Reply to this message"
+                    >
+                      <Reply className="w-3 h-3 group-hover/replybtn:-translate-x-0.5 transition-transform" />
+                      <span>Reply</span>
+                    </button>
+
+                    {/* Quick React Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMsgId(isSelected ? null : msg.id);
+                      }}
+                      className={`flex items-center gap-1 text-[11px] font-semibold transition-all px-2 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
+                        isSelected
+                          ? 'bg-pastel-pink-400 text-white border-pastel-pink-400 shadow-xs'
+                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/70 hover:bg-surface border-border/50 hover:border-pastel-pink-400/50'
+                      }`}
+                      title="Reactions & message options"
+                    >
+                      <SmilePlus className="w-3 h-3" />
+                      <span className="hidden sm:inline">React</span>
+                    </button>
+
                     {isMe && msg.type === 'text' && (
                       <button
                         type="button"
@@ -1677,6 +1826,211 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <img src={previewImage} alt="preview" className="max-h-[85vh] object-contain" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CUSTOMIZE QUICK REACTION EMOJIS MODAL */}
+      <AnimatePresence>
+        {showEmojiCustomizer && (
+          <div
+            onClick={() => setShowEmojiCustomizer(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg rounded-[2.5rem] bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-2xl bg-pastel-pink-400 text-white shadow-sm">
+                    <SmilePlus className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className="text-base font-bold text-text-main leading-tight flex items-center gap-1.5">
+                      Customize Emoji Reactions <Sparkles className="w-3.5 h-3.5 text-pastel-pink-400" />
+                    </h3>
+                    <p className="text-xs text-text-muted">
+                      Pick up to 8 of your favorite emojis for 1-tap reactions
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiCustomizer(false)}
+                  className="p-1.5 rounded-full text-text-muted hover:text-text-main hover:bg-surface-hover cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Current Reaction Bar Preview */}
+              <div className="flex flex-col gap-1.5 bg-surface-hover/70 p-3.5 rounded-2xl border border-border">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-text-main">Active Reaction Row</span>
+                  <span className="text-[11px] font-semibold text-pastel-pink-400">
+                    {customReactions.length} / 8 Emojis
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap min-h-[48px] p-2 bg-surface/90 rounded-xl border border-border/60">
+                  {customReactions.map((emoji, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group flex items-center justify-center w-10 h-10 rounded-xl bg-surface-hover border border-pastel-pink-300/30 text-xl shadow-xs"
+                    >
+                      <span>{emoji}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = customReactions.filter((_, i) => i !== idx);
+                          handleSaveCustomReactions(next.length > 0 ? next : ['❤️']);
+                        }}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center opacity-85 hover:opacity-100 shadow-xs cursor-pointer"
+                        title="Remove emoji"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {customReactions.length === 0 && (
+                    <span className="text-xs text-text-muted italic">No emojis selected. Pick some below!</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Custom Emoji / Text Input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Add Any Emoji or Symbol
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customEmojiInput}
+                    onChange={(e) => setCustomEmojiInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (!customEmojiInput.trim()) return;
+                        if (customReactions.length >= 8) {
+                          alert('Reaction bar is full (max 8). Remove one first!');
+                          return;
+                        }
+                        const newEmoji = customEmojiInput.trim();
+                        if (!customReactions.includes(newEmoji)) {
+                          handleSaveCustomReactions([...customReactions, newEmoji]);
+                        }
+                        setCustomEmojiInput('');
+                      }
+                    }}
+                    placeholder="Paste or type any emoji..."
+                    className="flex-1 bg-surface-hover/60 border border-border rounded-xl px-3 py-2 text-sm text-text-main outline-none focus:border-pastel-pink-400 transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customEmojiInput.trim()) return;
+                      if (customReactions.length >= 8) {
+                        alert('Reaction bar is full (max 8). Remove one first!');
+                        return;
+                      }
+                      const newEmoji = customEmojiInput.trim();
+                      if (!customReactions.includes(newEmoji)) {
+                        handleSaveCustomReactions([...customReactions, newEmoji]);
+                      }
+                      setCustomEmojiInput('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-pastel-pink-400 text-white text-xs font-bold hover:bg-pastel-pink-300 transition-colors cursor-pointer shrink-0"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Quick Couple Presets
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {EMOJI_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => handleSaveCustomReactions(preset.emojis)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl bg-surface-hover/60 hover:bg-pastel-pink-400/15 border border-border/70 hover:border-pastel-pink-400 transition-all cursor-pointer text-center"
+                    >
+                      <span className="text-xs font-bold text-text-main">{preset.name}</span>
+                      <span className="text-sm tracking-widest">{preset.emojis.slice(0, 4).join('')}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Categorized Emoji Palette */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Pick from Curated Palettes
+                </label>
+                <div className="flex flex-col gap-3">
+                  {EMOJI_CATEGORIES.map((cat) => (
+                    <div key={cat.title} className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold text-text-muted">{cat.title}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cat.emojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => {
+                              if (customReactions.includes(emoji)) {
+                                handleSaveCustomReactions(customReactions.filter(e => e !== emoji));
+                              } else {
+                                if (customReactions.length >= 8) {
+                                  alert('Maximum 8 emojis reached. Remove one first!');
+                                  return;
+                                }
+                                handleSaveCustomReactions([...customReactions, emoji]);
+                              }
+                            }}
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-transform hover:scale-120 cursor-pointer ${
+                              customReactions.includes(emoji)
+                                ? 'bg-pastel-pink-400/25 border-2 border-pastel-pink-400 shadow-xs'
+                                : 'bg-surface-hover/60 border border-border/40 hover:bg-surface'
+                            }`}
+                            title={emoji}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-border mt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSaveCustomReactions(DEFAULT_REACTIONS)}
+                  className="flex items-center gap-1 text-xs text-text-muted hover:text-text-main font-semibold cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reset Default
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiCustomizer(false)}
+                  className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-all cursor-pointer"
+                >
+                  Save & Done ✨
+                </button>
+              </div>
+
             </motion.div>
           </div>
         )}
