@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   Heart, 
@@ -34,6 +34,9 @@ import { useFirestore, fb } from './firebase';
 const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
 
 function LoadingScreen({ onComplete }: { onComplete: () => void }) {
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   // 50/50 Chance between "Mahad loves Ifa" and "Ifa loves Mahad"
   const loveMessage = useMemo(() => {
     return Math.random() < 0.5 
@@ -41,18 +44,21 @@ function LoadingScreen({ onComplete }: { onComplete: () => void }) {
       : { first: 'Ifa', relation: 'loves', second: 'Mahad', subtitle: 'To the Moon & Back ✨' };
   }, []);
 
+  // Run the 2.0-second timer ONCE on mount — completely immune to parent re-renders
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2600);
+    const timer = setTimeout(() => {
+      onCompleteRef.current();
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []);
 
   return (
-    <motion.div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-bg-start via-bg-end to-bg-start overflow-hidden select-none"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.05, filter: 'blur(12px)' }}
-      transition={{ duration: 0.8, ease: "easeInOut" }}
+    <div 
+      onClick={() => onCompleteRef.current()}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-bg-start via-bg-end to-bg-start overflow-hidden select-none cursor-pointer"
+      title="Tap anywhere to enter"
     >
+
       {/* Floating Fairy Dust Orbs */}
       <div className="absolute inset-0 pointer-events-none">
         {Array.from({ length: 18 }).map((_, i) => (
@@ -109,12 +115,16 @@ function LoadingScreen({ onComplete }: { onComplete: () => void }) {
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: "80%" }}
-            transition={{ delay: 0.3, duration: 1.8, ease: "easeInOut" }}
+            transition={{ delay: 0.2, duration: 1.5, ease: "easeInOut" }}
             className="h-1 bg-gradient-to-r from-transparent via-pastel-pink-400 to-transparent mt-6 rounded-full mx-auto"
           />
+
+          <span className="inline-block text-[11px] text-text-muted/60 mt-5 font-medium tracking-wide animate-pulse">
+            Tap anywhere to enter ✨
+          </span>
         </motion.div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -400,11 +410,23 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [hasUnlockedPasscode, setHasUnlockedPasscode] = useState(() => {
-    return sessionStorage.getItem('tulip_pass_unlocked') === 'true';
+    try {
+      return sessionStorage.getItem('tulip_pass_unlocked') === 'true';
+    } catch (e) {
+      return false;
+    }
   });
   const [currentUser, setCurrentUser] = useState<'Mahad' | 'Ifa' | null>(() => {
-    return (sessionStorage.getItem('tulip_user') as 'Mahad' | 'Ifa') || null;
+    try {
+      return (sessionStorage.getItem('tulip_user') as 'Mahad' | 'Ifa') || null;
+    } catch (e) {
+      return null;
+    }
   });
+
+  const handleLoadingComplete = useCallback(() => {
+    setLoading(false);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'photos' | 'scratchpad'>('chat');
   const [showSettings, setShowSettings] = useState(false);
@@ -413,8 +435,12 @@ export default function App() {
   // Live Settings & Passwords from Firestore
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
   const globalSettings = settingsArray.find(s => s.id === 'global') || {};
-  const activePassword = globalSettings.sanctuaryPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
-  const currentThemeId = globalSettings.sanctuaryTheme || localStorage.getItem('tulip_theme_id') || 'midnight';
+  const activePassword = globalSettings.sanctuaryPassword || (() => {
+    try { return localStorage.getItem('tulip_custom_sanctuary_pass'); } catch (e) { return null; }
+  })() || '311212';
+  const currentThemeId = globalSettings.sanctuaryTheme || (() => {
+    try { return localStorage.getItem('tulip_theme_id'); } catch (e) { return null; }
+  })() || 'midnight';
 
   useEffect(() => {
     applySanctuaryTheme(currentThemeId);
@@ -422,7 +448,9 @@ export default function App() {
 
   useEffect(() => {
     if (globalSettings.sanctuaryPassword) {
-      localStorage.setItem('tulip_custom_sanctuary_pass', globalSettings.sanctuaryPassword);
+      try {
+        localStorage.setItem('tulip_custom_sanctuary_pass', globalSettings.sanctuaryPassword);
+      } catch (e) {}
     }
   }, [globalSettings.sanctuaryPassword]);
 
@@ -444,19 +472,25 @@ export default function App() {
 
   const handlePasscodeUnlock = () => {
     setHasUnlockedPasscode(true);
-    sessionStorage.setItem('tulip_pass_unlocked', 'true');
+    try {
+      sessionStorage.setItem('tulip_pass_unlocked', 'true');
+    } catch (e) {}
   };
 
   const handleUserSelect = (user: 'Mahad' | 'Ifa') => {
     setCurrentUser(user);
-    sessionStorage.setItem('tulip_user', user);
+    try {
+      sessionStorage.setItem('tulip_user', user);
+    } catch (e) {}
   };
 
   const handleLock = () => {
     setHasUnlockedPasscode(false);
     setCurrentUser(null);
-    sessionStorage.removeItem('tulip_pass_unlocked');
-    sessionStorage.removeItem('tulip_user');
+    try {
+      sessionStorage.removeItem('tulip_pass_unlocked');
+      sessionStorage.removeItem('tulip_user');
+    } catch (e) {}
   };
 
   const TABS = [
@@ -469,8 +503,19 @@ export default function App() {
 
   return (
     <>
-      <AnimatePresence>
-        {loading && <LoadingScreen onComplete={() => setLoading(false)} />}
+      <AnimatePresence mode="wait">
+        {loading && (
+          <motion.div
+            key="sanctuary-loader-overlay"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 pointer-events-auto"
+          >
+            <LoadingScreen onComplete={handleLoadingComplete} />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* AMBIENT FLOATING FAIRYTALE DUST & PETALS */}

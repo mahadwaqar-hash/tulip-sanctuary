@@ -61,17 +61,24 @@ const EMOJI_CATEGORIES = [
   }
 ];
 
-const calculateTimeTogether = (startDate: string) => {
-  const start = new Date(`${startDate}T00:00:00`).getTime();
-  const now = getNetworkNow();
-  const diff = Math.max(0, now - start);
+const calculateTimeTogether = (startDate?: string) => {
+  try {
+    const safeStr = (startDate || '2023-08-14').trim();
+    const dateToParse = safeStr.includes('T') ? safeStr : `${safeStr}T00:00:00`;
+    const parsed = new Date(dateToParse).getTime();
+    const start = isNaN(parsed) ? new Date('2023-08-14T00:00:00').getTime() : parsed;
+    const now = typeof getNetworkNow === 'function' ? getNetworkNow() : Date.now();
+    const diff = Math.max(0, now - start);
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const mins = Math.floor((diff / (1000 * 60)) % 60);
-  const secs = Math.floor((diff / 1000) % 60);
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24)) || 0;
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24) || 0;
+    const mins = Math.floor((diff / (1000 * 60)) % 60) || 0;
+    const secs = Math.floor((diff / 1000) % 60) || 0;
 
-  return { days, hours, mins, secs };
+    return { days, hours, mins, secs };
+  } catch (e) {
+    return { days: 0, hours: 0, mins: 0, secs: 0 };
+  }
 };
 
 const LoveTimerDesktop = memo(function LoveTimerDesktop({
@@ -483,7 +490,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
               onClick={(e) => e.stopPropagation()}
               className="mt-1.5 flex items-center gap-1 bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/50 px-2.5 py-1 rounded-full shadow-xl z-30 max-w-[calc(100vw-32px)] overflow-x-auto"
             >
-              {customReactions.slice(0, 8).map((emoji) => (
+              {(Array.isArray(customReactions) ? customReactions : DEFAULT_REACTIONS).slice(0, 8).map((emoji) => (
                 <button
                   key={emoji}
                   type="button"

@@ -71,29 +71,35 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const ifaCity = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'London, UK';
   const ifaTz = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
 
-  const [inLoveSince, setInLoveSince] = useState(() => new Date(`${inLoveSinceStr}T00:00:00`).getTime());
-  useEffect(() => {
-    setInLoveSince(new Date(`${inLoveSinceStr}T00:00:00`).getTime());
-  }, [inLoveSinceStr]);
+  const parseSafeDate = (dateStr: string, fallback: string) => {
+    const s = (dateStr || fallback).trim();
+    const formatted = s.includes('T') ? s : `${s}T00:00:00`;
+    const t = new Date(formatted).getTime();
+    return isNaN(t) ? new Date(fallback.includes('T') ? fallback : `${fallback}T00:00:00`).getTime() : t;
+  };
+
+  const inLoveSince = parseSafeDate(inLoveSinceStr, '2023-08-14');
 
   const [loveTimer, setLoveTimer] = useState('');
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const update = () => {
       const now = getNetworkNow();
       const diff = Math.max(0, now - inLoveSince);
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / 1000 / 60) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24)) || 0;
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24) || 0;
+      const minutes = Math.floor((diff / 1000 / 60) % 60) || 0;
+      const seconds = Math.floor((diff / 1000) % 60) || 0;
       setLoveTimer(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-    }, 1000);
+    };
+    update();
+    const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
   }, [inLoveSince]);
 
-  const target = new Date(reunionDateStr + 'T00:00:00').getTime();
+  const target = parseSafeDate(reunionDateStr, '2026-10-25');
   const diff = target - getNetworkNow();
-  const daysLeft = diff <= 0 ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const daysLeft = isNaN(diff) || diff <= 0 ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24));
 
   return (
     <div className="w-80 hidden lg:flex flex-col gap-5 h-full overflow-y-auto pl-6 pr-2 pb-6 scrollbar-hide shrink-0 pt-2 border-l border-border/50">
