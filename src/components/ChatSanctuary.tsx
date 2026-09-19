@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   Send, 
@@ -61,6 +61,603 @@ const EMOJI_CATEGORIES = [
   }
 ];
 
+const calculateTimeTogether = (startDate: string) => {
+  const start = new Date(`${startDate}T00:00:00`).getTime();
+  const now = getNetworkNow();
+  const diff = Math.max(0, now - start);
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const mins = Math.floor((diff / (1000 * 60)) % 60);
+  const secs = Math.floor((diff / 1000) % 60);
+
+  return { days, hours, mins, secs };
+};
+
+const LoveTimerDesktop = memo(function LoveTimerDesktop({
+  startDateStr,
+  onSaveStartDate
+}: {
+  startDateStr: string;
+  onSaveStartDate: (d: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [timeTogether, setTimeTogether] = useState(() => calculateTimeTogether(startDateStr));
+
+  useEffect(() => {
+    const update = () => setTimeTogether(calculateTimeTogether(startDateStr));
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [startDateStr]);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <div 
+        onClick={() => setIsEditing(true)}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pastel-pink-500/10 border border-pastel-pink-500/20 hover:bg-pastel-pink-500/20 transition-all cursor-pointer group shrink-0"
+        title="Click to edit our start date"
+      >
+        <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center">
+          <Heart className="w-3 h-3 fill-white" />
+        </div>
+        <div className="flex flex-col text-left">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">In Love For</span>
+            <span className="text-[10px] text-pastel-pink-400 font-bold">✨</span>
+          </div>
+          <div className="flex items-baseline gap-1 text-text-main font-serif-italic font-bold text-xs sm:text-sm leading-tight">
+            <span className="text-pastel-pink-400 text-sm sm:text-base font-sans font-extrabold">{timeTogether.days}</span>
+            <span className="text-[11px] font-sans font-medium text-text-muted">days</span>
+            <span className="text-pastel-pink-400 text-xs font-sans font-bold ml-1">{timeTogether.hours}h</span>
+            <span className="text-pastel-pink-400 text-xs font-sans font-bold">{timeTogether.mins}m</span>
+            <span className="text-pastel-pink-400 text-[10px] font-sans font-bold opacity-80">{timeTogether.secs}s</span>
+          </div>
+        </div>
+      </div>
+
+      {isEditing ? (
+        <div className="flex items-center gap-1 ml-2">
+          <input
+            type="date"
+            defaultValue={startDateStr}
+            onChange={(e) => {
+              if (e.target.value) {
+                onSaveStartDate(e.target.value);
+                setIsEditing(false);
+              }
+            }}
+            className="text-[10px] bg-surface p-1 rounded-md border border-pastel-pink-300 text-text-main outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="p-1 rounded text-text-muted hover:text-text-main text-[10px]"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="p-1.5 text-text-muted hover:text-pastel-pink-400 rounded-full hover:bg-pastel-pink-100/10 transition-colors cursor-pointer ml-1"
+          title="Change Anniversary / In Love Date"
+        >
+          <Edit3 className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+});
+
+const LoveTimerMobileTicker = memo(function LoveTimerMobileTicker({
+  startDateStr,
+  onSaveStartDate
+}: {
+  startDateStr: string;
+  onSaveStartDate: (d: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [timeTogether, setTimeTogether] = useState(() => calculateTimeTogether(startDateStr));
+
+  useEffect(() => {
+    const update = () => setTimeTogether(calculateTimeTogether(startDateStr));
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [startDateStr]);
+
+  return (
+    <div className="lg:hidden flex items-center justify-between px-3.5 py-2 bg-surface-hover/90 border-b border-pastel-pink-300/20 backdrop-blur-md text-xs z-10 shadow-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center shrink-0 shadow-xs">
+          <Heart className="w-3 h-3 fill-white" />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">In Love For:</span>
+          <span className="text-pastel-pink-400 font-extrabold text-xs tracking-tight whitespace-nowrap">
+            {timeTogether.days}d {timeTogether.hours}h {timeTogether.mins}m {timeTogether.secs}s
+          </span>
+        </div>
+      </div>
+      {isEditing ? (
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="date"
+            defaultValue={startDateStr}
+            onChange={(e) => {
+              if (e.target.value) {
+                onSaveStartDate(e.target.value);
+                setIsEditing(false);
+              }
+            }}
+            className="text-[10px] bg-surface p-1 rounded-md border border-pastel-pink-300 text-text-main outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="p-1 rounded text-text-muted hover:text-text-main text-[10px]"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="p-1 text-text-muted hover:text-pastel-pink-400 text-[11px] font-medium flex items-center gap-1 shrink-0"
+        >
+          <Edit3 className="w-3 h-3" />
+          <span>Edit</span>
+        </button>
+      )}
+    </div>
+  );
+});
+
+interface ChatMessageItemProps {
+  msg: any;
+  currentUser: string;
+  isFirstInCluster: boolean;
+  isLastInCluster: boolean;
+  isSelected: boolean;
+  isHovered: boolean;
+  isHighlighted: boolean;
+  isPinned: boolean;
+  userTz: string;
+  customReactions: string[];
+  audioSpeed: number;
+  isLoveBurst: boolean;
+  isCopied: boolean;
+  onStartReply: (msg: any) => void;
+  onSelectMsg: (msgId: string | null) => void;
+  onHoverMsg: (msgId: string | null) => void;
+  onQuickLove: (msgId: string) => void;
+  onReaction: (msgId: string, emoji: string) => void;
+  onCopyText: (text: string, msgId: string) => void;
+  onTogglePin: (msgId: string) => void;
+  onStartEdit: (msgId: string, content: string) => void;
+  onDeleteMessage: (msgId: string) => void;
+  onToggleAudioSpeed: (msgId: string) => void;
+  onPreviewImage: (url: string | null) => void;
+  onScrollToMessage: (msgId: string) => void;
+  onOpenEmojiCustomizer: () => void;
+}
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  msg,
+  currentUser,
+  isFirstInCluster,
+  isLastInCluster,
+  isSelected,
+  isHovered,
+  isHighlighted,
+  isPinned,
+  userTz,
+  customReactions,
+  audioSpeed,
+  isLoveBurst,
+  isCopied,
+  onStartReply,
+  onSelectMsg,
+  onHoverMsg,
+  onQuickLove,
+  onReaction,
+  onCopyText,
+  onTogglePin,
+  onStartEdit,
+  onDeleteMessage,
+  onToggleAudioSpeed,
+  onPreviewImage,
+  onScrollToMessage,
+  onOpenEmojiCustomizer,
+}: ChatMessageItemProps) {
+  const isMe = msg.sender === currentUser;
+  const showName = isFirstInCluster;
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  let corners = 'rounded-[1.5rem]';
+  if (isMe) {
+    corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tr-[4px]' : ''} ${!isLastInCluster ? 'rounded-br-[4px]' : 'rounded-br-[2px]'}`;
+  } else {
+    corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tl-[4px]' : ''} ${!isLastInCluster ? 'rounded-bl-[4px]' : 'rounded-bl-[2px]'}`;
+  }
+
+  return (
+    <motion.div
+      id={`msg-${msg.id}`}
+      initial={{ opacity: 0, scale: 0.95, y: 12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={springConfig}
+      onMouseEnter={() => onHoverMsg(msg.id)}
+      onMouseLeave={() => onHoverMsg(null)}
+      className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'} transition-all duration-500 rounded-3xl ${
+        isHighlighted ? 'ring-2 ring-pastel-pink-400 bg-pastel-pink-400/20 p-1.5' : ''
+      }`}
+    >
+      <div className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
+        {/* Sender Tag (Only show for first in cluster) */}
+        {showName && (
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 px-1">
+            {msg.sender}
+          </span>
+        )}
+
+        {/* Swipeable Message Bubble with 100% Reliable Touch + Mouse Swipe */}
+        <motion.div
+          data-msg-bubble="true"
+          drag="x"
+          dragDirectionLock
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.35}
+          onDragEnd={(_e, info) => {
+            if (Math.abs(info.offset.x) > 35) {
+              onStartReply(msg);
+              if ('vibrate' in navigator) navigator.vibrate([25, 25]);
+            }
+          }}
+          onTouchStart={(e) => {
+            touchStartRef.current = {
+              x: e.touches[0].clientX,
+              y: e.touches[0].clientY,
+            };
+          }}
+          onTouchEnd={(e) => {
+            if (!touchStartRef.current) return;
+            const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+            const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+            touchStartRef.current = null;
+            if (Math.abs(deltaX) > 35 && Math.abs(deltaY) < 55) {
+              onStartReply(msg);
+              if ('vibrate' in navigator) navigator.vibrate([25, 25]);
+            }
+          }}
+          style={{ touchAction: 'pan-y' }}
+          className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing"
+        >
+          {/* Swipe-to-Reply Hint Indicator */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 ${
+              isMe ? '-left-8' : '-right-8'
+            } text-pastel-pink-400 opacity-0 group-active/bubble:opacity-80 transition-opacity pointer-events-none`}
+          >
+            <Reply className="w-5 h-5" />
+          </div>
+
+          {/* Reply Quoted Preview Block (Discord / WhatsApp Style) */}
+          {msg.replyTo && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onScrollToMessage(msg.replyTo.id);
+              }}
+              className={`mb-1.5 px-3 py-1.5 rounded-2xl border-l-4 border-pastel-pink-400 text-xs cursor-pointer hover:opacity-90 transition-opacity flex flex-col select-none max-w-full ${
+                isMe
+                  ? 'bg-black/25 text-white shadow-sm'
+                  : 'bg-surface-hover/80 text-text-main border border-border/40 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center gap-1 font-bold text-pastel-pink-400 text-[11px] leading-tight">
+                <Reply className="w-3 h-3 rotate-180 inline shrink-0" />
+                <span>{msg.replyTo.sender}</span>
+              </div>
+              <span className="truncate text-[12px] mt-0.5 max-w-[220px] sm:max-w-xs font-normal opacity-90">
+                {msg.replyTo.type === 'text' && (msg.replyTo.content || 'Message')}
+                {msg.replyTo.type === 'image' && '📷 Photo'}
+                {msg.replyTo.type === 'gif' && '✨ GIF'}
+                {msg.replyTo.type === 'sticker' && '🌸 Sticker'}
+                {msg.replyTo.type === 'audio' && '🎤 Voice Note'}
+              </span>
+            </div>
+          )}
+
+          {msg.type === 'text' && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectMsg(isSelected ? null : msg.id);
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onQuickLove(msg.id);
+              }}
+              className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text ${corners} ${
+                isMe
+                  ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
+                  : 'bubble-other-themed font-medium'
+              }`}
+            >
+              {isLoveBurst && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.8, 0], opacity: [0, 1, 0] }}
+                  transition={{ duration: 0.8 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+                >
+                  <Heart className="w-12 h-12 fill-red-500 text-red-500 drop-shadow-2xl" />
+                </motion.div>
+              )}
+              {msg.content}
+            </div>
+          )}
+
+          {(msg.type === 'image' || msg.type === 'gif') && (
+            <div 
+              onClick={() => onPreviewImage(msg.mediaUrl || msg.content)}
+              className={`${corners} overflow-hidden border border-border/60 shadow-md cursor-pointer hover:opacity-95 transition-opacity max-w-xs sm:max-w-sm`}
+            >
+              <img src={msg.mediaUrl || msg.content} alt="media" className="w-full max-h-72 object-cover dark:mix-blend-screen" />
+            </div>
+          )}
+
+          {msg.type === 'sticker' && (
+            <div className="p-1">
+              <img
+                src={msg.content}
+                alt="sticker"
+                className="w-36 h-36 object-contain drop-shadow-xl hover:scale-105 transition-transform dark:mix-blend-screen"
+              />
+            </div>
+          )}
+
+          {msg.type === 'audio' && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectMsg(isSelected ? null : msg.id);
+              }}
+              className={`px-3 py-2 flex items-center gap-2 shadow-md cursor-pointer ${corners} ${
+                isMe
+                  ? 'bubble-me-gradient text-white'
+                  : 'bubble-other-themed'
+              }`}
+            >
+              <audio
+                controls
+                data-audio-id={msg.id}
+                src={msg.mediaUrl}
+                className="h-10 w-44 sm:w-48 outline-none"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAudioSpeed(msg.id);
+                }}
+                className="px-2 py-1 rounded-lg bg-black/25 hover:bg-black/35 text-white text-[10px] font-extrabold uppercase tracking-wider transition-colors shrink-0"
+                title="Playback Speed"
+              >
+                {audioSpeed}x
+              </button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Reaction Badges on Message */}
+        {msg.reactions && msg.reactions.length > 0 && (
+          <div className="flex gap-1 mt-1 px-1 flex-wrap">
+            {msg.reactions.map((r: string, i: number) => (
+              <span
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReaction(msg.id, r);
+                }}
+                className="text-xs bg-surface-hover border border-border px-2 py-0.5 rounded-full shadow-2xs cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+              >
+                {r}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Quick Reaction Popup Drawer (Opens when tapped or hovered) */}
+        <AnimatePresence>
+          {(isSelected || isHovered) && (
+            <motion.div
+              data-action-row="true"
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-1.5 flex items-center gap-1 bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/50 px-2.5 py-1 rounded-full shadow-xl z-30 max-w-[calc(100vw-32px)] overflow-x-auto"
+            >
+              {customReactions.slice(0, 8).map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction(msg.id, emoji);
+                    onSelectMsg(null);
+                  }}
+                  className="text-base sm:text-lg hover:scale-130 active:scale-90 transition-transform cursor-pointer px-1 py-0.5"
+                  title={`React ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+
+              {/* + Customize Emojis Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenEmojiCustomizer();
+                  onSelectMsg(null);
+                }}
+                className="w-6 h-6 rounded-full flex items-center justify-center bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-extrabold shrink-0 cursor-pointer ml-0.5"
+                title="Customize reaction emojis"
+              >
+                +
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Interactive Action Row (Always Visible & 100% Functional!) */}
+        <div data-action-row="true" className="flex items-center gap-1.5 mt-1.5 px-1 flex-wrap">
+          <span className="text-[10px] text-text-muted font-medium mr-0.5">
+            {formatMessageTime(msg.createdAt, userTz)}
+          </span>
+          {msg.isEdited && (
+            <span className="text-[9px] text-pastel-pink-400 font-medium italic mr-0.5">
+              (edited)
+            </span>
+          )}
+
+          {/* Seen / Just Read Status */}
+          {isMe && (
+            <span 
+              className="flex items-center gap-0.5 text-[10px] select-none mr-1"
+              title={msg.isRead ? (msg.readAt ? `Read at ${formatMessageTime(msg.readAt, userTz)}` : 'Seen') : 'Sent'}
+            >
+              {msg.isRead ? (
+                <>
+                  <CheckCheck className="w-3.5 h-3.5 text-pastel-pink-400 stroke-[2.5]" />
+                  <span className="text-[9.5px] text-pastel-pink-400 font-bold tracking-tight">
+                    {msg.readAt && (getNetworkNow() - msg.readAt < 120 * 1000)
+                      ? 'Just read'
+                      : msg.readAt
+                        ? `Seen ${formatMessageTime(msg.readAt, userTz)}`
+                        : 'Seen'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-3 h-3 text-text-muted/60 stroke-[2]" />
+                  <span className="text-[9px] text-text-muted/60 font-medium">Sent</span>
+                </>
+              )}
+            </span>
+          )}
+
+          {/* 1-Tap Reply Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartReply(msg);
+            }}
+            className="flex items-center gap-1 text-[11px] font-bold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs group/replybtn select-none"
+            title="Reply to this message"
+          >
+            <Reply className="w-3.5 h-3.5 group-hover/replybtn:-translate-x-0.5 transition-transform" />
+            <span>Reply</span>
+          </button>
+
+          {/* 1-Tap React Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectMsg(isSelected ? null : msg.id);
+            }}
+            className={`flex items-center gap-1 text-[11px] font-bold transition-all px-2.5 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
+              isSelected
+                ? 'bg-pastel-pink-400 text-white border-pastel-pink-400 shadow-xs'
+                : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
+            }`}
+            title="Open reaction drawer"
+          >
+            <SmilePlus className="w-3.5 h-3.5" />
+            <span>React</span>
+          </button>
+
+          {/* Copy Text Button */}
+          {msg.type === 'text' && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyText(msg.content, msg.id);
+              }}
+              className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none"
+              title="Copy text"
+            >
+              {isCopied ? (
+                <Check className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+              <span className="hidden sm:inline">Copy</span>
+            </button>
+          )}
+
+          {/* Pin / Unpin Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(msg.id);
+            }}
+            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer active:scale-95 shadow-2xs select-none ${
+              isPinned
+                ? 'text-pastel-pink-400 bg-pastel-pink-400/15 border-pastel-pink-400/50'
+                : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
+            }`}
+            title={isPinned ? 'Unpin Memory' : 'Pin Memory'}
+          >
+            <Pin className="w-3 h-3" />
+            <span className="hidden sm:inline">{isPinned ? 'Pinned' : 'Pin'}</span>
+          </button>
+
+          {/* Edit Button */}
+          {isMe && msg.type === 'text' && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit(msg.id, msg.content);
+              }}
+              className="text-text-muted/70 hover:text-pastel-pink-400 p-1 rounded-full cursor-pointer transition-colors"
+              title="Edit message"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Delete Button */}
+          {isMe && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteMessage(msg.id);
+              }}
+              className="text-text-muted/70 hover:text-red-400 p-1 rounded-full cursor-pointer transition-colors"
+              title="Delete message"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
 interface ChatSanctuaryProps {
   currentUser: 'Mahad' | 'Ifa';
 }
@@ -100,7 +697,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [audioSpeeds, setAudioSpeeds] = useState<Record<string, number>>({});
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; id: string } | null>(null);
 
   // Expanded GIF Search & Pagination Engine
   const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
@@ -167,14 +763,34 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     fetchGifs(gifQuery, gifOffset, true);
   };
 
-  const handleQuickLove = async (msgId: string) => {
+  const handleReaction = useCallback(async (msgId: string, emoji: string) => {
+    try {
+      const targetMsg = messages.find(m => m.id === msgId);
+      let currentReactions = targetMsg?.reactions;
+      if (!currentReactions) {
+        const fetched = await fb.messages.get(msgId);
+        currentReactions = fetched?.reactions || [];
+      }
+
+      const updated = currentReactions.includes(emoji)
+        ? currentReactions.filter(r => r !== emoji)
+        : [...currentReactions, emoji];
+
+      await fb.messages.update(msgId, { reactions: updated });
+      if ('vibrate' in navigator) navigator.vibrate(30);
+    } catch (err) {
+      console.error('Reaction failed:', err);
+    }
+  }, [messages]);
+
+  const handleQuickLove = useCallback((msgId: string) => {
     setLoveBurstMsgId(msgId);
     if ('vibrate' in navigator) navigator.vibrate([30, 30]);
     handleReaction(msgId, '❤️');
     setTimeout(() => setLoveBurstMsgId(null), 1000);
-  };
+  }, [handleReaction]);
 
-  const handleCopyText = (text: string, msgId: string) => {
+  const handleCopyText = useCallback((text: string, msgId: string) => {
     if (!text) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -193,9 +809,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     } catch (e) {
       console.error('Copy failed:', e);
     }
-  };
+  }, []);
 
-  const toggleAudioSpeed = (msgId: string) => {
+  const toggleAudioSpeed = useCallback((msgId: string) => {
     setAudioSpeeds(prev => {
       const current = prev[msgId] || 1;
       const next = current === 1 ? 1.5 : current === 1.5 ? 2 : 1;
@@ -203,7 +819,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       if (audioEl) audioEl.playbackRate = next;
       return { ...prev, [msgId]: next };
     });
-  };
+  }, []);
 
   const SWEET_NOTHINGS = [
     "Thinking of you right now 💕",
@@ -237,7 +853,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }, 50);
   };
 
-  const handleStartReply = (msg: any) => {
+  const handleStartReply = useCallback((msg: any) => {
     setReplyingTo({
       id: msg.id,
       sender: msg.sender,
@@ -247,16 +863,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     });
     setSelectedMsgId(null);
     setTimeout(() => chatInputRef.current?.focus(), 80);
-  };
+  }, []);
 
-  const scrollToMessage = (id: string) => {
+  const scrollToMessage = useCallback((id: string) => {
     const el = document.getElementById(`msg-${id}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setHighlightedMsgId(id);
       setTimeout(() => setHighlightedMsgId(null), 2000);
     }
-  };
+  }, []);
 
   const resizeImageToSticker = (dataUrl: string, maxSize = 256): Promise<string> => {
     return new Promise((resolve) => {
@@ -309,35 +925,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }
   };
 
-  const [isEditingStart, setIsEditingStart] = useState(false);
-  const [timeTogether, setTimeTogether] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
-
   const startDateStr = globalSettings.relationshipStart || localStorage.getItem('tulip_relationship_start') || '2023-08-14';
 
-  useEffect(() => {
-    const updateLoveTimer = () => {
-      const start = new Date(`${startDateStr}T00:00:00`).getTime();
-      const now = getNetworkNow();
-      const diff = Math.max(0, now - start);
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const mins = Math.floor((diff / (1000 * 60)) % 60);
-      const secs = Math.floor((diff / 1000) % 60);
-
-      setTimeTogether({ days, hours, mins, secs });
-    };
-
-    updateLoveTimer();
-    const interval = setInterval(updateLoveTimer, 1000);
-    return () => clearInterval(interval);
-  }, [startDateStr]);
-
-  const handleSaveStartDate = async (newDate: string) => {
+  const handleSaveStartDate = useCallback(async (newDate: string) => {
     localStorage.setItem('tulip_relationship_start', newDate);
     await fb.userSettings.set('global', { relationshipStart: newDate });
-    setIsEditingStart(false);
-  };
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageMsgRef = useRef<HTMLInputElement>(null);
@@ -457,7 +1050,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Keep focus locked onto the input field immediately so virtual keyboard never closes
+    chatInputRef.current?.focus();
 
     try {
       if (editingMsgId) {
@@ -475,6 +1074,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
+      // Re-focus input immediately after state clearing
+      chatInputRef.current?.focus();
+
       const replyData = replyingTo ? {
         id: replyingTo.id,
         sender: replyingTo.sender,
@@ -483,6 +1085,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         mediaUrl: replyingTo.mediaUrl || null
       } : null;
       if (replyingTo) setReplyingTo(null);
+
+      // Retain focus through banner collapse
+      chatInputRef.current?.focus();
+      requestAnimationFrame(() => {
+        chatInputRef.current?.focus();
+      });
 
       const newCreatedAt = getSafeNewTimestamp();
       const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -496,6 +1104,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         content: textToSend,
         createdAt: newCreatedAt,
         ...(replyData ? { replyTo: replyData } : {})
+      });
+
+      // Re-affirm focus after async write completes
+      requestAnimationFrame(() => {
+        chatInputRef.current?.focus();
       });
 
       setTimeout(() => {
@@ -747,36 +1360,53 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }
   };
 
-  const handleReaction = async (msgId: string, emoji: string) => {
-    try {
-      const targetMsg = messages.find(m => m.id === msgId);
-      let currentReactions = targetMsg?.reactions;
-      if (!currentReactions) {
-        const fetched = await fb.messages.get(msgId);
-        currentReactions = fetched?.reactions || [];
+  const handleDeleteMessage = useCallback(async (msgId: string) => {
+    if (confirm('Are you sure you want to erase this memory from our sanctuary?')) {
+      if ('vibrate' in navigator) navigator.vibrate(40);
+      try {
+        await fb.messages.delete(msgId);
+      } catch (err: any) {
+        console.error('[AIM] DELETE FAILED:', err);
+        alert(`Could not delete message: ${err?.message || String(err)}`);
       }
-
-      const updated = currentReactions.includes(emoji)
-        ? currentReactions.filter(r => r !== emoji)
-        : [...currentReactions, emoji];
-
-      await fb.messages.update(msgId, { reactions: updated });
-      if ('vibrate' in navigator) navigator.vibrate(30);
-    } catch (err) {
-      console.error('Reaction failed:', err);
     }
-  };
+  }, []);
 
-  const handleDeleteMessage = async (msgId: string) => {
-    await fb.messages.delete(msgId);
-  };
+  const handleTogglePin = useCallback((msgId: string) => {
+    const isPinned = globalSettings.pinnedMessageId === msgId;
+    fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msgId });
+  }, [globalSettings.pinnedMessageId]);
 
-  // Filter messages by search query
-  const filteredMessages = messages.filter(m => 
-    !searchQuery.trim() || 
-    (m.content && m.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (m.sender && m.sender.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleStartEdit = useCallback((msgId: string, content: string) => {
+    setEditingMsgId(msgId);
+    setEditContent(content);
+  }, []);
+
+  const handleSelectMsg = useCallback((msgId: string | null) => {
+    setSelectedMsgId(msgId);
+  }, []);
+
+  const handleHoverMsg = useCallback((msgId: string | null) => {
+    setHoveredMsgId(msgId);
+  }, []);
+
+  const handlePreviewImage = useCallback((url: string | null) => {
+    setPreviewImage(url);
+  }, []);
+
+  const handleOpenEmojiCustomizer = useCallback(() => {
+    setShowEmojiCustomizer(true);
+  }, []);
+
+  // Filter messages by search query (memoized to eliminate typing lag)
+  const filteredMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter(m => 
+      (m.content && m.content.toLowerCase().includes(q)) ||
+      (m.sender && m.sender.toLowerCase().includes(q))
+    );
+  }, [messages, searchQuery]);
 
   return (
     <div className="flex-1 flex flex-col h-full md:rounded-[2rem] md:glass-panel md:shadow-2xl overflow-hidden md:border-2 md:border-pastel-pink-300/30 relative bg-surface/30 md:bg-transparent">
@@ -806,54 +1436,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
         {/* Center: HOW LONG WE'VE BEEN IN LOVE BANNER (HIDDEN ON MOBILE) */}
         <div className="hidden lg:flex items-center justify-between md:justify-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-hover/80 border border-pastel-pink-300/30 shadow-xs">
-          <div className="flex items-center gap-2">
-            <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center">
-              <Heart className="w-3 h-3 fill-white" />
-            </div>
-            <div className="flex flex-col text-left">
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">In Love For</span>
-                <span className="text-[10px] text-pastel-pink-400 font-bold">✨</span>
-              </div>
-              <div className="flex items-baseline gap-1 text-text-main font-serif-italic font-bold text-xs sm:text-sm leading-tight">
-                <span className="text-pastel-pink-400 text-sm sm:text-base font-sans font-extrabold">{timeTogether.days}</span>
-                <span className="text-[11px] font-sans font-medium text-text-muted">days</span>
-                <span className="text-pastel-pink-400 text-xs font-sans font-bold ml-1">{timeTogether.hours}h</span>
-                <span className="text-pastel-pink-400 text-xs font-sans font-bold">{timeTogether.mins}m</span>
-                <span className="text-pastel-pink-400 text-[10px] font-sans font-bold opacity-80">{timeTogether.secs}s</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Edit Start Date Button / Modal Toggle */}
-          {isEditingStart ? (
-            <div className="flex items-center gap-1 ml-2">
-              <input
-                type="date"
-                defaultValue={startDateStr}
-                onChange={(e) => {
-                  if (e.target.value) handleSaveStartDate(e.target.value);
-                }}
-                className="text-[10px] bg-surface p-1 rounded-md border border-pastel-pink-300 text-text-main outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setIsEditingStart(false)}
-                className="p-1 rounded text-text-muted hover:text-text-main text-[10px]"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsEditingStart(true)}
-              className="p-1.5 text-text-muted hover:text-pastel-pink-400 rounded-full hover:bg-pastel-pink-100/10 transition-colors cursor-pointer ml-1"
-              title="Change Anniversary / In Love Date"
-            >
-              <Edit3 className="w-3 h-3" />
-            </button>
-          )}
+          <LoveTimerDesktop startDateStr={startDateStr} onSaveStartDate={handleSaveStartDate} />
         </div>
 
         {/* Right: Actions */}
@@ -879,47 +1462,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       </div>
 
       {/* MOBILE LOVE TIMER TICKER STRIP (Visible on mobile & tablets < lg) */}
-      <div className="lg:hidden flex items-center justify-between px-3.5 py-2 bg-surface-hover/90 border-b border-pastel-pink-300/20 backdrop-blur-md text-xs z-10 shadow-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1 rounded-lg bg-pastel-pink-400 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <Heart className="w-3 h-3 fill-white" />
-          </div>
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">In Love For:</span>
-            <span className="text-pastel-pink-400 font-extrabold text-xs tracking-tight whitespace-nowrap">
-              {timeTogether.days}d {timeTogether.hours}h {timeTogether.mins}m {timeTogether.secs}s
-            </span>
-          </div>
-        </div>
-        {isEditingStart ? (
-          <div className="flex items-center gap-1 shrink-0">
-            <input
-              type="date"
-              defaultValue={startDateStr}
-              onChange={(e) => {
-                if (e.target.value) handleSaveStartDate(e.target.value);
-              }}
-              className="text-[10px] bg-surface p-1 rounded-md border border-pastel-pink-300 text-text-main outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setIsEditingStart(false)}
-              className="p-1 rounded text-text-muted hover:text-text-main text-[10px]"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsEditingStart(true)}
-            className="p-1 text-text-muted hover:text-pastel-pink-400 rounded-full cursor-pointer shrink-0"
-            title="Change In Love Date"
-          >
-            <Edit3 className="w-3 h-3" />
-          </button>
-        )}
-      </div>
+      <LoveTimerMobileTicker startDateStr={startDateStr} onSaveStartDate={handleSaveStartDate} />
 
       {/* SEARCH BAR DROPDOWN */}
       <AnimatePresence>
@@ -1031,400 +1574,41 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           </div>
         ) : (
           filteredMessages.map((msg, index) => {
-            const isMe = msg.sender === currentUser;
             const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
             const nextMsg = index < filteredMessages.length - 1 ? filteredMessages[index + 1] : null;
-            
             const isFirstInCluster = prevMsg?.sender !== msg.sender;
             const isLastInCluster = nextMsg?.sender !== msg.sender;
-            const showName = isFirstInCluster;
-            
-            const isSelected = selectedMsgId === msg.id;
-
-            let corners = 'rounded-[1.5rem]';
-            if (isMe) {
-              corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tr-[4px]' : ''} ${!isLastInCluster ? 'rounded-br-[4px]' : 'rounded-br-[2px]'}`;
-            } else {
-              corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tl-[4px]' : ''} ${!isLastInCluster ? 'rounded-bl-[4px]' : 'rounded-bl-[2px]'}`;
-            }
 
             return (
-              <motion.div
+              <ChatMessageItem
                 key={msg.id}
-                id={`msg-${msg.id}`}
-                initial={{ opacity: 0, scale: 0.95, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={springConfig}
-                onMouseEnter={() => setHoveredMsgId(msg.id)}
-                onMouseLeave={() => setHoveredMsgId(null)}
-                className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'} transition-all duration-500 rounded-3xl ${
-                  highlightedMsgId === msg.id ? 'ring-2 ring-pastel-pink-400 bg-pastel-pink-400/20 p-1.5' : ''
-                }`}
-              >
-                <div className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
-                  
-                  {/* Sender Tag (Only show for first in cluster) */}
-                  {showName && (
-                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 px-1">
-                      {msg.sender}
-                    </span>
-                  )}
-
-                  {/* Swipeable Message Bubble with 100% Reliable Touch + Mouse Swipe */}
-                  <motion.div
-                    data-msg-bubble="true"
-                    drag="x"
-                    dragDirectionLock
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.35}
-                    onDragEnd={(_e, info) => {
-                      if (Math.abs(info.offset.x) > 35) {
-                        handleStartReply(msg);
-                        if ('vibrate' in navigator) navigator.vibrate([25, 25]);
-                      }
-                    }}
-                    onTouchStart={(e) => {
-                      touchStartRef.current = {
-                        x: e.touches[0].clientX,
-                        y: e.touches[0].clientY,
-                        id: msg.id
-                      };
-                    }}
-                    onTouchEnd={(e) => {
-                      if (!touchStartRef.current || touchStartRef.current.id !== msg.id) return;
-                      const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
-                      const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-                      touchStartRef.current = null;
-                      if (Math.abs(deltaX) > 35 && Math.abs(deltaY) < 55) {
-                        handleStartReply(msg);
-                        if ('vibrate' in navigator) navigator.vibrate([25, 25]);
-                      }
-                    }}
-                    style={{ touchAction: 'pan-y' }}
-                    className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing"
-                  >
-                    {/* Swipe-to-Reply Hint Indicator */}
-                    <div
-                      className={`absolute top-1/2 -translate-y-1/2 ${
-                        isMe ? '-left-8' : '-right-8'
-                      } text-pastel-pink-400 opacity-0 group-active/bubble:opacity-80 transition-opacity pointer-events-none`}
-                    >
-                      <Reply className="w-5 h-5" />
-                    </div>
-
-                    {/* Reply Quoted Preview Block (Discord / WhatsApp Style) */}
-                    {msg.replyTo && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          scrollToMessage(msg.replyTo.id);
-                        }}
-                        className={`mb-1.5 px-3 py-1.5 rounded-2xl border-l-4 border-pastel-pink-400 text-xs cursor-pointer hover:opacity-90 transition-opacity flex flex-col select-none max-w-full ${
-                          isMe
-                            ? 'bg-black/25 text-white shadow-sm'
-                            : 'bg-surface-hover/80 text-text-main border border-border/40 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1 font-bold text-pastel-pink-400 text-[11px] leading-tight">
-                          <Reply className="w-3 h-3 rotate-180 inline shrink-0" />
-                          <span>{msg.replyTo.sender}</span>
-                        </div>
-                        <span className="truncate text-[12px] mt-0.5 max-w-[220px] sm:max-w-xs font-normal opacity-90">
-                          {msg.replyTo.type === 'text' && (msg.replyTo.content || 'Message')}
-                          {msg.replyTo.type === 'image' && '📷 Photo'}
-                          {msg.replyTo.type === 'gif' && '✨ GIF'}
-                          {msg.replyTo.type === 'sticker' && '🌸 Sticker'}
-                          {msg.replyTo.type === 'audio' && '🎤 Voice Note'}
-                        </span>
-                      </div>
-                    )}
-
-                    {msg.type === 'text' && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedMsgId(isSelected ? null : msg.id);
-                        }}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          handleQuickLove(msg.id);
-                        }}
-                        className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text ${corners} ${
-                          isMe
-                            ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
-                            : 'bubble-other-themed font-medium'
-                        }`}
-                      >
-                        {loveBurstMsgId === msg.id && (
-                          <motion.div
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: [0, 1.8, 0], opacity: [0, 1, 0] }}
-                            transition={{ duration: 0.8 }}
-                            className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
-                          >
-                            <Heart className="w-12 h-12 fill-red-500 text-red-500 drop-shadow-2xl" />
-                          </motion.div>
-                        )}
-                        {msg.content}
-                      </div>
-                    )}
-
-                    {(msg.type === 'image' || msg.type === 'gif') && (
-                      <div 
-                        onClick={() => setPreviewImage(msg.mediaUrl || msg.content)}
-                        className={`${corners} overflow-hidden border border-border/60 shadow-md cursor-pointer hover:opacity-95 transition-opacity max-w-xs sm:max-w-sm`}
-                      >
-                        <img src={msg.mediaUrl || msg.content} alt="media" className="w-full max-h-72 object-cover dark:mix-blend-screen" />
-                      </div>
-                    )}
-
-                    {msg.type === 'sticker' && (
-                      <div className="p-1">
-                        <img
-                          src={msg.content}
-                          alt="sticker"
-                          className="w-36 h-36 object-contain drop-shadow-xl hover:scale-105 transition-transform dark:mix-blend-screen"
-                        />
-                      </div>
-                    )}
-
-                    {msg.type === 'audio' && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedMsgId(isSelected ? null : msg.id);
-                        }}
-                        className={`px-3 py-2 flex items-center gap-2 shadow-md cursor-pointer ${corners} ${
-                          isMe
-                            ? 'bubble-me-gradient text-white'
-                            : 'bubble-other-themed'
-                        }`}
-                      >
-                        <audio
-                          controls
-                          data-audio-id={msg.id}
-                          src={msg.mediaUrl}
-                          className="h-10 w-44 sm:w-48 outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleAudioSpeed(msg.id);
-                          }}
-                          className="px-2 py-1 rounded-lg bg-black/25 hover:bg-black/35 text-white text-[10px] font-extrabold uppercase tracking-wider transition-colors shrink-0"
-                          title="Playback Speed"
-                        >
-                          {audioSpeeds[msg.id] || 1}x
-                        </button>
-                      </div>
-                    )}
-                  </motion.div>
-
-                  {/* Reaction Badges on Message */}
-                  {msg.reactions && msg.reactions.length > 0 && (
-                    <div className="flex gap-1 mt-1 px-1 flex-wrap">
-                      {msg.reactions.map((r: string, i: number) => (
-                        <span
-                          key={i}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReaction(msg.id, r);
-                          }}
-                          className="text-xs bg-surface-hover border border-border px-2 py-0.5 rounded-full shadow-2xs cursor-pointer hover:scale-110 active:scale-95 transition-transform"
-                        >
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Quick Reaction Popup Drawer (Opens when tapped or clicked React) */}
-                  <AnimatePresence>
-                    {(isSelected || hoveredMsgId === msg.id) && (
-                      <motion.div
-                        data-action-row="true"
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`mt-1.5 flex items-center gap-1 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/50 px-2.5 py-1 rounded-full shadow-xl z-30 max-w-[calc(100vw-32px)] overflow-x-auto`}
-                      >
-                        {customReactions.slice(0, 8).map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReaction(msg.id, emoji);
-                              setSelectedMsgId(null);
-                            }}
-                            className="text-base sm:text-lg hover:scale-130 active:scale-90 transition-transform cursor-pointer px-1 py-0.5"
-                            title={`React ${emoji}`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-
-                        {/* + Customize Emojis Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowEmojiCustomizer(true);
-                            setSelectedMsgId(null);
-                          }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-extrabold shrink-0 cursor-pointer ml-0.5"
-                          title="Customize reaction emojis"
-                        >
-                          +
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Interactive Action Row (Always Visible & 100% Functional!) */}
-                  <div data-action-row="true" className="flex items-center gap-1.5 mt-1.5 px-1 flex-wrap">
-                    <span className="text-[10px] text-text-muted font-medium mr-0.5">
-                      {formatMessageTime(msg.createdAt, userTz)}
-                    </span>
-                    {msg.isEdited && (
-                      <span className="text-[9px] text-pastel-pink-400 font-medium italic mr-0.5">
-                        (edited)
-                      </span>
-                    )}
-
-                    {/* Seen / Just Read Status */}
-                    {isMe && (
-                      <span 
-                        className="flex items-center gap-0.5 text-[10px] select-none mr-1"
-                        title={msg.isRead ? (msg.readAt ? `Read at ${formatMessageTime(msg.readAt, userTz)}` : 'Seen') : 'Sent'}
-                      >
-                        {msg.isRead ? (
-                          <>
-                            <CheckCheck className="w-3.5 h-3.5 text-pastel-pink-400 stroke-[2.5]" />
-                            <span className="text-[9.5px] text-pastel-pink-400 font-bold tracking-tight">
-                              {msg.readAt && (getNetworkNow() - msg.readAt < 120 * 1000)
-                                ? 'Just read'
-                                : msg.readAt
-                                  ? `Seen ${formatMessageTime(msg.readAt, userTz)}`
-                                  : 'Seen'}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-3 h-3 text-text-muted/60 stroke-[2]" />
-                            <span className="text-[9px] text-text-muted/60 font-medium">Sent</span>
-                          </>
-                        )}
-                      </span>
-                    )}
-
-                    {/* 1-Tap Reply Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartReply(msg);
-                      }}
-                      className="flex items-center gap-1 text-[11px] font-bold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs group/replybtn select-none"
-                      title="Reply to this message"
-                    >
-                      <Reply className="w-3.5 h-3.5 group-hover/replybtn:-translate-x-0.5 transition-transform" />
-                      <span>Reply</span>
-                    </button>
-
-                    {/* 1-Tap React Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMsgId(isSelected ? null : msg.id);
-                      }}
-                      className={`flex items-center gap-1 text-[11px] font-bold transition-all px-2.5 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
-                        isSelected
-                          ? 'bg-pastel-pink-400 text-white border-pastel-pink-400 shadow-xs'
-                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
-                      }`}
-                      title="Open reaction drawer"
-                    >
-                      <SmilePlus className="w-3.5 h-3.5" />
-                      <span>React</span>
-                    </button>
-
-                    {/* Copy Text Button */}
-                    {msg.type === 'text' && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyText(msg.content, msg.id);
-                        }}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none"
-                        title="Copy text"
-                      >
-                        {copiedMsgId === msg.id ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                        <span className="hidden sm:inline">Copy</span>
-                      </button>
-                    )}
-
-                    {/* Pin / Unpin Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const isPinned = globalSettings.pinnedMessageId === msg.id;
-                        fb.userSettings.set('global', { pinnedMessageId: isPinned ? null : msg.id });
-                      }}
-                      className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer active:scale-95 shadow-2xs select-none ${
-                        globalSettings.pinnedMessageId === msg.id
-                          ? 'text-pastel-pink-400 bg-pastel-pink-400/15 border-pastel-pink-400/50'
-                          : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
-                      }`}
-                      title={globalSettings.pinnedMessageId === msg.id ? 'Unpin Memory' : 'Pin Memory'}
-                    >
-                      <Pin className="w-3 h-3" />
-                      <span className="hidden sm:inline">{globalSettings.pinnedMessageId === msg.id ? 'Pinned' : 'Pin'}</span>
-                    </button>
-
-                    {/* Edit Button */}
-                    {isMe && msg.type === 'text' && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingMsgId(msg.id);
-                          setEditContent(msg.content);
-                        }}
-                        className="text-text-muted/70 hover:text-pastel-pink-400 p-1 rounded-full cursor-pointer transition-colors"
-                        title="Edit message"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {/* Delete Button */}
-                    {isMe && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteMessage(msg.id);
-                        }}
-                        className="text-text-muted/70 hover:text-red-400 p-1 rounded-full cursor-pointer transition-colors"
-                        title="Delete message"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-              </motion.div>
+                msg={msg}
+                currentUser={currentUser}
+                isFirstInCluster={isFirstInCluster}
+                isLastInCluster={isLastInCluster}
+                isSelected={selectedMsgId === msg.id}
+                isHovered={hoveredMsgId === msg.id}
+                isHighlighted={highlightedMsgId === msg.id}
+                isPinned={globalSettings.pinnedMessageId === msg.id}
+                userTz={userTz}
+                customReactions={customReactions}
+                audioSpeed={audioSpeeds[msg.id] || 1}
+                isLoveBurst={loveBurstMsgId === msg.id}
+                isCopied={copiedMsgId === msg.id}
+                onStartReply={handleStartReply}
+                onSelectMsg={handleSelectMsg}
+                onHoverMsg={handleHoverMsg}
+                onQuickLove={handleQuickLove}
+                onReaction={handleReaction}
+                onCopyText={handleCopyText}
+                onTogglePin={handleTogglePin}
+                onStartEdit={handleStartEdit}
+                onDeleteMessage={handleDeleteMessage}
+                onToggleAudioSpeed={toggleAudioSpeed}
+                onPreviewImage={handlePreviewImage}
+                onScrollToMessage={scrollToMessage}
+                onOpenEmojiCustomizer={handleOpenEmojiCustomizer}
+              />
             );
           })
         )}
@@ -1460,7 +1644,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-2xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
+      <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
         
         {/* Reply Preview Banner (Discord / WhatsApp Style) */}
         <AnimatePresence>
@@ -1469,7 +1653,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="mb-2 px-4 py-2 rounded-2xl bg-surface/95 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-lg flex items-center justify-between gap-3"
+              className="mb-2 px-4 py-2 rounded-2xl bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 shadow-lg flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="p-1.5 rounded-xl bg-pastel-pink-400 text-white shrink-0 shadow-xs">
@@ -1479,12 +1663,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   <span className="text-[11px] font-bold text-pastel-pink-400 leading-tight">
                     Replying to {replyingTo.sender}
                   </span>
-                  <span className="text-xs text-text-muted truncate max-w-xs sm:max-w-md font-medium">
-                    {replyingTo.type === 'text' && (replyingTo.content || 'Message')}
-                    {replyingTo.type === 'image' && '📷 Photo'}
-                    {replyingTo.type === 'gif' && '✨ GIF'}
-                    {replyingTo.type === 'sticker' && '🌸 Sticker'}
-                    {replyingTo.type === 'audio' && '🎤 Voice Note'}
+                  <span className="text-[11px] text-text-muted truncate max-w-xs sm:max-w-md">
+                    {replyingTo.content || (replyingTo.type === 'image' ? '📷 Photo' : replyingTo.type === 'gif' ? '✨ GIF' : replyingTo.type === 'sticker' ? '🌸 Sticker' : 'Voice note')}
                   </span>
                 </div>
               </div>
@@ -1507,7 +1687,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               initial={{ opacity: 0, y: 15, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
+              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
             >
               <div className="flex items-center justify-between pb-2 border-b border-border/50">
                 <span className="text-xs font-bold font-serif-italic text-text-main flex items-center gap-1.5">
@@ -1539,7 +1719,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </AnimatePresence>
 
-        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/95 backdrop-blur-2xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
+        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/98 md:backdrop-blur-xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
           
           {editingMsgId ? (
             <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
@@ -1653,6 +1833,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 type="text"
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                enterKeyHint="send"
+                autoCapitalize="sentences"
                 placeholder={replyingTo ? `Reply to ${replyingTo.sender}...` : `Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
                 className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
               />
@@ -1671,6 +1859,21 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               <button
                 type="submit"
                 disabled={!inputText.trim()}
+                onMouseDown={(e) => {
+                  // Prevent button tap from unfocusing input on mouse/pointer devices
+                  e.preventDefault();
+                }}
+                onTouchStart={() => {
+                  // Keep focus locked onto the input on mobile touch
+                  chatInputRef.current?.focus();
+                }}
+                onTouchEnd={() => {
+                  // Guarantee input remains focused on mobile touch end
+                  setTimeout(() => chatInputRef.current?.focus(), 10);
+                }}
+                onClick={() => {
+                  chatInputRef.current?.focus();
+                }}
                 className="p-3 rounded-full bg-pastel-pink-400 text-white shadow-md disabled:opacity-40 hover:bg-pastel-pink-300 transition-all cursor-pointer shrink-0"
               >
                 <Send className="w-4 h-4 md:w-5 md:h-5" />
@@ -1687,7 +1890,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={springConfig}
-              className="absolute bottom-[85px] left-3 right-3 sm:left-4 sm:right-4 bg-surface/98 backdrop-blur-2xl border border-border rounded-[2.5rem] p-5 md:p-6 shadow-2xl z-30"
+              className="absolute bottom-[85px] left-3 right-3 sm:left-4 sm:right-4 bg-surface/98 md:backdrop-blur-xl border border-border rounded-[2.5rem] p-5 md:p-6 shadow-2xl z-30"
             >
               {/* Header with Tabs */}
               <div className="flex justify-between items-center mb-3 pb-3 border-b border-border">
@@ -1893,7 +2096,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.92, opacity: 0, y: 15 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-[2.5rem] bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-lg rounded-[2.5rem] bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-border">
