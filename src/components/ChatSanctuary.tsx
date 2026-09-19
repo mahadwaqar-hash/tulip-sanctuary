@@ -705,6 +705,19 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
 
+  // Live Messages & Pagination
+  const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
+  const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
+
+  // Instant synchronous message decoding - zero flash, zero lag, 100% 60fps
+  const messages = useMemo(() => {
+    return encryptedMessages.map(msg => ({
+      ...msg,
+      content: msg.content ? decryptMessage(msg.content, passcode) : '',
+      mediaUrl: msg.mediaUrl ? decryptMessage(msg.mediaUrl, passcode) : msg.mediaUrl
+    }));
+  }, [encryptedMessages, passcode]);
+
   // Expanded GIF Search & Pagination Engine
   const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
   const [gifQuery, setGifQuery] = useState('');
@@ -942,20 +955,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageMsgRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Live Messages & Pagination
-  const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
-  const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
-
-  // Instant synchronous message decoding - zero flash, zero lag, 100% 60fps
-  const messages = useMemo(() => {
-    return encryptedMessages.map(msg => ({
-      ...msg,
-      content: msg.content ? decryptMessage(msg.content, passcode) : '',
-      mediaUrl: msg.mediaUrl ? decryptMessage(msg.mediaUrl, passcode) : msg.mediaUrl
-    }));
-  }, [encryptedMessages, passcode]);
-
   // Auto-mark incoming messages as seen/read when viewing the chat
   useEffect(() => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
