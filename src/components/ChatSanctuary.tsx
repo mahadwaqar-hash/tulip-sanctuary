@@ -766,106 +766,24 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     return presenceData.find((p: any) => p.id === currentUser);
   }, [presenceData, currentUser]);
 
-  const isPartnerOnline = useMemo(() => {
-    if (!partnerPresence || partnerPresence.online === false) return false;
-    const lastSeen = partnerPresence.lastSeen || 0;
-    return (Date.now() - lastSeen) < 90 * 1000;
-  }, [partnerPresence]);
-
+  // Periodic tick every 4s to evaluate presence window accurately and steadily
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    let isCancelled = false;
-    let locationData: any = null;
+    const timer = setInterval(() => setNow(Date.now()), 4000);
+    return () => clearInterval(timer);
+  }, []);
 
-    const pushPresence = (isOnline: boolean, extraLoc?: any) => {
-      const payload = {
-        online: isOnline,
-        lastSeen: Date.now(),
-        ...(locationData || {}),
-        ...(extraLoc || {})
-      };
-      fb.presence.set(currentUser, payload);
-    };
-
-    const fetchLocationAndInit = async () => {
-      try {
-        const cached = sessionStorage.getItem('tulip_user_location');
-        if (cached) {
-          locationData = JSON.parse(cached);
-        }
-      } catch (e) {}
-
-      if (!locationData) {
-        try {
-          const res = await fetch('https://ipwho.is/');
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.success !== false) {
-              const parts = [data.city, data.region, data.country_code || data.country].filter(Boolean);
-              locationData = {
-                city: data.city || '',
-                region: data.region || '',
-                country: data.country || '',
-                countryCode: data.country_code || '',
-                latitude: data.latitude || 0,
-                longitude: data.longitude || 0,
-                locationName: parts.join(', ') || 'Unknown Location'
-              };
-              sessionStorage.setItem('tulip_user_location', JSON.stringify(locationData));
-            }
-          }
-        } catch (err) {
-          console.warn('IP geolocation lookup failed:', err);
-        }
-      }
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (isCancelled) return;
-            locationData = {
-              ...(locationData || {}),
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude
-            };
-            pushPresence(true);
-          },
-          () => {},
-          { timeout: 6000, maximumAge: 300000 }
-        );
-      }
-
-      if (!isCancelled) {
-        pushPresence(true);
-      }
-    };
-
-    fetchLocationAndInit();
-
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        pushPresence(true);
-      }
-    }, 35000);
-
-    const handleVisibility = () => {
-      pushPresence(document.visibilityState === 'visible');
-    };
-
-    const handleUnload = () => {
-      pushPresence(false);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('beforeunload', handleUnload);
-
-    return () => {
-      isCancelled = true;
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('beforeunload', handleUnload);
-      pushPresence(false);
-    };
-  }, [currentUser]);
+  const isPartnerOnline = useMemo(() => {
+    if (!partnerPresence) return false;
+    const lastSeen = partnerPresence.lastSeen || 0;
+    // Considered online if heartbeat was within the last 60 seconds
+    const withinWindow = (now - lastSeen) < 60 * 1000;
+    // If explicitly marked offline, only treat as offline if lastSeen was more than 15s ago
+    if (partnerPresence.online === false && (now - lastSeen > 15 * 1000)) {
+      return false;
+    }
+    return withinWindow;
+  }, [partnerPresence, now]);
 
   // Live Messages & Pagination
   const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
@@ -1696,7 +1614,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             {/* Live Online / Offline Dot Indicator */}
             <span
               className={`w-3 h-3 rounded-full border-2 border-surface absolute -bottom-0.5 -right-0.5 shadow-xs transition-colors duration-300 ${
-                isPartnerOnline ? 'bg-emerald-500 ring-2 ring-emerald-400/30' : 'bg-neutral-400'
+                isPartnerOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]' : 'bg-neutral-400'
               }`}
               title={isPartnerOnline ? `${partnerName} is online` : `${partnerName} is offline`}
             />
@@ -1714,14 +1632,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               </span>
             </h2>
 
-            {/* Live Online & Exact Location indicator */}
+            {/* Live Online & Exact Location indicator - Solid and steady, zero flickering */}
             <div className="text-[10px] md:text-[11px] font-medium truncate flex items-center gap-1.5 text-text-muted">
               {isPartnerOnline ? (
                 <>
-                  <span className="flex h-2 w-2 relative shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] ring-2 ring-emerald-400/20 shrink-0" />
                   <span className="text-emerald-500 font-bold tracking-tight">Online</span>
                   {partnerPresence?.locationName && (
                     <>

@@ -468,6 +468,120 @@ export default function App() {
     }
   }, [lovePings, currentUser]);
 
+  // Global Real-Time Presence & Location Heartbeat (Stable, zero-flicker)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isCancelled = false;
+    let locationData: any = null;
+    let offlineTimeout: NodeJS.Timeout | null = null;
+
+    const pushPresence = (isOnline: boolean, extraLoc?: any) => {
+      const payload = {
+        online: isOnline,
+        lastSeen: Date.now(),
+        ...(locationData || {}),
+        ...(extraLoc || {})
+      };
+      fb.presence.set(currentUser, payload);
+    };
+
+    const fetchLocationAndInit = async () => {
+      try {
+        const cached = sessionStorage.getItem('tulip_user_location');
+        if (cached) {
+          locationData = JSON.parse(cached);
+        }
+      } catch (e) {}
+
+      if (!locationData) {
+        try {
+          const res = await fetch('https://ipwho.is/');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.success !== false) {
+              const parts = [data.city, data.region, data.country_code || data.country].filter(Boolean);
+              locationData = {
+                city: data.city || '',
+                region: data.region || '',
+                country: data.country || '',
+                countryCode: data.country_code || '',
+                latitude: data.latitude || 0,
+                longitude: data.longitude || 0,
+                locationName: parts.join(', ') || 'Unknown Location'
+              };
+              sessionStorage.setItem('tulip_user_location', JSON.stringify(locationData));
+            }
+          }
+        } catch (err) {
+          console.warn('IP geolocation lookup failed:', err);
+        }
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (isCancelled) return;
+            locationData = {
+              ...(locationData || {}),
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            };
+            pushPresence(true);
+          },
+          () => {},
+          { timeout: 6000, maximumAge: 300000 }
+        );
+      }
+
+      if (!isCancelled) {
+        pushPresence(true);
+      }
+    };
+
+    fetchLocationAndInit();
+
+    // Heartbeat every 20 seconds while app is active
+    const heartbeatInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        pushPresence(true);
+      }
+    }, 20000);
+
+    // Visibility change handler with generous 3-minute grace period
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (offlineTimeout) {
+          clearTimeout(offlineTimeout);
+          offlineTimeout = null;
+        }
+        pushPresence(true);
+      } else {
+        // Tab hidden: do NOT set offline immediately! Wait 3 minutes.
+        if (offlineTimeout) clearTimeout(offlineTimeout);
+        offlineTimeout = setTimeout(() => {
+          pushPresence(false);
+        }, 180000);
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      pushPresence(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(heartbeatInterval);
+      if (offlineTimeout) clearTimeout(offlineTimeout);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      pushPresence(false);
+    };
+  }, [currentUser]);
+
   const handlePasscodeUnlock = () => {
     setHasUnlockedPasscode(true);
     try {
