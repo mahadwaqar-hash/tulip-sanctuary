@@ -22,8 +22,6 @@ import {
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
-import SecretPhotosView from './components/SecretPhotosView';
-import ScratchpadView from './components/ScratchpadView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
@@ -497,8 +495,6 @@ export default function App() {
     { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare },
     { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
     { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
-    { id: 'photos', label: 'Secret Scrapbook', emoji: '📸', icon: Camera },
-    { id: 'scratchpad', label: 'Love Notes', emoji: '📝', icon: FileText },
   ];
 
   return (
@@ -684,16 +680,6 @@ export default function App() {
                   {activeTab === 'calendar' && (
                     <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
                       <CalendarView currentUser={currentUser} />
-                    </motion.div>
-                  )}
-                  {activeTab === 'photos' && (
-                    <motion.div key="photos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
-                      <SecretPhotosView currentUser={currentUser} sanctuaryPassword={activePassword} />
-                    </motion.div>
-                  )}
-                  {activeTab === 'scratchpad' && (
-                    <motion.div key="scratchpad" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
-                      <ScratchpadView currentUser={currentUser} />
                     </motion.div>
                   )}
                 </AnimatePresence>

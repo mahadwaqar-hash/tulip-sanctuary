@@ -559,7 +559,15 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     </span>
                     <select
                       value={mahadTz}
-                      onChange={(e) => setMahadTz(e.target.value)}
+                      onChange={(e) => {
+                        const newTz = e.target.value;
+                        setMahadTz(newTz);
+                        // Also auto-update city display label if user didn't write a custom one
+                        const foundCity = POPULAR_CITIES.find(c => c.tz === newTz);
+                        if (foundCity && (!mahadCity || mahadCity.includes('Lahore') || mahadCity.includes('London'))) {
+                          setMahadCity(foundCity.city);
+                        }
+                      }}
                       className="w-full bg-surface p-2 rounded-xl border border-border text-xs text-text-main outline-none focus:border-pastel-pink-400 font-medium cursor-pointer"
                     >
                       {MAJOR_TIMEZONES.map(m => (
@@ -631,7 +639,15 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     </span>
                     <select
                       value={ifaTz}
-                      onChange={(e) => setIfaTz(e.target.value)}
+                      onChange={(e) => {
+                        const newTz = e.target.value;
+                        setIfaTz(newTz);
+                        // Also auto-update city display label if user didn't write a custom one
+                        const foundCity = POPULAR_CITIES.find(c => c.tz === newTz);
+                        if (foundCity && (!ifaCity || ifaCity.includes('London') || ifaCity.includes('Lahore'))) {
+                          setIfaCity(foundCity.city);
+                        }
+                      }}
                       className="w-full bg-surface p-2 rounded-xl border border-border text-xs text-text-main outline-none focus:border-pastel-pink-400 font-medium cursor-pointer"
                     >
                       {MAJOR_TIMEZONES.map(m => (

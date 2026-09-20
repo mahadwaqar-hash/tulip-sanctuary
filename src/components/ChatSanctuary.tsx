@@ -297,13 +297,15 @@ const ChatMessageItem = memo(function ChatMessageItem({
       initial={{ opacity: 0, scale: 0.95, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={springConfig}
-      onMouseEnter={() => onHoverMsg(msg.id)}
-      onMouseLeave={() => onHoverMsg(null)}
       className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-${isLastInCluster ? '2' : '0.5'} transition-all duration-500 rounded-3xl ${
         isHighlighted ? 'ring-2 ring-pastel-pink-400 bg-pastel-pink-400/20 p-1.5' : ''
       }`}
     >
-      <div className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}>
+      <div 
+        onMouseEnter={() => onHoverMsg(msg.id)}
+        onMouseLeave={() => onHoverMsg(null)}
+        className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}
+      >
         {/* Sender Tag (Only show for first in cluster) */}
         {showName && (
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 px-1">
@@ -315,11 +317,10 @@ const ChatMessageItem = memo(function ChatMessageItem({
         <motion.div
           data-msg-bubble="true"
           drag="x"
-          dragDirectionLock
           dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.35}
+          dragElastic={0.4}
           onDragEnd={(_e, info) => {
-            if (Math.abs(info.offset.x) > 35) {
+            if (Math.abs(info.offset.x) > 28) {
               onStartReply(msg);
               if ('vibrate' in navigator) navigator.vibrate([25, 25]);
             }
@@ -335,7 +336,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
             const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
             const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
             touchStartRef.current = null;
-            if (Math.abs(deltaX) > 35 && Math.abs(deltaY) < 55) {
+            if (Math.abs(deltaX) > 28 && Math.abs(deltaY) < 65) {
               onStartReply(msg);
               if ('vibrate' in navigator) navigator.vibrate([25, 25]);
             }
@@ -479,71 +480,23 @@ const ChatMessageItem = memo(function ChatMessageItem({
           </div>
         )}
 
-        {/* Quick Reaction Popup Drawer (Opens when tapped or hovered) */}
-        <AnimatePresence>
-          {(isSelected || isHovered) && (
-            <motion.div
-              data-action-row="true"
-              initial={{ opacity: 0, scale: 0.95, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -4 }}
-              onClick={(e) => e.stopPropagation()}
-              className="mt-1.5 flex items-center gap-1 bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/50 px-2.5 py-1 rounded-full shadow-xl z-30 max-w-[calc(100vw-32px)] overflow-x-auto"
-            >
-              {(Array.isArray(customReactions) ? customReactions : DEFAULT_REACTIONS).slice(0, 8).map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction(msg.id, emoji);
-                    onSelectMsg(null);
-                  }}
-                  className="text-base sm:text-lg hover:scale-130 active:scale-90 transition-transform cursor-pointer px-1 py-0.5"
-                  title={`React ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-
-              {/* + Customize Emojis Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenEmojiCustomizer();
-                  onSelectMsg(null);
-                }}
-                className="w-6 h-6 rounded-full flex items-center justify-center bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-xs font-extrabold shrink-0 cursor-pointer ml-0.5"
-                title="Customize reaction emojis"
-              >
-                +
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Interactive Action Row (Always Visible & 100% Functional!) */}
-        <div data-action-row="true" className="flex items-center gap-1.5 mt-1.5 px-1 flex-wrap">
-          <span className="text-[10px] text-text-muted font-medium mr-0.5">
-            {formatMessageTime(msg.createdAt, userTz)}
-          </span>
+        {/* Clean, Non-Cramped Status Row: Timestamp & Seen Indicator Always Sleek & Minimal */}
+        <div className="flex items-center gap-1.5 mt-1 px-1 text-[10px] text-text-muted select-none">
+          <span>{formatMessageTime(msg.createdAt, userTz)}</span>
           {msg.isEdited && (
-            <span className="text-[9px] text-pastel-pink-400 font-medium italic mr-0.5">
+            <span className="text-[9px] text-pastel-pink-400 font-medium italic">
               (edited)
             </span>
           )}
-
-          {/* Seen / Just Read Status */}
           {isMe && (
-            <span 
-              className="flex items-center gap-0.5 text-[10px] select-none mr-1"
+            <span
+              className="flex items-center gap-0.5"
               title={msg.isRead ? (msg.readAt ? `Read at ${formatMessageTime(msg.readAt, userTz)}` : 'Seen') : 'Sent'}
             >
               {msg.isRead ? (
                 <>
-                  <CheckCheck className="w-3.5 h-3.5 text-pastel-pink-400 stroke-[2.5]" />
-                  <span className="text-[9.5px] text-pastel-pink-400 font-bold tracking-tight">
+                  <CheckCheck className="w-3 h-3 text-pastel-pink-400 stroke-[2.5]" />
+                  <span className="text-[9px] text-pastel-pink-400 font-bold tracking-tight">
                     {msg.readAt && (getNetworkNow() - msg.readAt < 120 * 1000)
                       ? 'Just read'
                       : msg.readAt
@@ -559,107 +512,144 @@ const ChatMessageItem = memo(function ChatMessageItem({
               )}
             </span>
           )}
-
-          {/* 1-Tap Reply Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onStartReply(msg);
-            }}
-            className="flex items-center gap-1 text-[11px] font-bold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2.5 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs group/replybtn select-none"
-            title="Reply to this message"
-          >
-            <Reply className="w-3.5 h-3.5 group-hover/replybtn:-translate-x-0.5 transition-transform" />
-            <span>Reply</span>
-          </button>
-
-          {/* 1-Tap React Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectMsg(isSelected ? null : msg.id);
-            }}
-            className={`flex items-center gap-1 text-[11px] font-bold transition-all px-2.5 py-0.5 rounded-full border cursor-pointer active:scale-95 shadow-2xs select-none ${
-              isSelected
-                ? 'bg-pastel-pink-400 text-white border-pastel-pink-400 shadow-xs'
-                : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
-            }`}
-            title="Open reaction drawer"
-          >
-            <SmilePlus className="w-3.5 h-3.5" />
-            <span>React</span>
-          </button>
-
-          {/* Copy Text Button */}
-          {msg.type === 'text' && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopyText(msg.content, msg.id);
-              }}
-              className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border border-border/70 hover:border-pastel-pink-400 px-2 py-0.5 rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs select-none"
-              title="Copy text"
-            >
-              {isCopied ? (
-                <Check className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <Copy className="w-3 h-3" />
-              )}
-              <span className="hidden sm:inline">Copy</span>
-            </button>
-          )}
-
-          {/* Pin / Unpin Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePin(msg.id);
-            }}
-            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition-all cursor-pointer active:scale-95 shadow-2xs select-none ${
-              isPinned
-                ? 'text-pastel-pink-400 bg-pastel-pink-400/15 border-pastel-pink-400/50'
-                : 'text-text-muted hover:text-pastel-pink-400 bg-surface/80 hover:bg-surface border-border/70 hover:border-pastel-pink-400'
-            }`}
-            title={isPinned ? 'Unpin Memory' : 'Pin Memory'}
-          >
-            <Pin className="w-3 h-3" />
-            <span className="hidden sm:inline">{isPinned ? 'Pinned' : 'Pin'}</span>
-          </button>
-
-          {/* Edit Button */}
-          {isMe && msg.type === 'text' && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartEdit(msg.id, msg.content);
-              }}
-              className="text-text-muted/70 hover:text-pastel-pink-400 p-1 rounded-full cursor-pointer transition-colors"
-              title="Edit message"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Delete Button */}
-          {isMe && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteMessage(msg.id);
-              }}
-              className="text-text-muted/70 hover:text-red-400 p-1 rounded-full cursor-pointer transition-colors"
-              title="Delete message"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
+
+        {/* Intelligent Frosted Action Popover: Pops up on Desktop Hover OR Mobile Tap with clean elevation */}
+        <AnimatePresence>
+          {(isSelected || isHovered) && (
+            <motion.div
+              data-action-row="true"
+              initial={{ opacity: 0, scale: 0.88, y: 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+              className={`absolute z-30 ${
+                isMe ? 'right-0 sm:right-1' : 'left-0 sm:left-1'
+              } -top-9 sm:-top-11 flex items-center gap-1 sm:gap-1.5 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-2xl max-w-[calc(100vw-28px)] overflow-x-auto select-none`}
+              style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
+            >
+              {/* Emojis */}
+              {(Array.isArray(customReactions) ? customReactions : DEFAULT_REACTIONS).slice(0, 6).map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction(msg.id, emoji);
+                    onSelectMsg(null);
+                    onHoverMsg(null);
+                  }}
+                  className="text-sm sm:text-lg hover:scale-125 active:scale-90 transition-transform cursor-pointer px-0.5 sm:px-1 py-0.5 leading-none"
+                  title={`React ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenEmojiCustomizer();
+                  onSelectMsg(null);
+                  onHoverMsg(null);
+                }}
+                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center bg-pastel-pink-400/15 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white transition-all text-[10px] sm:text-xs font-bold shrink-0 cursor-pointer mr-0.5 sm:mr-1"
+                title="Customize reaction emojis"
+              >
+                +
+              </button>
+
+              <div className="w-[1px] h-3 sm:h-3.5 bg-border/80 shrink-0 mx-0.5" />
+
+              {/* Reply Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartReply(msg);
+                  onSelectMsg(null);
+                  onHoverMsg(null);
+                }}
+                className="p-1 text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full transition-all shrink-0 cursor-pointer"
+                title="Reply"
+              >
+                <Reply className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              </button>
+
+              {/* Copy Text Button */}
+              {msg.type === 'text' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopyText(msg.content, msg.id);
+                    onSelectMsg(null);
+                    onHoverMsg(null);
+                  }}
+                  className="p-1 text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full transition-all shrink-0 cursor-pointer"
+                  title="Copy text"
+                >
+                  {isCopied ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400" /> : <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                </button>
+              )}
+
+              {/* Pin / Unpin Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePin(msg.id);
+                  onSelectMsg(null);
+                  onHoverMsg(null);
+                }}
+                className={`p-1 rounded-full transition-all shrink-0 cursor-pointer ${
+                  isPinned
+                    ? 'text-pastel-pink-400 bg-pastel-pink-400/15'
+                    : 'text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10'
+                }`}
+                title={isPinned ? 'Unpin' : 'Pin'}
+              >
+                <Pin className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              </button>
+
+              {/* Edit Button */}
+              {isMe && msg.type === 'text' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartEdit(msg.id, msg.content);
+                    onSelectMsg(null);
+                    onHoverMsg(null);
+                  }}
+                  className="p-1 text-text-muted hover:text-pastel-pink-400 hover:bg-pastel-pink-400/10 rounded-full transition-all shrink-0 cursor-pointer"
+                  title="Edit message"
+                >
+                  <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </button>
+              )}
+
+              {/* Delete Button */}
+              {isMe && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMessage(msg.id);
+                    onSelectMsg(null);
+                    onHoverMsg(null);
+                  }}
+                  className="p-1 text-text-muted hover:text-red-400 hover:bg-red-400/10 rounded-full transition-all shrink-0 cursor-pointer"
+                  title="Delete message"
+                >
+                  <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -740,20 +730,54 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const fetchGifs = useCallback(async (query: string, offset = 0, append = false) => {
     setGifLoading(true);
     try {
-      const cleanQ = query.trim();
-      const endpoint = cleanQ
-        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(cleanQ)}&limit=40&offset=${offset}`
-        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=40&offset=${offset}`;
+      const cleanQ = query.trim().toLowerCase();
+      
+      // 1. Search local curated animated database
+      const filteredPremade = PREMADE_GIFS_AND_STICKERS.filter(g => {
+        if (!cleanQ) return true;
+        return g.name.toLowerCase().includes(cleanQ) || 
+               g.category.toLowerCase().includes(cleanQ) ||
+               cleanQ.split(' ').some(word => g.name.toLowerCase().includes(word));
+      }).map(g => g.url);
 
-      const res = await fetch(endpoint);
-      const data = await res.json();
-      if (data.data && Array.isArray(data.data)) {
-        const urls = data.data
-          .map((g: any) => g.images?.fixed_width?.url || g.images?.fixed_width_small?.url || g.images?.original?.url)
-          .filter(Boolean);
-        setTenorGifs(prev => (append ? [...prev, ...urls] : urls));
-        setGifOffset(offset + 40);
+      // 2. Fetch from live anime reactions (nekos.best / otakugifs)
+      let liveUrls: string[] = [];
+      try {
+        const catMap: Record<string, string> = {
+          'hug': 'hug',
+          'kiss': 'kiss',
+          'pat': 'pat',
+          'cuddle': 'cuddle',
+          'love': 'hug',
+          'dance': 'dance',
+          'smile': 'smile',
+          'happy': 'happy',
+          'laugh': 'laugh',
+          'blush': 'blush',
+          'cat': 'pat',
+          'funny': 'laugh',
+          'cry': 'cry',
+          'sleep': 'sleep',
+          'wave': 'wave'
+        };
+
+        const targetAction = Object.keys(catMap).find(k => cleanQ.includes(k)) || (cleanQ ? null : 'hug');
+        if (targetAction) {
+          const endpoint = `https://nekos.best/api/v2/${catMap[targetAction]}?amount=12`;
+          const res = await fetch(endpoint);
+          const data = await res.json();
+          if (data && Array.isArray(data.results)) {
+            liveUrls = data.results.map((r: any) => r.url).filter(Boolean);
+          }
+        }
+      } catch (liveErr) {
+        // Fallback to local curated
       }
+
+      // Combine unique GIFs
+      const combined = Array.from(new Set([...filteredPremade, ...liveUrls]));
+      setTenorGifs(prev => (append ? Array.from(new Set([...prev, ...combined])) : combined));
+      setGifOffset(offset + 20);
     } catch (err) {
       console.error('GIF fetch failed:', err);
     } finally {
@@ -894,33 +918,59 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }
   }, []);
 
-  const resizeImageToSticker = (dataUrl: string, maxSize = 256): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > maxSize) {
-            height = Math.round((height * maxSize) / width);
-            width = maxSize;
+  // Aggressive Client-Side WebP Compression (Max 1024px, 0.6 Quality ~100KB)
+  const compressToWebpBlob = (file: File, maxDim = 1024, quality = 0.6): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
-        } else {
-          if (height > maxSize) {
-            width = Math.round((width * maxSize) / height);
-            height = maxSize;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('Canvas context failed'));
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('WebP blob creation failed'));
+            },
+            'image/webp',
+            quality
+          );
+        };
+        img.onerror = reject;
+        img.src = ev.target?.result as string;
       };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
+  };
+
+  const uploadCompressedPhoto = async (file: File): Promise<string> => {
+    const webpBlob = await compressToWebpBlob(file, 1024, 0.6);
+    const filename = `photos/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.webp`;
+    const storageRef = ref(storage, filename);
+    
+    // Upload bytes with WebP content type
+    await uploadBytes(storageRef, webpBlob, { contentType: 'image/webp' });
+    return await getDownloadURL(storageRef);
   };
 
   // Live Settings
@@ -1126,41 +1176,56 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     }
   };
 
-  const handleSendImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSendImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      if (ev.target?.result) {
-        if ('vibrate' in navigator) navigator.vibrate(50);
-        const newCreatedAt = getSafeNewTimestamp();
-        const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    try {
+      if ('vibrate' in navigator) navigator.vibrate(50);
+      const newCreatedAt = getSafeNewTimestamp();
+      const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-        const replyData = replyingTo ? {
-          id: replyingTo.id,
-          sender: replyingTo.sender,
-          content: replyingTo.content || '',
-          type: replyingTo.type || 'text',
-          mediaUrl: replyingTo.mediaUrl || null
-        } : null;
-        if (replyingTo) setReplyingTo(null);
+      const replyData = replyingTo ? {
+        id: replyingTo.id,
+        sender: replyingTo.sender,
+        content: replyingTo.content || '',
+        type: replyingTo.type || 'text',
+        mediaUrl: replyingTo.mediaUrl || null
+      } : null;
+      if (replyingTo) setReplyingTo(null);
 
-        await fb.messages.add({
-          id: msgId,
-          sender: currentUser,
-          type: 'image',
-          content: 'Sent a photo',
-          mediaUrl: ev.target.result as string,
-          createdAt: newCreatedAt,
-          ...(replyData ? { replyTo: replyData } : {})
+      // Perform aggressive client-side WebP compression (max 1024px, 0.6 quality ~100KB) and upload to Storage
+      let downloadUrl = '';
+      try {
+        downloadUrl = await uploadCompressedPhoto(file);
+      } catch (uploadErr) {
+        console.warn('Storage upload error, falling back to local compressed base64:', uploadErr);
+        // Fallback to compressed base64 if Firebase Storage rules block upload
+        const blob = await compressToWebpBlob(file, 1024, 0.6);
+        downloadUrl = await new Promise((res) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result as string);
+          fr.readAsDataURL(blob);
         });
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+
+      await fb.messages.add({
+        id: msgId,
+        sender: currentUser,
+        type: 'image',
+        content: 'Sent a photo',
+        mediaUrl: downloadUrl,
+        createdAt: newCreatedAt,
+        ...(replyData ? { replyTo: replyData } : {})
+      });
+    } catch (err: any) {
+      console.error('Failed to compress/upload image:', err);
+      alert('Could not send photo: ' + (err?.message || String(err)));
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleSendGifOrSticker = async (url: string, type: 'gif' | 'sticker') => {
@@ -1866,18 +1931,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 type="submit"
                 disabled={!inputText.trim()}
                 onMouseDown={(e) => {
-                  // Prevent button tap from unfocusing input on mouse/pointer devices
                   e.preventDefault();
                 }}
-                onTouchStart={() => {
-                  // Keep focus locked onto the input on mobile touch
-                  chatInputRef.current?.focus();
-                }}
-                onTouchEnd={() => {
-                  // Guarantee input remains focused on mobile touch end
-                  setTimeout(() => chatInputRef.current?.focus(), 10);
-                }}
-                onClick={() => {
+                onTouchStart={(e) => {
+                  // Prevent touch focus theft which dismisses iOS/Android virtual keyboard
+                  e.preventDefault();
+                  handleSendMessage();
                   chatInputRef.current?.focus();
                 }}
                 className="p-3 rounded-full bg-pastel-pink-400 text-white shadow-md disabled:opacity-40 hover:bg-pastel-pink-300 transition-all cursor-pointer shrink-0"

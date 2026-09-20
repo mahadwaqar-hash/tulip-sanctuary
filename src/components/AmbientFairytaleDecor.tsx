@@ -35,14 +35,14 @@ export default function AmbientFairytaleDecor() {
         </motion.div>
       ))}
 
-      {/* Subtle Fairy Glow Orbs - Fast GPU rendering without CSS blur filters */}
+      {/* Subtle Theme-Synced Glow Orbs - Adapts cleanly to whatever theme is selected */}
       <div 
-        className="absolute top-1/4 -left-20 w-80 h-80 pointer-events-none" 
-        style={{ background: 'radial-gradient(circle, rgba(255, 102, 133, 0.15) 0%, transparent 70%)' }} 
+        className="absolute top-1/4 -left-20 w-80 h-80 pointer-events-none rounded-full" 
+        style={{ background: 'radial-gradient(circle, var(--color-pastel-pink-300, rgba(255, 102, 133, 0.15)) 0%, transparent 70%)', opacity: 0.18 }} 
       />
       <div 
-        className="absolute bottom-1/3 -right-20 w-96 h-96 pointer-events-none" 
-        style={{ background: 'radial-gradient(circle, rgba(255, 229, 217, 0.15) 0%, transparent 70%)' }} 
+        className="absolute bottom-1/3 -right-20 w-96 h-96 pointer-events-none rounded-full" 
+        style={{ background: 'radial-gradient(circle, var(--color-pastel-peach, rgba(255, 229, 217, 0.15)) 0%, transparent 70%)', opacity: 0.18 }} 
       />
     </div>
   );

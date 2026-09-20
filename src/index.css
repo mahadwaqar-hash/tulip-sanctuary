@@ -176,6 +176,56 @@
   --bubble-other-border: rgba(92, 147, 245, 0.3);
 }
 
+[data-theme="matcha"] {
+  /* 7. Matcha Latte - Fresh Pistachio & Calm Botanical Cream (Light Mode) */
+  --pink-100: #E2ECD8;
+  --pink-200: #BFD7B2;
+  --pink-300: #8EB87D;
+  --pink-400: #5E935A;
+  --peach: #EBF2E5;
+  --lavender: #DDE8D5;
+
+  --bg-start: #F5F9F3;
+  --bg-end: #E9F3E6;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-hover: rgba(255, 255, 255, 0.95);
+  --text-main: #243321;
+  --text-muted: rgba(36, 51, 33, 0.65);
+  --border: rgba(94, 147, 90, 0.22);
+
+  --bubble-me-from: #8EB87D;
+  --bubble-me-to: #5E935A;
+  --bubble-me-text: #FFFFFF;
+  --bubble-other-bg: rgba(255, 255, 255, 0.92);
+  --bubble-other-text: #1E2B1B;
+  --bubble-other-border: rgba(94, 147, 90, 0.3);
+}
+
+[data-theme="peach"] {
+  /* 8. Peachy Cream - Soft Apricot & Warm Vanilla (Light Mode) */
+  --pink-100: #FFE6D6;
+  --pink-200: #FFC9A8;
+  --pink-300: #FB923C;
+  --pink-400: #F97316;
+  --peach: #FFEDD5;
+  --lavender: #FFF7ED;
+
+  --bg-start: #FFF8F3;
+  --bg-end: #FEEFE4;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-hover: rgba(255, 255, 255, 0.95);
+  --text-main: #3D2619;
+  --text-muted: rgba(61, 38, 25, 0.65);
+  --border: rgba(249, 115, 22, 0.22);
+
+  --bubble-me-from: #FB923C;
+  --bubble-me-to: #EA580C;
+  --bubble-me-text: #FFFFFF;
+  --bubble-other-bg: rgba(255, 255, 255, 0.92);
+  --bubble-other-text: #2F1A0E;
+  --bubble-other-border: rgba(249, 115, 22, 0.3);
+}
+
 @layer base {
   html, body {
     touch-action: manipulation;
@@ -225,7 +275,7 @@
     backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
     border: 1px solid var(--border);
-    box-shadow: 0 8px 32px rgba(224, 17, 95, 0.25);
+    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.2);
     transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
@@ -242,7 +292,7 @@
   }
 
   .glass-panel:hover {
-    box-shadow: 0 12px 45px rgba(224, 17, 95, 0.35);
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.28);
   }
   
   .font-serif-italic {
@@ -259,11 +309,11 @@
   }
 
   .glow-rose {
-    box-shadow: 0 0 25px -4px rgba(255, 102, 133, 0.45);
+    box-shadow: 0 0 20px -4px var(--border);
   }
 
   .glow-rose-sm {
-    box-shadow: 0 0 12px -2px rgba(255, 102, 133, 0.35);
+    box-shadow: 0 0 10px -2px var(--border);
   }
 
   /* Mobile safe area padding */

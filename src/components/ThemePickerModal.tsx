@@ -73,6 +73,26 @@ export const SANCTUARY_THEMES: SanctuaryTheme[] = [
     bgGrad: 'from-[#060B18] to-[#0C152B]',
     accent: '#3B82F6',
     cardBg: '#0B1730'
+  },
+  {
+    id: 'matcha',
+    name: 'Matcha Latte',
+    subtitle: 'Fresh Pistachio, Cream & Calm Green',
+    emoji: '🍵',
+    isDark: false,
+    bgGrad: 'from-[#F5F9F3] to-[#E9F3E6]',
+    accent: '#5E935A',
+    cardBg: '#FFFFFF'
+  },
+  {
+    id: 'peach',
+    name: 'Peachy Cream',
+    subtitle: 'Soft Apricot & Warm Vanilla Glow',
+    emoji: '🍑',
+    isDark: false,
+    bgGrad: 'from-[#FFF8F3] to-[#FEEFE4]',
+    accent: '#F97316',
+    cardBg: '#FFFFFF'
   }
 ];
 
