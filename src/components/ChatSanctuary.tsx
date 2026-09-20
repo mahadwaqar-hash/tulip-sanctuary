@@ -514,19 +514,19 @@ const ChatMessageItem = memo(function ChatMessageItem({
           )}
         </div>
 
-        {/* Intelligent Frosted Action Popover: Pops up on Desktop Hover OR Mobile Tap with clean elevation */}
+        {/* Intelligent Frosted Action Popover: Floats directly ABOVE the chat bubble */}
         <AnimatePresence>
           {(isSelected || isHovered) && (
             <motion.div
               data-action-row="true"
-              initial={{ opacity: 0, scale: 0.88, y: 6 }}
+              initial={{ opacity: 0, scale: 0.88, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.88, y: 4 }}
+              exit={{ opacity: 0, scale: 0.88, y: 6 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
               onClick={(e) => e.stopPropagation()}
               className={`absolute z-30 ${
-                isMe ? 'right-0 sm:right-1' : 'left-0 sm:left-1'
-              } -top-9 sm:-top-11 flex items-center gap-1 sm:gap-1.5 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-2xl max-w-[calc(100vw-28px)] overflow-x-auto select-none`}
+                isMe ? 'right-0' : 'left-0'
+              } bottom-full mb-2 flex items-center gap-1 sm:gap-1.5 bg-surface/98 backdrop-blur-2xl border border-pastel-pink-300/40 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-2xl max-w-[calc(100vw-28px)] overflow-x-auto select-none`}
               style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
             >
               {/* Emojis */}
