@@ -23,7 +23,7 @@ export function useFirestore<T>(collectionName: string, orderField: string = 'cr
 
   useEffect(() => {
     const colRef = collection(firestoreDB, collectionName);
-    const q = (orderField && orderField !== 'none' && orderField !== 'id' && collectionName !== 'userSettings')
+    const q = (orderField && orderField !== 'none' && orderField !== 'id' && collectionName !== 'userSettings' && collectionName !== 'presence')
       ? query(colRef, orderBy(orderField, desc ? 'desc' : 'asc'))
       : colRef;
 
@@ -143,5 +143,14 @@ export const fb = {
   },
   userSettings: {
     set: async (user: string, data: any) => await setDoc(doc(firestoreDB, 'userSettings', user), { id: user, ...data }, { merge: true }),
+  },
+  presence: {
+    set: async (user: string, data: any) => {
+      try {
+        await setDoc(doc(firestoreDB, 'presence', user), { id: user, ...data }, { merge: true });
+      } catch (err) {
+        console.error('Failed to update presence:', err);
+      }
+    }
   }
 };

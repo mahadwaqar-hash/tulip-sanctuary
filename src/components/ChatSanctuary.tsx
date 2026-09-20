@@ -23,7 +23,8 @@ import {
   Loader2,
   Plus,
   RotateCcw,
-  MoreHorizontal
+  MoreHorizontal,
+  MapPin
 } from 'lucide-react';
 import { useFirestore, fb, useChatMessages, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -79,6 +80,18 @@ const calculateTimeTogether = (startDate?: string) => {
   } catch (e) {
     return { days: 0, hours: 0, mins: 0, secs: 0 };
   }
+};
+
+const formatLastSeen = (timestamp?: number) => {
+  if (!timestamp) return 'recently';
+  const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ago`;
 };
 
 const LoveTimerDesktop = memo(function LoveTimerDesktop({
@@ -291,6 +304,43 @@ const ChatMessageItem = memo(function ChatMessageItem({
     corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tl-[4px]' : ''} ${!isLastInCluster ? 'rounded-bl-[4px]' : 'rounded-bl-[2px]'}`;
   }
 
+  // Group reactions, calculate separate counts, and determine if currentUser reacted
+  const groupedReactions = useMemo(() => {
+    if (msg.reactionsMap && typeof msg.reactionsMap === 'object') {
+      const map: Record<string, { emoji: string; count: number; users: string[]; hasReacted: boolean }> = {};
+      Object.entries(msg.reactionsMap as Record<string, string[]>).forEach(([user, emojis]) => {
+        if (Array.isArray(emojis)) {
+          emojis.forEach((emoji) => {
+            if (!emoji) return;
+            if (!map[emoji]) {
+              map[emoji] = { emoji, count: 0, users: [], hasReacted: false };
+            }
+            map[emoji].count += 1;
+            map[emoji].users.push(user);
+            if (user === currentUser) {
+              map[emoji].hasReacted = true;
+            }
+          });
+        }
+      });
+      return Object.values(map);
+    }
+
+    if (msg.reactions && Array.isArray(msg.reactions) && msg.reactions.length > 0) {
+      const map: Record<string, { emoji: string; count: number; users: string[]; hasReacted: boolean }> = {};
+      msg.reactions.forEach((emoji: string) => {
+        if (!emoji) return;
+        if (!map[emoji]) {
+          map[emoji] = { emoji, count: 0, users: [], hasReacted: false };
+        }
+        map[emoji].count += 1;
+      });
+      return Object.values(map);
+    }
+
+    return [];
+  }, [msg.reactionsMap, msg.reactions, currentUser]);
+
   return (
     <motion.div
       id={`msg-${msg.id}`}
@@ -462,20 +512,31 @@ const ChatMessageItem = memo(function ChatMessageItem({
           )}
         </motion.div>
 
-        {/* Reaction Badges on Message */}
-        {msg.reactions && msg.reactions.length > 0 && (
-          <div className="flex gap-1 mt-1 px-1 flex-wrap">
-            {msg.reactions.map((r: string, i: number) => (
-              <span
-                key={i}
+        {/* Reaction Badges on Message - Grouped with separate counts & accounts */}
+        {groupedReactions.length > 0 && (
+          <div className="flex gap-1.5 mt-1 px-1 flex-wrap items-center">
+            {groupedReactions.map(({ emoji, count, users, hasReacted }) => (
+              <button
+                key={emoji}
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onReaction(msg.id, r);
+                  onReaction(msg.id, emoji);
                 }}
-                className="text-xs bg-surface-hover border border-border px-2 py-0.5 rounded-full shadow-2xs cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                title={users.length > 0 ? `${users.join(', ')} reacted with ${emoji}` : `${count} reaction${count > 1 ? 's' : ''}`}
+                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full shadow-2xs cursor-pointer hover:scale-110 active:scale-95 transition-all select-none ${
+                  hasReacted 
+                    ? 'bg-pastel-pink-500/20 border border-pastel-pink-500/40 text-text-main font-semibold ring-1 ring-pastel-pink-500/30' 
+                    : 'bg-surface-hover/90 border border-border text-text-main hover:bg-surface-hover'
+                }`}
               >
-                {r}
-              </span>
+                <span className="text-xs">{emoji}</span>
+                {count > 1 && (
+                  <span className={`text-[10px] font-bold ${hasReacted ? 'text-pastel-pink-600 dark:text-pastel-pink-300' : 'text-text-muted'}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
         )}
@@ -695,6 +756,117 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
 
+  // Presence & Exact Location Tracking
+  const presenceData = useFirestore<any>('presence', 'none');
+  const partnerName = currentUser === 'Mahad' ? 'Ifa' : 'Mahad';
+  const partnerPresence = useMemo(() => {
+    return presenceData.find((p: any) => p.id === partnerName);
+  }, [presenceData, partnerName]);
+  const myPresence = useMemo(() => {
+    return presenceData.find((p: any) => p.id === currentUser);
+  }, [presenceData, currentUser]);
+
+  const isPartnerOnline = useMemo(() => {
+    if (!partnerPresence || partnerPresence.online === false) return false;
+    const lastSeen = partnerPresence.lastSeen || 0;
+    return (Date.now() - lastSeen) < 90 * 1000;
+  }, [partnerPresence]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let locationData: any = null;
+
+    const pushPresence = (isOnline: boolean, extraLoc?: any) => {
+      const payload = {
+        online: isOnline,
+        lastSeen: Date.now(),
+        ...(locationData || {}),
+        ...(extraLoc || {})
+      };
+      fb.presence.set(currentUser, payload);
+    };
+
+    const fetchLocationAndInit = async () => {
+      try {
+        const cached = sessionStorage.getItem('tulip_user_location');
+        if (cached) {
+          locationData = JSON.parse(cached);
+        }
+      } catch (e) {}
+
+      if (!locationData) {
+        try {
+          const res = await fetch('https://ipwho.is/');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.success !== false) {
+              const parts = [data.city, data.region, data.country_code || data.country].filter(Boolean);
+              locationData = {
+                city: data.city || '',
+                region: data.region || '',
+                country: data.country || '',
+                countryCode: data.country_code || '',
+                latitude: data.latitude || 0,
+                longitude: data.longitude || 0,
+                locationName: parts.join(', ') || 'Unknown Location'
+              };
+              sessionStorage.setItem('tulip_user_location', JSON.stringify(locationData));
+            }
+          }
+        } catch (err) {
+          console.warn('IP geolocation lookup failed:', err);
+        }
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (isCancelled) return;
+            locationData = {
+              ...(locationData || {}),
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            };
+            pushPresence(true);
+          },
+          () => {},
+          { timeout: 6000, maximumAge: 300000 }
+        );
+      }
+
+      if (!isCancelled) {
+        pushPresence(true);
+      }
+    };
+
+    fetchLocationAndInit();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        pushPresence(true);
+      }
+    }, 35000);
+
+    const handleVisibility = () => {
+      pushPresence(document.visibilityState === 'visible');
+    };
+
+    const handleUnload = () => {
+      pushPresence(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleUnload);
+      pushPresence(false);
+    };
+  }, [currentUser]);
+
   // Live Messages & Pagination
   const { messages: encryptedMessages, fetchMore, loadingMore, hasMore } = useChatMessages(30);
   const passcode = localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
@@ -810,22 +982,52 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const handleReaction = useCallback(async (msgId: string, emoji: string) => {
     try {
       const targetMsg = messages.find(m => m.id === msgId);
-      let currentReactions = targetMsg?.reactions;
-      if (!currentReactions) {
-        const fetched = await fb.messages.get(msgId);
-        currentReactions = fetched?.reactions || [];
+      let reactionsMap: Record<string, string[]> = targetMsg?.reactionsMap ? { ...targetMsg.reactionsMap } : {};
+
+      if (!reactionsMap || Object.keys(reactionsMap).length === 0) {
+        if (!targetMsg) {
+          const fetched = await fb.messages.get(msgId);
+          reactionsMap = fetched?.reactionsMap ? { ...fetched.reactionsMap } : {};
+          if ((!reactionsMap || Object.keys(reactionsMap).length === 0) && fetched?.reactions) {
+            reactionsMap = { [currentUser]: [...fetched.reactions] };
+          }
+        } else if (targetMsg.reactions && targetMsg.reactions.length > 0) {
+          reactionsMap = { [currentUser]: [...targetMsg.reactions] };
+        }
       }
 
-      const updated = currentReactions.includes(emoji)
-        ? currentReactions.filter(r => r !== emoji)
-        : [...currentReactions, emoji];
+      const currentUserReactions: string[] = Array.isArray(reactionsMap[currentUser]) 
+        ? [...reactionsMap[currentUser]] 
+        : [];
 
-      await fb.messages.update(msgId, { reactions: updated });
+      // Toggle emoji for currentUser
+      const updatedUserReactions = currentUserReactions.includes(emoji)
+        ? currentUserReactions.filter(r => r !== emoji)
+        : [...currentUserReactions, emoji];
+
+      const nextReactionsMap: Record<string, string[]> = {
+        ...reactionsMap,
+        [currentUser]: updatedUserReactions
+      };
+
+      // Flatten for backward compatibility
+      const allReactions: string[] = [];
+      Object.values(nextReactionsMap).forEach((list) => {
+        if (Array.isArray(list)) {
+          allReactions.push(...list);
+        }
+      });
+
+      await fb.messages.update(msgId, { 
+        reactionsMap: nextReactionsMap,
+        reactions: allReactions 
+      });
+
       if ('vibrate' in navigator) navigator.vibrate(30);
     } catch (err) {
       console.error('Reaction failed:', err);
     }
-  }, [messages]);
+  }, [messages, currentUser]);
 
   const handleQuickLove = useCallback((msgId: string) => {
     setLoveBurstMsgId(msgId);
@@ -1485,23 +1687,72 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       {/* CHAT HEADER */}
       <div className="px-4 md:px-5 py-2 md:py-3 border-b border-pastel-pink-300/20 bg-surface/95 backdrop-blur-xl z-20 flex flex-row items-center justify-between gap-2 shadow-sm">
         
-        {/* Left: User & Avatar */}
+        {/* Left: User & Partner Avatar & Status */}
         <div className="flex items-center gap-2.5">
           <div className="relative shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white flex items-center justify-center shadow-md font-serif-italic font-bold text-base md:text-lg">
-              {currentUser === 'Mahad' ? 'M' : 'I'}
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-pastel-pink-400 to-rose-400 text-white flex items-center justify-center shadow-md font-serif-italic font-bold text-base md:text-lg">
+              {partnerName === 'Ifa' ? 'I' : 'M'}
             </div>
-            <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-charcoal absolute -bottom-0.5 -right-0.5 shadow-sm" />
+            {/* Live Online / Offline Dot Indicator */}
+            <span
+              className={`w-3 h-3 rounded-full border-2 border-surface absolute -bottom-0.5 -right-0.5 shadow-xs transition-colors duration-300 ${
+                isPartnerOnline ? 'bg-emerald-500 ring-2 ring-emerald-400/30' : 'bg-neutral-400'
+              }`}
+              title={isPartnerOnline ? `${partnerName} is online` : `${partnerName} is offline`}
+            />
           </div>
 
-          <div className="flex flex-col overflow-hidden">
-            <h2 className="text-xs md:text-sm font-bold text-text-main flex items-center gap-1 leading-tight truncate">
-              <span>Chatting as <strong className="text-pastel-pink-400">{currentUser}</strong></span>
+          <div className="flex flex-col overflow-hidden max-w-[175px] xs:max-w-[210px] sm:max-w-[260px] md:max-w-xs">
+            <h2 className="text-xs md:text-sm font-bold text-text-main flex items-center gap-1.5 leading-tight truncate">
+              <span>{partnerName}</span>
               <Heart className="w-3 h-3 text-pastel-pink-400 fill-pastel-pink-400 animate-pulse shrink-0" />
+              <span 
+                className="text-[9px] md:text-[10px] font-normal text-text-muted bg-surface-hover/80 px-1.5 py-0.2 rounded-full border border-border shrink-0 cursor-default"
+                title={`You are currently chatting as ${currentUser}${myPresence?.locationName ? ` (${myPresence.locationName})` : ''}`}
+              >
+                You: {currentUser}
+              </span>
             </h2>
-            <span className="text-[9px] md:text-[10px] text-text-muted font-medium truncate">
-              Private 2-Player Haven
-            </span>
+
+            {/* Live Online & Exact Location indicator */}
+            <div className="text-[10px] md:text-[11px] font-medium truncate flex items-center gap-1.5 text-text-muted">
+              {isPartnerOnline ? (
+                <>
+                  <span className="flex h-2 w-2 relative shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="text-emerald-500 font-bold tracking-tight">Online</span>
+                  {partnerPresence?.locationName && (
+                    <>
+                      <span className="text-text-muted/50">•</span>
+                      <span className="truncate flex items-center gap-0.5" title={`Online from ${partnerPresence.locationName}`}>
+                        <MapPin className="w-3 h-3 text-pastel-pink-500 shrink-0" />
+                        <span className="truncate">{partnerPresence.locationName}</span>
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                  <span className="shrink-0">
+                    {partnerPresence?.lastSeen 
+                      ? `Seen ${formatLastSeen(partnerPresence.lastSeen)}`
+                      : 'Offline'}
+                  </span>
+                  {partnerPresence?.locationName && (
+                    <>
+                      <span className="text-text-muted/50">•</span>
+                      <span className="truncate flex items-center gap-0.5" title={`Last seen in ${partnerPresence.locationName}`}>
+                        <MapPin className="w-2.5 h-2.5 text-text-muted shrink-0" />
+                        <span className="truncate">{partnerPresence.locationName}</span>
+                      </span>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
