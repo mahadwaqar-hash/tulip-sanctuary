@@ -1600,7 +1600,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   }, [messages, searchQuery]);
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[2rem] md:glass-panel md:shadow-2xl overflow-hidden md:border-2 md:border-pastel-pink-300/30 relative bg-surface/30 md:bg-transparent">
+    <div className="flex-1 flex flex-col h-full md:rounded-[2rem] md:glass-card overflow-hidden relative bg-surface/30 md:bg-transparent">
       
       {/* CHAT HEADER */}
       <div className="px-4 md:px-5 py-2 md:py-3 border-b border-pastel-pink-300/20 bg-surface/95 backdrop-blur-xl z-20 flex flex-row items-center justify-between gap-2 shadow-sm">
@@ -1881,7 +1881,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       )}
 
       {/* INPUT BAR */}
-      <div className="p-2 md:p-4 shrink-0 bg-transparent md:bg-surface/90 md:backdrop-blur-xl md:border-t md:border-border z-20 w-full relative mb-1 md:mb-0">
+      <div className="p-2 md:p-3 shrink-0 bg-transparent z-20 w-full relative mb-1 md:mb-0">
         
         {/* Reply Preview Banner (Discord / WhatsApp Style) */}
         <AnimatePresence>
@@ -1890,10 +1890,10 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="mb-2 px-4 py-2 rounded-2xl bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 shadow-lg flex items-center justify-between gap-3"
+              className="mb-2 px-4 py-2 rounded-2xl bg-surface/90 backdrop-blur-2xl border border-border/50 shadow-lg flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="p-1.5 rounded-xl bg-pastel-pink-400 text-white shrink-0 shadow-xs">
+                <div className="p-1.5 rounded-xl btn-tactile text-white shrink-0 shadow-xs">
                   <Reply className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex flex-col text-left overflow-hidden">
@@ -1924,7 +1924,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               initial={{ opacity: 0, y: 15, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
+              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/95 backdrop-blur-2xl border border-border/60 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
             >
               <div className="flex items-center justify-between pb-2 border-b border-border/50">
                 <span className="text-xs font-bold font-serif-italic text-text-main flex items-center gap-1.5">
@@ -1956,7 +1956,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </AnimatePresence>
 
-        <div className="p-1 md:p-1.5 border border-pastel-pink-300/40 bg-surface/98 md:backdrop-blur-xl rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center relative z-20 overflow-hidden">
+        {/* Floating Glass Pill Input Container */}
+        <div className="p-1.5 md:p-2 border border-border/60 bg-surface/85 backdrop-blur-2xl rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.22),0_12px_36px_-6px_rgba(0,0,0,0.22)] flex items-center relative z-20 overflow-hidden transition-all duration-300">
           
           {editingMsgId ? (
             <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
@@ -1974,7 +1975,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <button
                   type="button"
                   onClick={() => { setEditingMsgId(null); setEditContent(''); }}
-                  className="p-2 text-text-muted hover:text-red-400 cursor-pointer"
+                  className="p-2 text-text-muted hover:text-red-400 cursor-pointer transition-transform hover:-translate-y-0.5"
                   title="Cancel editing"
                 >
                   <X className="w-4 h-4" />
@@ -1982,7 +1983,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <button
                   type="submit"
                   disabled={!editContent.trim()}
-                  className="px-4 py-1.5 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0"
                 >
                   Save
                 </button>
@@ -2001,14 +2002,14 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <button
                   type="button"
                   onClick={handleCancelRecording}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-text-muted hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-text-muted hover:bg-red-500/10 hover:text-red-500 transition-all cursor-pointer hover:-translate-y-0.5"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSendRecording}
-                  className="px-4 py-1.5 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="px-4 py-1.5 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <Send className="w-3.5 h-3.5" /> Send
                 </button>
@@ -2024,8 +2025,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowLovePrompts(!showLovePrompts);
                   setShowStickerPicker(false);
                 }}
-                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
-                  showLovePrompts ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
+                  showLovePrompts ? 'btn-tactile text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="Sweet Love Prompts"
               >
@@ -2039,8 +2040,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowStickerPicker(!showStickerPicker);
                   setShowLovePrompts(false);
                 }}
-                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 ${
-                  showStickerPicker ? 'bg-pastel-pink-400 text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
+                  showStickerPicker ? 'btn-tactile text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="GIFs & Stickers"
               >
@@ -2058,7 +2059,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               <button
                 type="button"
                 onClick={() => imageMsgRef.current?.click()}
-                className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-colors cursor-pointer shrink-0"
+                className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
                 title="Send Photo"
               >
                 <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
@@ -2086,7 +2087,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               <button
                 type="button"
                 onClick={handleStartRecording}
-                className="p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 shrink-0"
+                className="p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
                 title="Record Voice Note"
               >
                 <Mic className="w-5 h-5" />
@@ -2105,7 +2106,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   handleSendMessage();
                   chatInputRef.current?.focus();
                 }}
-                className="p-3 rounded-full bg-pastel-pink-400 text-white shadow-md disabled:opacity-40 hover:bg-pastel-pink-300 transition-all cursor-pointer shrink-0"
+                className="p-3 rounded-full btn-tactile text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
               >
                 <Send className="w-4 h-4 md:w-5 md:h-5" />
               </button>

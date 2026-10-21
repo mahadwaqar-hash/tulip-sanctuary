@@ -132,10 +132,10 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
-    <div className={`p-5 rounded-[1.5rem] glass-panel border border-border flex flex-col justify-between overflow-hidden relative shadow-sm ${
+    <div className={`p-5 rounded-[1.5rem] glass-card flex flex-col justify-between overflow-hidden relative shadow-sm ${
       isDaytime 
-        ? 'bg-gradient-to-br from-amber-500/20 to-surface/40' 
-        : 'bg-gradient-to-br from-indigo-900/40 to-surface/40'
+        ? 'bg-gradient-to-br from-amber-500/15 to-surface/40' 
+        : 'bg-gradient-to-br from-indigo-900/30 to-surface/40'
     }`}>
       <div className="absolute -right-4 -top-4 opacity-20 pointer-events-none">
         {isDaytime ? <Sparkles className="w-24 h-24 text-amber-300" /> : <Moon className="w-24 h-24 text-indigo-300" />}
@@ -423,7 +423,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const daysUntilReunion = calculateDaysLeft();
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-panel shadow-2xl overflow-hidden md:border border-border relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-card overflow-hidden relative">
       
       {/* HEADER */}
       <div className="px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-2xl flex flex-wrap items-center justify-between gap-4">
@@ -454,7 +454,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleOpenWriteModal}
-            className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Seal A Letter
           </motion.button>
@@ -476,7 +476,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           />
 
           {/* Reunion Countdown Card */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-pastel-pink-400 to-pastel-pink-300 text-white shadow-lg flex flex-col justify-between relative overflow-hidden">
+          <div className="p-6 rounded-3xl btn-tactile text-white flex flex-col justify-between relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
                 Next Time We See Each Other 💕
@@ -528,7 +528,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         </div>
 
         {/* ROW 2: FULL SCREEN LOVE BURSTS (KISSES & HUGS) */}
-        <div className="p-6 rounded-3xl glass-panel border border-border shadow-md flex flex-col gap-4">
+        <div className="p-6 rounded-3xl glass-card flex flex-col gap-4">
           <div>
             <h3 className="font-bold text-base text-text-main flex items-center gap-2">
               <span>Send Full-Screen Fairytale Bursts</span>

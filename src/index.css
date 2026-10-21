@@ -24,6 +24,9 @@
   --color-bubble-other-bg: var(--bubble-other-bg);
   --color-bubble-other-text: var(--bubble-other-text);
   --color-bubble-other-border: var(--bubble-other-border);
+
+  --color-accent-glow: var(--accent-glow);
+  --color-card-inner-highlight: var(--card-inner-highlight);
 }
 
 :root, [data-theme="tulip"] {
@@ -49,6 +52,9 @@
   --bubble-other-bg: rgba(255, 255, 255, 0.9);
   --bubble-other-text: #1A1A1A;
   --bubble-other-border: rgba(255, 105, 180, 0.3);
+
+  --accent-glow: rgba(255, 105, 180, 0.38);
+  --card-inner-highlight: rgba(255, 255, 255, 0.45);
 }
 
 [data-theme="midnight"], .dark:not([data-theme]) {
@@ -74,6 +80,9 @@
   --bubble-other-bg: rgba(25, 25, 33, 0.85);
   --bubble-other-text: #FFFFFF;
   --bubble-other-border: rgba(255, 20, 147, 0.25);
+
+  --accent-glow: rgba(255, 20, 147, 0.45);
+  --card-inner-highlight: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="sunset"] {
@@ -99,6 +108,9 @@
   --bubble-other-bg: rgba(45, 24, 32, 0.85);
   --bubble-other-text: #FFF5F0;
   --bubble-other-border: rgba(255, 126, 103, 0.3);
+
+  --accent-glow: rgba(255, 126, 103, 0.45);
+  --card-inner-highlight: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="lavender"] {
@@ -124,6 +136,9 @@
   --bubble-other-bg: rgba(35, 24, 55, 0.85);
   --bubble-other-text: #FAF5FF;
   --bubble-other-border: rgba(168, 118, 230, 0.3);
+
+  --accent-glow: rgba(168, 118, 230, 0.45);
+  --card-inner-highlight: rgba(255, 255, 255, 0.14);
 }
 
 [data-theme="emerald"] {
@@ -149,6 +164,9 @@
   --bubble-other-bg: rgba(16, 42, 30, 0.85);
   --bubble-other-text: #E8F8F0;
   --bubble-other-border: rgba(32, 201, 151, 0.3);
+
+  --accent-glow: rgba(32, 201, 151, 0.45);
+  --card-inner-highlight: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="celestial"] {
@@ -174,6 +192,9 @@
   --bubble-other-bg: rgba(16, 28, 58, 0.85);
   --bubble-other-text: #F0F6FF;
   --bubble-other-border: rgba(92, 147, 245, 0.3);
+
+  --accent-glow: rgba(92, 147, 245, 0.45);
+  --card-inner-highlight: rgba(255, 255, 255, 0.14);
 }
 
 [data-theme="matcha"] {
@@ -199,6 +220,9 @@
   --bubble-other-bg: rgba(255, 255, 255, 0.92);
   --bubble-other-text: #1E2B1B;
   --bubble-other-border: rgba(94, 147, 90, 0.3);
+
+  --accent-glow: rgba(94, 147, 90, 0.35);
+  --card-inner-highlight: rgba(255, 255, 255, 0.45);
 }
 
 [data-theme="peach"] {
@@ -224,6 +248,9 @@
   --bubble-other-bg: rgba(255, 255, 255, 0.92);
   --bubble-other-text: #2F1A0E;
   --bubble-other-border: rgba(249, 115, 22, 0.3);
+
+  --accent-glow: rgba(249, 115, 22, 0.38);
+  --card-inner-highlight: rgba(255, 255, 255, 0.45);
 }
 
 @layer base {
@@ -252,30 +279,63 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Cute custom scrollbars */
+  /* Ultra-thin (4px), semi-transparent pill scrollbars that stay subtle until hovered */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(160, 160, 160, 0.22) transparent;
+  }
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--pink-300);
+    background: rgba(160, 160, 160, 0.24);
     border-radius: 9999px;
+    transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--pink-400);
+    background: var(--pink-300);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
 @layer utilities {
+  .glass-card {
+    background: var(--surface);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 0 var(--card-inner-highlight, rgba(255, 255, 255, 0.12)), 0 12px 32px -8px rgba(0, 0, 0, 0.22);
+    border-radius: 1.5rem;
+    transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .btn-tactile {
+    background: linear-gradient(135deg, var(--bubble-me-from) 0%, var(--bubble-me-to) 100%);
+    color: var(--bubble-me-text);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 8px 20px -4px var(--accent-glow, rgba(255, 105, 180, 0.4));
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+  }
+  .btn-tactile:hover {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 12px 24px -4px var(--accent-glow, rgba(255, 105, 180, 0.5));
+  }
+  .btn-tactile:active {
+    transform: translateY(0);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 4px 12px -2px var(--accent-glow, rgba(255, 105, 180, 0.35));
+  }
+
   .glass-panel {
     background: var(--surface);
     backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
     border: 1px solid var(--border);
-    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 1px 0 0 var(--card-inner-highlight, rgba(255, 255, 255, 0.12)), 0 8px 30px -4px rgba(0, 0, 0, 0.2);
     transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
@@ -285,14 +345,14 @@
 
   /* Optimize glassmorphism for mobile devices */
   @media (max-width: 640px) {
-    .glass-panel {
+    .glass-panel, .glass-card {
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
     }
   }
 
   .glass-panel:hover {
-    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.28);
+    box-shadow: inset 0 1px 0 0 var(--card-inner-highlight, rgba(255, 255, 255, 0.15)), 0 12px 36px -4px rgba(0, 0, 0, 0.28);
   }
   
   .font-serif-italic {
@@ -337,6 +397,7 @@
   .bubble-me-gradient {
     background: linear-gradient(135deg, var(--bubble-me-from) 0%, var(--bubble-me-to) 100%);
     color: var(--bubble-me-text);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 8px 20px -4px var(--accent-glow, rgba(0, 0, 0, 0.2));
   }
 
   .bubble-other-themed {

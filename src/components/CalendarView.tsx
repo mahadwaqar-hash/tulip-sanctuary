@@ -92,7 +92,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   const selectedDayEvents = events.filter(e => e.date === selectedDateStr);
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-y-auto md:overflow-hidden border border-border">
+    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[2.5rem] glass-card overflow-y-auto md:overflow-hidden">
       
       {/* LEFT: CALENDAR MONTH GRID */}
       <div className="flex-1 flex flex-col p-6 md:p-8 md:overflow-y-auto min-h-min">
@@ -206,7 +206,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Event
           </motion.button>

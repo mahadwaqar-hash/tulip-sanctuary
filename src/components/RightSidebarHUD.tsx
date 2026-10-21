@@ -20,10 +20,10 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
-    <div className={`p-5 rounded-[1.5rem] glass-panel border border-border flex flex-col justify-between overflow-hidden relative ${
+    <div className={`p-5 rounded-[1.5rem] glass-card flex flex-col justify-between overflow-hidden relative ${
       isDaytime 
-        ? 'bg-gradient-to-br from-amber-500/20 to-surface/40' 
-        : 'bg-gradient-to-br from-indigo-900/40 to-surface/40'
+        ? 'bg-gradient-to-br from-amber-500/15 to-surface/40' 
+        : 'bg-gradient-to-br from-indigo-900/30 to-surface/40'
     }`}>
       {/* Decorative time-of-day icon */}
       <div className="absolute -right-4 -top-4 opacity-20 pointer-events-none">
@@ -102,10 +102,10 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const daysLeft = isNaN(diff) || diff <= 0 ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="w-80 hidden lg:flex flex-col gap-5 h-full overflow-y-auto pl-6 pr-2 pb-6 scrollbar-hide shrink-0 pt-2 border-l border-border/50">
+    <div className="w-80 hidden lg:flex flex-col gap-4 h-full overflow-y-auto px-1 pb-6 scrollbar-hide shrink-0 pt-0">
       
       {/* Live Timer */}
-      <div className="p-5 rounded-[1.5rem] glass-panel border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group">
+      <div className="p-5 rounded-[1.5rem] glass-card flex flex-col justify-between relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-pastel-pink-400/10 to-transparent pointer-events-none" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400 mb-1 relative z-10">
           In Love For
@@ -116,9 +116,9 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
       </div>
 
       {/* Reunion Countdown Card */}
-      <div className="p-5 rounded-[1.5rem] bg-gradient-to-br from-pastel-pink-400 to-pastel-pink-300 text-white shadow-lg flex flex-col justify-between relative overflow-hidden">
+      <div className="p-5 rounded-[1.5rem] btn-tactile text-white flex flex-col justify-between relative overflow-hidden">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-white/90 leading-tight">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/95 leading-tight">
             Next Time We See Each Other 💕
           </span>
         </div>
@@ -126,7 +126,7 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
           <h3 className="text-4xl font-bold font-sans tabular-nums tracking-tight">
             {daysLeft} <span className="text-base font-sans font-medium">Days</span>
           </h3>
-          <p className="text-xs text-white/90 mt-1 font-medium leading-tight">
+          <p className="text-xs text-white/95 mt-1 font-medium leading-tight">
             {daysLeft === 0
               ? 'Today is the day we hug! 💕'
               : `Until we are wrapped in each other's arms`}
