@@ -18,11 +18,13 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  Palette
+  Palette,
+  BookOpen
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
+import SharedLibraryView from './components/SharedLibraryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
@@ -428,7 +430,7 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'photos' | 'scratchpad'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'library' | 'photos' | 'scratchpad'>('chat');
   const [showSettings, setShowSettings] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
@@ -611,6 +613,7 @@ export default function App() {
     { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare },
     { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
     { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
+    { id: 'library', label: 'Shared Library', emoji: '📚', icon: BookOpen },
   ];
 
   return (
@@ -782,7 +785,7 @@ export default function App() {
 
             {/* CENTER COLUMN (Active View) */}
             <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-              <div className={`w-full h-full mx-auto lg:px-6 transition-all duration-300 ${activeTab === 'ldr' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+              <div className={`w-full h-full mx-auto lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' ? 'max-w-6xl' : 'max-w-4xl'}`}>
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (
                     <motion.div
@@ -823,13 +826,25 @@ export default function App() {
                       <CalendarView currentUser={currentUser} />
                     </motion.div>
                   )}
+                  {activeTab === 'library' && (
+                    <motion.div
+                      key="library"
+                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                      className="h-full pt-1 lg:pt-4 pb-2"
+                    >
+                      <SharedLibraryView currentUser={currentUser} />
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </div>
 
-            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary to avoid duplicate clocks) */}
+            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary & Shared Library to provide spacious views) */}
             <AnimatePresence>
-              {activeTab !== 'ldr' && (
+              {activeTab !== 'ldr' && activeTab !== 'library' && (
                 <motion.div
                   key="right-hud"
                   initial={{ opacity: 0, width: 0, x: 20 }}

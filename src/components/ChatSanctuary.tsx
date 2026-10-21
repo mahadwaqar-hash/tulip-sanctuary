@@ -440,7 +440,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 e.stopPropagation();
                 onQuickLove(msg.id);
               }}
-              className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text ${corners} ${
+              className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full ${corners} ${
                 isMe
                   ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
                   : 'bubble-other-themed font-medium'
@@ -456,7 +456,9 @@ const ChatMessageItem = memo(function ChatMessageItem({
                   <Heart className="w-12 h-12 fill-red-500 text-red-500 drop-shadow-2xl" />
                 </motion.div>
               )}
-              {msg.content}
+              <span className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap block">
+                {msg.content}
+              </span>
             </div>
           )}
 
@@ -753,8 +755,17 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [loveBurstMsgId, setLoveBurstMsgId] = useState<string | null>(null);
   const [audioSpeeds, setAudioSpeeds] = useState<Record<string, number>>({});
-  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+
+  // Auto-resize chat input so text wraps smoothly without horizontal scroll
+  useEffect(() => {
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto';
+      const scrollHeight = chatInputRef.current.scrollHeight;
+      chatInputRef.current.style.height = `${Math.min(Math.max(scrollHeight, 40), 140)}px`;
+    }
+  }, [inputText]);
 
   // Presence & Exact Location Tracking
   const presenceData = useFirestore<any>('presence', 'none');
@@ -1600,7 +1611,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   }, [messages, searchQuery]);
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[36px] md:clay-card overflow-hidden relative bg-surface/30 md:bg-transparent">
+    <div className="flex-1 flex flex-col h-full md:rounded-[36px] md:clay-card overflow-hidden overflow-x-hidden relative bg-surface/30 md:bg-transparent">
       
       {/* CHAT HEADER */}
       <div className="px-4 md:px-5 py-2 md:py-3 border-b border-pastel-pink-300/20 bg-surface/95 backdrop-blur-xl z-20 flex flex-row items-center justify-between gap-2 shadow-sm">
@@ -1785,7 +1796,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             setSelectedMsgId(null); 
           }
         }}
-        className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative"
+        className="flex-1 bg-gradient-to-b from-transparent to-pastel-pink-100/10 dark:to-pastel-pink-900/10 overflow-y-auto overflow-x-hidden px-3 py-4 md:p-6 scroll-smooth flex flex-col gap-3 relative"
       >
         <div ref={topElementRef} className="h-6 w-full shrink-0 flex items-center justify-center">
           {loadingMore && <div className="text-pastel-pink-400 font-bold text-xs animate-pulse">Loading older memories...</div>}
@@ -1957,19 +1968,25 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         </AnimatePresence>
 
         {/* Floating Bubbly Clay Pill Input Container */}
-        <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-center relative z-20 overflow-hidden transition-all duration-300">
+        <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-end relative z-20 overflow-hidden transition-all duration-300">
           
           {editingMsgId ? (
-            <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
+            <div className="w-full flex items-center gap-2 px-3 py-1.5 min-h-[42px] md:min-h-[46px]">
               <div className="text-[11px] font-bold text-pastel-pink-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
                 <Edit3 className="w-3.5 h-3.5" /> Editing
               </div>
               <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
-                <input
-                  type="text"
+                <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="flex-1 bg-surface-hover/50 rounded-full py-1.5 px-3 outline-none text-sm font-medium text-text-main focus:border-pastel-pink-400 border border-transparent transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  rows={1}
+                  className="flex-1 bg-surface-hover/50 rounded-2xl py-2 px-3 outline-none text-sm font-medium text-text-main focus:border-pastel-pink-400 border border-transparent transition-all resize-none max-h-24 overflow-x-hidden overflow-y-auto break-words whitespace-pre-wrap leading-relaxed"
                   autoFocus
                 />
                 <button
@@ -2016,7 +2033,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="w-full flex items-center gap-1">
+            <form onSubmit={handleSendMessage} className="w-full flex items-end gap-1">
               
               {/* Sweet Nothings / Romance Sparks Popover Toggle */}
               <button
@@ -2025,7 +2042,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowLovePrompts(!showLovePrompts);
                   setShowStickerPicker(false);
                 }}
-                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
                   showLovePrompts ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="Sweet Love Prompts"
@@ -2040,7 +2057,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowStickerPicker(!showStickerPicker);
                   setShowLovePrompts(false);
                 }}
-                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
+                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
                   showStickerPicker ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="GIFs & Stickers"
@@ -2059,16 +2076,15 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               <button
                 type="button"
                 onClick={() => imageMsgRef.current?.click()}
-                className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
+                className="p-2.5 rounded-full text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 transition-all cursor-pointer shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200"
                 title="Send Photo"
               >
                 <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
               </button>
 
-              {/* Main Input Field */}
-              <input
+              {/* Main Input Field - Auto-expanding, wraps lines so text never needs horizontal scrolling */}
+              <textarea
                 ref={chatInputRef}
-                type="text"
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -2077,17 +2093,18 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     handleSendMessage();
                   }
                 }}
-                enterKeyHint="send"
+                rows={1}
                 autoCapitalize="sentences"
                 placeholder={replyingTo ? `Reply to ${replyingTo.sender}...` : `Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-                className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0"
+                className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0 resize-none max-h-36 overflow-x-hidden overflow-y-auto leading-relaxed break-words whitespace-pre-wrap"
+                style={{ height: 'auto', minHeight: '38px' }}
               />
 
               {/* Voice Note Toggle Button */}
               <button
                 type="button"
                 onClick={handleStartRecording}
-                className="p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
+                className="p-3 rounded-full transition-all cursor-pointer select-none touch-none flex items-center justify-center text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400 shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200"
                 title="Record Voice Note"
               >
                 <Mic className="w-5 h-5" />
@@ -2106,7 +2123,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   handleSendMessage();
                   chatInputRef.current?.focus();
                 }}
-                className="p-3.5 rounded-[28px] clay-btn text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 bouncy-spring"
+                className="p-3.5 rounded-[28px] clay-btn text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 bouncy-spring mb-0.5"
               >
                 <Send className="w-4 h-4 md:w-5 md:h-5" />
               </button>
