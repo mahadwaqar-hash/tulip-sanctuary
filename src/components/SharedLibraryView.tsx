@@ -23,7 +23,6 @@ const springBezier: Transition = {
   damping: 20
 };
 
-export type BookGenre = 'Romance' | 'Fantasy' | 'Sci-Fi' | 'Mystery' | 'Poetry' | 'Classic';
 export type ShelfCategory = 'reading' | 'favorites' | 'wishlist';
 
 export interface SavedBook {
@@ -31,7 +30,8 @@ export interface SavedBook {
   title: string;
   author: string;
   coverUrl: string;
-  genre: BookGenre;
+  genre: string;
+  genres?: string[];
   shelf: ShelfCategory;
   rating?: number;
   addedBy: 'Mahad' | 'Ifa';
@@ -44,48 +44,136 @@ export interface SearchResultBook {
   title: string;
   author: string;
   coverUrl: string;
-  genre: BookGenre;
+  genre: string;
+  genres?: string[];
   year?: string;
 }
 
-const GENRE_TAG_STYLES: Record<BookGenre, { bg: string; text: string; border: string; glow: string }> = {
-  Fantasy: {
-    bg: 'bg-purple-950/80 dark:bg-purple-900/60',
-    text: 'text-purple-200 dark:text-purple-300',
-    border: 'border-purple-400/50',
-    glow: 'shadow-[0_0_14px_rgba(168,85,247,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
-  },
-  Romance: {
+export function getGenreBadgeStyle(genreName: string) {
+  const g = (genreName || '').toLowerCase();
+  
+  if (g.includes('romance') || g.includes('love') || g.includes('dating') || g.includes('heart') || g.includes('romantasy')) {
+    return {
+      bg: 'bg-rose-950/80 dark:bg-rose-900/60',
+      text: 'text-rose-200 dark:text-rose-300',
+      border: 'border-rose-400/50',
+      glow: 'shadow-[0_0_14px_rgba(244,63,94,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+  if (g.includes('fantasy') || g.includes('magic') || g.includes('myth') || g.includes('fae') || g.includes('witch') || g.includes('supernatural') || g.includes('gothic')) {
+    return {
+      bg: 'bg-purple-950/80 dark:bg-purple-900/60',
+      text: 'text-purple-200 dark:text-purple-300',
+      border: 'border-purple-400/50',
+      glow: 'shadow-[0_0_14px_rgba(168,85,247,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+  if (g.includes('sci-fi') || g.includes('science fiction') || g.includes('space') || g.includes('time travel') || g.includes('cyber') || g.includes('dystop') || g.includes('futur')) {
+    return {
+      bg: 'bg-teal-950/80 dark:bg-teal-900/60',
+      text: 'text-teal-200 dark:text-teal-300',
+      border: 'border-teal-400/50',
+      glow: 'shadow-[0_0_14px_rgba(45,212,191,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+  if (g.includes('mystery') || g.includes('thriller') || g.includes('crime') || g.includes('suspense') || g.includes('detective') || g.includes('psycholog') || g.includes('drama')) {
+    return {
+      bg: 'bg-amber-950/80 dark:bg-amber-900/60',
+      text: 'text-amber-200 dark:text-amber-300',
+      border: 'border-amber-400/50',
+      glow: 'shadow-[0_0_14px_rgba(251,191,36,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+  if (g.includes('classic') || g.includes('philosophy') || g.includes('history') || g.includes('historical') || g.includes('allegory')) {
+    return {
+      bg: 'bg-emerald-950/80 dark:bg-emerald-900/60',
+      text: 'text-emerald-200 dark:text-emerald-300',
+      border: 'border-emerald-400/50',
+      glow: 'shadow-[0_0_14px_rgba(52,211,153,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+  if (g.includes('literary') || g.includes('coming-of-age') || g.includes('poetry') || g.includes('contemporary') || g.includes('memoir') || g.includes('biography') || g.includes('fiction')) {
+    return {
+      bg: 'bg-indigo-950/80 dark:bg-indigo-900/60',
+      text: 'text-indigo-200 dark:text-indigo-300',
+      border: 'border-indigo-400/50',
+      glow: 'shadow-[0_0_14px_rgba(129,140,248,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+    };
+  }
+
+  return {
     bg: 'bg-rose-950/80 dark:bg-rose-900/60',
     text: 'text-rose-200 dark:text-rose-300',
     border: 'border-rose-400/50',
     glow: 'shadow-[0_0_14px_rgba(244,63,94,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
-  },
-  'Sci-Fi': {
-    bg: 'bg-teal-950/80 dark:bg-teal-900/60',
-    text: 'text-teal-200 dark:text-teal-300',
-    border: 'border-teal-400/50',
-    glow: 'shadow-[0_0_14px_rgba(45,212,191,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
-  },
-  Mystery: {
-    bg: 'bg-amber-950/80 dark:bg-amber-900/60',
-    text: 'text-amber-200 dark:text-amber-300',
-    border: 'border-amber-400/50',
-    glow: 'shadow-[0_0_14px_rgba(251,191,36,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
-  },
-  Poetry: {
-    bg: 'bg-pink-950/80 dark:bg-pink-900/60',
-    text: 'text-pink-200 dark:text-pink-300',
-    border: 'border-pink-400/50',
-    glow: 'shadow-[0_0_14px_rgba(244,114,182,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
-  },
-  Classic: {
-    bg: 'bg-emerald-950/80 dark:bg-emerald-900/60',
-    text: 'text-emerald-200 dark:text-emerald-300',
-    border: 'border-emerald-400/50',
-    glow: 'shadow-[0_0_14px_rgba(52,211,153,0.55),inset_0_1px_2px_rgba(255,255,255,0.4)]'
+  };
+}
+
+export function extractActualGenres(doc: any): { primary: string; all: string[] } {
+  const rawSubjects: string[] = Array.isArray(doc.subject) ? doc.subject : [];
+  
+  const junkPatterns = [
+    /^nyt:/i, /^award:/i, /bestseller/i, /new york times/i, /protected daisy/i,
+    /accessible book/i, /lending library/i, /in library/i, /open library/i,
+    /\(imaginary place\)/i, /works by one author/i, /fictional works/i,
+    /overdrive/i, /internet archive/i
+  ];
+
+  const candidateGenres: string[] = [];
+
+  for (const raw of rawSubjects) {
+    if (!raw || typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (junkPatterns.some(p => p.test(trimmed))) continue;
+    if (trimmed.length > 32 || trimmed.length < 3) continue;
+
+    const lower = trimmed.toLowerCase();
+    let clean = '';
+
+    if (lower.includes('science fiction') || lower.includes('sci-fi')) clean = 'Science Fiction';
+    else if (lower.includes('historical romance')) clean = 'Historical Romance';
+    else if (lower.includes('contemporary romance')) clean = 'Contemporary Romance';
+    else if (lower.includes('romance') || lower.includes('love stories')) clean = 'Romance';
+    else if (lower.includes('high fantasy') || lower.includes('epic fantasy')) clean = 'High Fantasy';
+    else if (lower.includes('magical realism') || lower.includes('magic realism')) clean = 'Magical Realism';
+    else if (lower.includes('fantasy')) clean = 'Fantasy';
+    else if (lower.includes('psychological fiction') || lower.includes('psychological thriller')) clean = 'Psychological Fiction';
+    else if (lower.includes('thriller') || lower.includes('suspense')) clean = 'Thriller';
+    else if (lower.includes('mystery') || lower.includes('detective')) clean = 'Mystery';
+    else if (lower.includes('historical fiction')) clean = 'Historical Fiction';
+    else if (lower.includes('coming of age') || lower.includes('coming-of-age')) clean = 'Coming-of-Age';
+    else if (lower.includes('literary fiction')) clean = 'Literary Fiction';
+    else if (lower.includes('dystopian') || lower.includes('dystopia')) clean = 'Dystopian Fiction';
+    else if (lower.includes('mythology') || lower.includes('mythological')) clean = 'Mythological Retelling';
+    else if (lower.includes('philosophical') || lower.includes('philosophy')) clean = 'Philosophical Fiction';
+    else if (lower.includes('poetry') || lower.includes('poems')) clean = 'Poetry';
+    else if (lower.includes('memoir') || lower.includes('autobiography')) clean = 'Memoir';
+    else if (lower.includes('biography')) clean = 'Biography';
+    else if (lower.includes('personal growth') || lower.includes('self-help')) clean = 'Personal Growth';
+    else if (lower.includes('psychology')) clean = 'Psychology';
+    else {
+      const stripped = trimmed
+        .replace(/^fiction,\s*/i, '')
+        .replace(/,\s*fiction$/i, '')
+        .replace(/\s*\([^)]*\)$/, '')
+        .trim();
+      if (stripped && stripped.toLowerCase() !== 'fiction' && stripped.length <= 26) {
+        clean = stripped.split(',')[0].trim();
+        clean = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+
+    if (clean && !candidateGenres.includes(clean)) {
+      candidateGenres.push(clean);
+    }
   }
-};
+
+  const all = candidateGenres.slice(0, 3);
+  return {
+    primary: all[0] || 'Literary Fiction',
+    all: all.length > 0 ? all : ['Literary Fiction']
+  };
+}
 
 const DEFAULT_BOOKS: SavedBook[] = [
   {
@@ -93,7 +181,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'Normal People',
     author: 'Sally Rooney',
     coverUrl: 'https://covers.openlibrary.org/b/id/8794265-M.jpg',
-    genre: 'Romance',
+    genre: 'Literary Fiction',
+    genres: ['Literary Fiction', 'Contemporary Romance', 'Coming-of-Age'],
     shelf: 'reading',
     rating: 5,
     addedBy: 'Ifa',
@@ -105,7 +194,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'The Night Circus',
     author: 'Erin Morgenstern',
     coverUrl: 'https://covers.openlibrary.org/b/id/8314134-M.jpg',
-    genre: 'Fantasy',
+    genre: 'Historical Fantasy',
+    genres: ['Historical Fantasy', 'Magical Realism', 'Gothic Romance'],
     shelf: 'reading',
     rating: 5,
     addedBy: 'Mahad',
@@ -117,7 +207,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'The Seven Husbands of Evelyn Hugo',
     author: 'Taylor Jenkins Reid',
     coverUrl: 'https://covers.openlibrary.org/b/id/12836267-M.jpg',
-    genre: 'Romance',
+    genre: 'Historical Fiction',
+    genres: ['Historical Fiction', 'Psychological Drama', 'Romance'],
     shelf: 'favorites',
     rating: 5,
     addedBy: 'Ifa',
@@ -129,7 +220,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'The Song of Achilles',
     author: 'Madeline Miller',
     coverUrl: 'https://covers.openlibrary.org/b/id/8235111-M.jpg',
-    genre: 'Fantasy',
+    genre: 'Mythological Retelling',
+    genres: ['Mythological Retelling', 'Historical Fantasy', 'Epic Romance'],
     shelf: 'favorites',
     rating: 5,
     addedBy: 'Mahad',
@@ -141,7 +233,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'The Little Prince',
     author: 'Antoine de Saint-Exupéry',
     coverUrl: 'https://covers.openlibrary.org/b/id/10531580-M.jpg',
-    genre: 'Classic',
+    genre: 'Philosophical Fiction',
+    genres: ['Philosophical Fiction', 'Allegory', 'Classic Literature'],
     shelf: 'favorites',
     rating: 5,
     addedBy: 'Ifa',
@@ -153,7 +246,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'Before the Coffee Gets Cold',
     author: 'Toshikazu Kawaguchi',
     coverUrl: 'https://covers.openlibrary.org/b/id/10297074-M.jpg',
-    genre: 'Sci-Fi',
+    genre: 'Magical Realism',
+    genres: ['Magical Realism', 'Time Travel Fiction', 'Cozy Fantasy'],
     shelf: 'wishlist',
     rating: 5,
     addedBy: 'Mahad',
@@ -165,7 +259,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'A Court of Thorns and Roses',
     author: 'Sarah J. Maas',
     coverUrl: 'https://covers.openlibrary.org/b/id/10398642-M.jpg',
-    genre: 'Fantasy',
+    genre: 'Romantic Fantasy',
+    genres: ['Romantic Fantasy', 'High Fantasy', 'Faerie Lore'],
     shelf: 'wishlist',
     rating: 5,
     addedBy: 'Ifa',
@@ -177,7 +272,8 @@ const DEFAULT_BOOKS: SavedBook[] = [
     title: 'Norwegian Wood',
     author: 'Haruki Murakami',
     coverUrl: 'https://covers.openlibrary.org/b/id/8231856-M.jpg',
-    genre: 'Poetry',
+    genre: 'Coming-of-Age Fiction',
+    genres: ['Coming-of-Age Fiction', 'Psychological Drama', 'Literary Fiction'],
     shelf: 'wishlist',
     rating: 4,
     addedBy: 'Mahad',
@@ -212,11 +308,23 @@ interface SharedLibraryViewProps {
 }
 
 export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibraryViewProps) {
-  // Books State (persisted to localStorage)
+  // Books State (persisted to localStorage with automatic genre upgrade)
   const [books, setBooks] = useState<SavedBook[]>(() => {
     try {
       const saved = localStorage.getItem('tulip_shared_library');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Upgrade any default books with their actual Google genres
+          return parsed.map((b: any) => {
+            const def = DEFAULT_BOOKS.find(d => d.id === b.id || d.title.toLowerCase() === b.title?.toLowerCase());
+            if (def) {
+              return { ...b, genre: def.genre, genres: def.genres };
+            }
+            return b;
+          });
+        }
+      }
     } catch (e) {
       console.warn('Failed to load library:', e);
     }
@@ -254,7 +362,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
       setIsSearching(true);
       try {
         const queryClean = encodeURIComponent(searchQuery.trim());
-        const res = await fetch(`https://openlibrary.org/search.json?q=${queryClean}&limit=6`);
+        const res = await fetch(`https://openlibrary.org/search.json?q=${queryClean}&limit=6&fields=title,author_name,cover_i,first_publish_year,subject,key`);
         if (res.ok) {
           const data = await res.json();
           const items: SearchResultBook[] = (data.docs || []).map((doc: any, index: number) => {
@@ -263,25 +371,16 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
               ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
               : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300';
             
-            // Infer genre from subjects or cycle tastefully
-            const subjects = Array.isArray(doc.subject) ? doc.subject.join(' ').toLowerCase() : '';
-            let genre: BookGenre = 'Romance';
-            if (subjects.includes('fantasy') || subjects.includes('magic')) genre = 'Fantasy';
-            else if (subjects.includes('science fiction') || subjects.includes('space')) genre = 'Sci-Fi';
-            else if (subjects.includes('mystery') || subjects.includes('crime') || subjects.includes('thriller')) genre = 'Mystery';
-            else if (subjects.includes('poetry') || subjects.includes('poem')) genre = 'Poetry';
-            else if (subjects.includes('classic') || subjects.includes('literature')) genre = 'Classic';
-            else {
-              const genres: BookGenre[] = ['Romance', 'Fantasy', 'Sci-Fi', 'Mystery', 'Poetry', 'Classic'];
-              genre = genres[index % genres.length];
-            }
+            // Extract actual real genres from Google Books / OpenLibrary subjects
+            const { primary, all } = extractActualGenres(doc);
 
             return {
               id: doc.key || `search-${index}`,
               title: doc.title || 'Untitled Book',
               author: Array.isArray(doc.author_name) ? doc.author_name[0] : (doc.author_name || 'Unknown Author'),
               coverUrl,
-              genre,
+              genre: primary,
+              genres: all,
               year: doc.first_publish_year?.toString() || ''
             };
           });
@@ -306,6 +405,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
       author: book.author,
       coverUrl: book.coverUrl,
       genre: book.genre,
+      genres: book.genres && book.genres.length > 0 ? book.genres : [book.genre],
       shelf: targetShelf,
       rating: 5,
       addedBy: (currentUser as 'Mahad' | 'Ifa') || 'Mahad',
@@ -422,7 +522,9 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                   </div>
 
                   {searchResults.map((result) => {
-                    const tagStyle = GENRE_TAG_STYLES[result.genre] || GENRE_TAG_STYLES.Romance;
+                    const tagStyle = getGenreBadgeStyle(result.genre);
+                    const allGenres = result.genres && result.genres.length > 0 ? result.genres : [result.genre];
+
                     return (
                       <div
                         key={result.id}
@@ -443,9 +545,16 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                           <p className="text-[11px] text-text-muted truncate">
                             {result.author} {result.year ? `(${result.year})` : ''}
                           </p>
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${tagStyle.bg} ${tagStyle.text} ${tagStyle.border} ${tagStyle.glow}`}>
-                            {result.genre}
-                          </span>
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            {allGenres.slice(0, 2).map((g) => {
+                              const s = getGenreBadgeStyle(g);
+                              return (
+                                <span key={g} className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${s.bg} ${s.text} ${s.border} ${s.glow}`}>
+                                  {g}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         <div className="flex flex-col gap-1 shrink-0">
@@ -537,7 +646,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
               {/* 3D BOOK VOLUMES ON SHELF (Perspective Stage) */}
               <div className="relative min-h-[220px] sm:min-h-[260px] md:min-h-[290px] flex items-end justify-start gap-5 sm:gap-7 md:gap-9 flex-wrap sm:flex-nowrap overflow-x-auto pb-2 px-3 pt-6">
                 {shelfBooks.map((book) => {
-                  const tagStyle = GENRE_TAG_STYLES[book.genre] || GENRE_TAG_STYLES.Romance;
+                  const tagStyle = getGenreBadgeStyle(book.genre);
 
                   return (
                     <div 
@@ -603,10 +712,11 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                         </div>
                       </motion.div>
 
-                      {/* Vibrant Theme Tag: Tiny ultra-rounded clay pill with high-contrast neon/pastel glow based on genre */}
-                      <div className="mt-2.5 select-none z-10">
+                      {/* Vibrant Actual Genre Tag: Tiny ultra-rounded clay pill with high-contrast neon/pastel glow based on real genre */}
+                      <div className="mt-2.5 select-none z-10 flex items-center justify-center gap-1 max-w-[170px] flex-wrap">
                         <span 
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border transition-transform hover:scale-105 ${tagStyle.bg} ${tagStyle.text} ${tagStyle.border} ${tagStyle.glow}`}
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border transition-transform hover:scale-105 whitespace-nowrap ${tagStyle.bg} ${tagStyle.text} ${tagStyle.border} ${tagStyle.glow}`}
+                          title={book.genre}
                         >
                           {book.genre}
                         </span>
@@ -676,16 +786,16 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {(() => {
-                      const tagStyle = GENRE_TAG_STYLES[selectedBook.genre] || GENRE_TAG_STYLES.Romance;
+                  <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                    {(selectedBook.genres && selectedBook.genres.length > 0 ? selectedBook.genres : [selectedBook.genre]).map((g) => {
+                      const style = getGenreBadgeStyle(g);
                       return (
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${tagStyle.bg} ${tagStyle.text} ${tagStyle.border} ${tagStyle.glow}`}>
-                          {selectedBook.genre}
+                        <span key={g} className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border} ${style.glow}`}>
+                          {g}
                         </span>
                       );
-                    })()}
-                    <span className="text-[10px] text-text-muted font-medium">
+                    })}
+                    <span className="text-[10px] text-text-muted font-medium ml-1">
                       Added by {selectedBook.addedBy}
                     </span>
                   </div>
