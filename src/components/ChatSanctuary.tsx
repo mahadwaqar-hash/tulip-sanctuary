@@ -297,11 +297,11 @@ const ChatMessageItem = memo(function ChatMessageItem({
   const showName = isFirstInCluster;
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  let corners = 'rounded-[1.5rem]';
+  let corners = 'rounded-[32px]';
   if (isMe) {
-    corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tr-[4px]' : ''} ${!isLastInCluster ? 'rounded-br-[4px]' : 'rounded-br-[2px]'}`;
+    corners = `rounded-[32px] ${!isFirstInCluster ? 'rounded-tr-[8px]' : ''} ${!isLastInCluster ? 'rounded-br-[8px]' : 'rounded-br-[4px]'}`;
   } else {
-    corners = `rounded-[1.5rem] ${!isFirstInCluster ? 'rounded-tl-[4px]' : ''} ${!isLastInCluster ? 'rounded-bl-[4px]' : 'rounded-bl-[2px]'}`;
+    corners = `rounded-[32px] ${!isFirstInCluster ? 'rounded-tl-[8px]' : ''} ${!isLastInCluster ? 'rounded-bl-[8px]' : 'rounded-bl-[4px]'}`;
   }
 
   // Group reactions, calculate separate counts, and determine if currentUser reacted
@@ -1600,7 +1600,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   }, [messages, searchQuery]);
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[2rem] md:glass-card overflow-hidden relative bg-surface/30 md:bg-transparent">
+    <div className="flex-1 flex flex-col h-full md:rounded-[36px] md:clay-card overflow-hidden relative bg-surface/30 md:bg-transparent">
       
       {/* CHAT HEADER */}
       <div className="px-4 md:px-5 py-2 md:py-3 border-b border-pastel-pink-300/20 bg-surface/95 backdrop-blur-xl z-20 flex flex-row items-center justify-between gap-2 shadow-sm">
@@ -1956,8 +1956,8 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </AnimatePresence>
 
-        {/* Floating Glass Pill Input Container */}
-        <div className="p-1.5 md:p-2 border border-border/60 bg-surface/85 backdrop-blur-2xl rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.22),0_12px_36px_-6px_rgba(0,0,0,0.22)] flex items-center relative z-20 overflow-hidden transition-all duration-300">
+        {/* Floating Bubbly Clay Pill Input Container */}
+        <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-center relative z-20 overflow-hidden transition-all duration-300">
           
           {editingMsgId ? (
             <div className="w-full flex items-center gap-2 px-3 py-1.5 h-[42px] md:h-[46px]">
@@ -1983,7 +1983,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <button
                   type="submit"
                   disabled={!editContent.trim()}
-                  className="px-4 py-1.5 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0"
+                  className="px-5 py-2 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0"
                 >
                   Save
                 </button>
@@ -2009,7 +2009,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <button
                   type="button"
                   onClick={handleSendRecording}
-                  className="px-4 py-1.5 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                  className="px-5 py-2 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center gap-1 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <Send className="w-3.5 h-3.5" /> Send
                 </button>
@@ -2026,7 +2026,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowStickerPicker(false);
                 }}
                 className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
-                  showLovePrompts ? 'btn-tactile text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                  showLovePrompts ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="Sweet Love Prompts"
               >
@@ -2041,7 +2041,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   setShowLovePrompts(false);
                 }}
                 className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
-                  showStickerPicker ? 'btn-tactile text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
+                  showStickerPicker ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
                 }`}
                 title="GIFs & Stickers"
               >
@@ -2106,7 +2106,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   handleSendMessage();
                   chatInputRef.current?.focus();
                 }}
-                className="p-3 rounded-full btn-tactile text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
+                className="p-3.5 rounded-[28px] clay-btn text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
               >
                 <Send className="w-4 h-4 md:w-5 md:h-5" />
               </button>
@@ -2122,7 +2122,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={springConfig}
-              className="absolute bottom-[85px] left-3 right-3 sm:left-4 sm:right-4 bg-surface/98 md:backdrop-blur-xl border border-border rounded-[2.5rem] p-5 md:p-6 shadow-2xl z-30"
+              className="absolute bottom-[85px] left-3 right-3 sm:left-4 sm:right-4 bg-surface/98 md:backdrop-blur-xl border border-border rounded-[36px] p-5 md:p-6 shadow-2xl z-30 clay-card"
             >
               {/* Header with Tabs */}
               <div className="flex justify-between items-center mb-3 pb-3 border-b border-border">

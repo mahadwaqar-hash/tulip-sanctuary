@@ -132,7 +132,7 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
-    <div className={`p-5 rounded-[1.5rem] glass-card flex flex-col justify-between overflow-hidden relative shadow-sm ${
+    <div className={`p-6 rounded-[32px] clay-card flex flex-col justify-between overflow-hidden relative shadow-sm ${
       isDaytime 
         ? 'bg-gradient-to-br from-amber-500/15 to-surface/40' 
         : 'bg-gradient-to-br from-indigo-900/30 to-surface/40'
@@ -423,7 +423,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const daysUntilReunion = calculateDaysLeft();
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-card overflow-hidden relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[36px] md:clay-card overflow-hidden relative">
       
       {/* HEADER */}
       <div className="px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-2xl flex flex-wrap items-center justify-between gap-4">
@@ -454,7 +454,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleOpenWriteModal}
-            className="px-5 py-2 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Seal A Letter
           </motion.button>
@@ -476,7 +476,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           />
 
           {/* Reunion Countdown Card */}
-          <div className="p-6 rounded-3xl btn-tactile text-white flex flex-col justify-between relative overflow-hidden">
+          <div className="p-6 rounded-[36px] clay-btn text-white flex flex-col justify-between relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
                 Next Time We See Each Other 💕
@@ -528,7 +528,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         </div>
 
         {/* ROW 2: FULL SCREEN LOVE BURSTS (KISSES & HUGS) */}
-        <div className="p-6 rounded-3xl glass-card flex flex-col gap-4">
+        <div className="p-6 rounded-[36px] clay-card flex flex-col gap-4">
           <div>
             <h3 className="font-bold text-base text-text-main flex items-center gap-2">
               <span>Send Full-Screen Fairytale Bursts</span>
@@ -544,7 +544,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('kiss')}
-              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-rose-400/30 hover:border-rose-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-rose-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-rose-400/30 hover:border-rose-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-rose-500/20 group"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(244,63,94,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -561,7 +561,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('hug')}
-              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-amber-400/30 hover:border-amber-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-amber-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-amber-400/30 hover:border-amber-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-amber-500/20 group"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -578,7 +578,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('thinking')}
-              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-purple-400/30 hover:border-purple-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-purple-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-purple-400/30 hover:border-purple-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-purple-500/20 group"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(168,85,247,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -595,7 +595,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('stars')}
-              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-yellow-400/30 hover:border-yellow-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-yellow-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-yellow-400/30 hover:border-yellow-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-yellow-500/20 group"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(234,179,8,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -638,7 +638,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   key={letter.id}
                   whileHover={{ scale: 1.02, y: -4 }}
                   onClick={() => handleOpenLetter(letter)}
-                  className={`p-6 pt-7 rounded-[2rem] border transition-all cursor-pointer flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-sm hover:shadow-xl will-change-transform group ${
+                  className={`p-6 pt-7 rounded-[32px] clay-card border transition-all cursor-pointer flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-sm hover:shadow-xl will-change-transform group ${
                     letter.isOpened
                       ? 'bg-surface/75 border-border/80 dark:border-border/50'
                       : isReadyToday
@@ -741,7 +741,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="max-w-md w-full rounded-[2.5rem] p-8 glass-panel border border-border shadow-2xl flex flex-col bg-surface"
+              className="max-w-md w-full rounded-[36px] p-8 clay-card border border-border shadow-2xl flex flex-col bg-surface"
             >
               <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Set Your Cities</h3>
               <p className="text-xs text-text-muted mb-6">
@@ -919,7 +919,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors cursor-pointer"
+                    className="px-6 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
                   >
                     Save Locations ✨
                   </button>
@@ -943,7 +943,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={springConfig}
               onClick={(e) => e.stopPropagation()}
-              className="max-w-md w-full rounded-[2.5rem] p-8 md:p-9 glass-panel border-2 border-amber-300/60 dark:border-amber-400/40 shadow-2xl flex flex-col items-center text-center bg-surface relative overflow-hidden"
+              className="max-w-md w-full rounded-[36px] p-8 md:p-9 clay-card border-2 border-amber-300/60 dark:border-amber-400/40 shadow-2xl flex flex-col items-center text-center bg-surface relative overflow-hidden"
             >
               {/* Floating gold ribbon ornament */}
               <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-300 via-rose-400 to-pastel-pink-400" />
@@ -1015,7 +1015,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
               <button
                 onClick={() => setLockedBirthdayLetter(null)}
-                className="w-full py-3 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-all cursor-pointer"
+                className="w-full py-3.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
               >
                 I'll Be Patient! 🌸
               </button>
@@ -1037,7 +1037,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               exit={{ scale: 0.9, opacity: 0 }}
               transition={springConfig}
               onClick={(e) => e.stopPropagation()}
-              className={`max-w-lg w-full rounded-[2.5rem] p-8 md:p-10 glass-panel border shadow-2xl flex flex-col bg-surface relative overflow-hidden ${
+              className={`max-w-lg w-full rounded-[36px] p-8 md:p-10 clay-card border shadow-2xl flex flex-col bg-surface relative overflow-hidden ${
                 selectedLetter.isBirthday
                   ? 'border-2 border-amber-300 dark:border-amber-400/50 shadow-amber-200/40'
                   : 'border-border'
@@ -1125,7 +1125,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   )}
                   <button
                     onClick={() => setSelectedLetter(null)}
-                    className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-pastel-pink-300 transition-colors"
+                    className="px-5 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
                   >
                     Keep in Heart 💕
                   </button>
@@ -1145,7 +1145,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={springConfig}
-              className="max-w-lg w-full rounded-[2.5rem] p-8 glass-panel border border-border shadow-2xl flex flex-col bg-surface"
+              className="max-w-lg w-full rounded-[36px] p-8 clay-card border border-border shadow-2xl flex flex-col bg-surface"
             >
               <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">
                 {editingLetterId ? 'Edit Sealed Letter' : 'Seal A Romantic Letter'}
@@ -1222,7 +1222,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="px-6 py-2.5 rounded-full text-white font-bold text-xs uppercase tracking-wider shadow-md bg-pastel-pink-400 hover:bg-pastel-pink-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-6 py-2.5 rounded-full text-white font-bold text-xs uppercase tracking-wider clay-btn flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{editingLetterId ? 'Update Letter 💾' : 'Seal Envelope 💌'}</span>

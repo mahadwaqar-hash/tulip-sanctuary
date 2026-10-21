@@ -32,7 +32,7 @@ export const SANCTUARY_THEMES: SanctuaryTheme[] = [
     isDark: false,
     bgGrad: 'from-[#FFF0F5] to-[#FFE4E1]',
     accent: '#FF1493',
-    cardBg: '#FFFFFF'
+    cardBg: '#FFF0F5'
   },
   {
     id: 'sunset',
@@ -82,7 +82,7 @@ export const SANCTUARY_THEMES: SanctuaryTheme[] = [
     isDark: false,
     bgGrad: 'from-[#F5F9F3] to-[#E9F3E6]',
     accent: '#5E935A',
-    cardBg: '#FFFFFF'
+    cardBg: '#F5F9F3'
   },
   {
     id: 'peach',
@@ -92,7 +92,7 @@ export const SANCTUARY_THEMES: SanctuaryTheme[] = [
     isDark: false,
     bgGrad: 'from-[#FFF8F3] to-[#FEEFE4]',
     accent: '#F97316',
-    cardBg: '#FFFFFF'
+    cardBg: '#FFF8F3'
   }
 ];
 
@@ -130,7 +130,7 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
         initial={{ opacity: 0, scale: 0.92, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 15 }}
-        className="w-full max-w-lg rounded-[2.5rem] p-6 md:p-8 glass-panel border border-border shadow-2xl bg-surface flex flex-col max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-[36px] p-6 md:p-8 clay-card border border-border flex flex-col max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border/50 mb-5">
@@ -166,17 +166,17 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSelect(theme)}
-                className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden shadow-sm ${
+                className={`p-4 rounded-[28px] border-2 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden shadow-[0_8px_20px_-6px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-3px_6px_rgba(0,0,0,0.1)] ${
                   isSelected
-                    ? 'border-pastel-pink-400 shadow-md ring-2 ring-pastel-pink-400/20'
+                    ? 'border-pastel-pink-400 ring-4 ring-pastel-pink-400/25 shadow-[0_12px_28px_-4px_var(--accent-glow)] scale-[1.02]'
                     : theme.isDark
-                      ? 'border-border/60 hover:border-pastel-pink-400/50 bg-surface-hover/50'
-                      : 'border-slate-200/90 hover:border-pastel-pink-400/60 shadow-xs'
+                      ? 'border-border/60 hover:border-pastel-pink-400/50'
+                      : 'border-slate-300/80 hover:border-pastel-pink-400/60'
                 }`}
                 style={{ backgroundColor: theme.cardBg }}
               >
                 {/* Visual Preview Banner */}
-                <div className={`h-12 w-full rounded-xl bg-gradient-to-r ${theme.bgGrad} p-2 flex items-center justify-between mb-3 border border-black/10 dark:border-white/10 shadow-inner`}>
+                <div className={`h-12 w-full rounded-2xl bg-gradient-to-r ${theme.bgGrad} p-2 flex items-center justify-between mb-3 border border-black/10 dark:border-white/10 shadow-inner`}>
                   <span className="text-xl">{theme.emoji}</span>
                   <div className="flex items-center gap-1.5">
                     <span className="w-4 h-4 rounded-full border border-white/30 shadow-xs" style={{ backgroundColor: theme.accent }} />
@@ -186,11 +186,11 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className={`font-bold text-sm font-serif-italic flex items-center gap-1.5 ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
+                    <h4 className={`font-extrabold text-sm font-serif-italic flex items-center gap-1.5 ${theme.isDark ? 'text-white' : 'text-slate-900 font-extrabold'}`}>
                       <span>{theme.name}</span>
                       <span className="text-xs">{theme.emoji}</span>
                     </h4>
-                    <p className={`text-[11px] mt-0.5 font-medium leading-tight ${theme.isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                    <p className={`text-[11px] mt-0.5 font-bold leading-tight ${theme.isDark ? 'text-white/70' : 'text-slate-700'}`}>
                       {theme.subtitle}
                     </p>
                   </div>
@@ -213,7 +213,7 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors cursor-pointer"
+            className="px-6 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
           >
             Done
           </button>

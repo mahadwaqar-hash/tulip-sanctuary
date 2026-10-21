@@ -119,7 +119,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
                   transition={{ duration: 4.2, delay: (i % 5) * 0.15, ease: 'easeOut' }}
                   className="absolute pointer-events-none text-3xl select-none drop-shadow-[0_0_15px_rgba(255,200,100,0.8)]"
                 >
-                  {i % 4 === 0 ? '🧸' : i % 4 === 1 ? '🫂' : i % 4 === 2 ? '🤍' : '✨'}
+                  {i % 4 === 0 ? '🧸' : i % 4 === 1 ? '🤗' : i % 4 === 2 ? '🤍' : '✨'}
                 </motion.div>
               );
             })}
@@ -132,7 +132,7 @@ export default function FullScreenLoveBurst({ burst, onDismiss }: FullScreenLove
               className="flex flex-col items-center text-center z-10 p-8 md:p-12 rounded-[3.5rem] bg-white/30 dark:bg-stone-900/60 backdrop-blur-lg border-2 border-white/60 shadow-[0_0_90px_rgba(255,180,120,0.6)] max-w-sm sm:max-w-md mx-4"
             >
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-400 to-rose-400 text-white flex items-center justify-center text-5xl mb-4 shadow-xl glow-rose animate-pulse">
-                🫂
+                🤗
               </div>
               <span className="font-fairytale text-4xl sm:text-5xl text-amber-200 lowercase mb-1">wrapped together</span>
               <h2 className="text-3xl sm:text-4xl font-serif-italic font-bold text-white drop-shadow-md">

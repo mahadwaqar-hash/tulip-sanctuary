@@ -690,7 +690,7 @@ export default function App() {
             </div>
             
             {/* Scrollable Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-2 py-1.5">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-3 py-2">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -698,9 +698,9 @@ export default function App() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
                       isActive 
-                        ? 'btn-tactile text-white shadow-sm' 
+                        ? 'clay-btn text-white shadow-md' 
                         : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
                     }`}
                   >
@@ -715,10 +715,10 @@ export default function App() {
           {/* MAIN 3-PANE LAYOUT */}
           <div className="flex-1 w-full h-full overflow-hidden flex flex-col lg:flex-row relative gap-4 lg:gap-5 lg:py-2">
             
-            {/* LEFT SIDEBAR (Desktop Only - Floating Glassmorphic Card) */}
-            <div className="hidden lg:flex flex-col w-64 shrink-0 h-full glass-card p-5 gap-6">
+            {/* LEFT SIDEBAR (Desktop Only - Floating 3D Bubbly Clay Card) */}
+            <div className="hidden lg:flex flex-col w-64 shrink-0 h-full clay-card rounded-[36px] p-6 gap-6">
               <div>
-                <div className="p-3 rounded-2xl btn-tactile text-white flex items-center justify-center w-12 h-12 mb-4">
+                <div className="p-3 rounded-[24px] clay-btn text-white flex items-center justify-center w-12 h-12 mb-4">
                   <Heart className="w-6 h-6 fill-white animate-pulse" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex flex-col gap-0 font-serif-italic mb-1">
@@ -729,7 +729,7 @@ export default function App() {
                   <span>Logged in as</span>
                   <button
                     onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs"
+                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-3 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs"
                   >
                     <span>{currentUser}</span>
                     <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
@@ -748,10 +748,10 @@ export default function App() {
                       whileHover={{ x: 4 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-3 ${
+                      className={`px-4 py-3 rounded-[28px] text-sm font-bold transition-all cursor-pointer flex items-center gap-3 ${
                         isActive
-                          ? 'btn-tactile text-white shadow-md'
-                          : 'bg-surface/40 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50'
+                          ? 'clay-btn text-white shadow-lg'
+                          : 'bg-surface/50 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -763,13 +763,13 @@ export default function App() {
 
               <div className="mt-auto flex flex-col gap-1.5 pt-3 border-t border-border/40">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Settings</span>
-                <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   <Settings className="w-4 h-4" /> Password
                 </button>
-                <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   <Palette className="w-4 h-4" /> Aesthetic Themes
                 </button>
-                <button onClick={handleLock} className="px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={handleLock} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
                   <Lock className="w-4 h-4" /> Lock Sanctuary
                 </button>
               </div>

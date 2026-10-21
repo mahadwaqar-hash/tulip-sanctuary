@@ -92,7 +92,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
   const selectedDayEvents = events.filter(e => e.date === selectedDateStr);
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[2.5rem] glass-card overflow-y-auto md:overflow-hidden">
+    <div className="flex-1 flex flex-col md:flex-row h-full rounded-[36px] clay-card overflow-y-auto md:overflow-hidden">
       
       {/* LEFT: CALENDAR MONTH GRID */}
       <div className="flex-1 flex flex-col p-6 md:p-8 md:overflow-y-auto min-h-min">
@@ -206,7 +206,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 rounded-full btn-tactile text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+            className="px-5 py-2.5 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Event
           </motion.button>
@@ -221,7 +221,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
                 key={evt.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 rounded-2xl bg-surface-hover border border-border shadow-sm flex flex-col gap-2 relative group hover:border-pastel-pink-400 transition-colors"
+                className="p-5 rounded-[24px] clay-card bg-surface/90 border border-border/60 flex flex-col gap-2 relative group hover:border-pastel-pink-400 transition-all"
               >
                 <div className="flex items-center justify-between">
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${cat.color}`}>
@@ -273,7 +273,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={springConfig}
-              className="bg-surface glass-panel p-8 rounded-[2.5rem] max-w-md w-full shadow-2xl border border-border"
+              className="bg-surface p-8 rounded-[36px] clay-card max-w-md w-full shadow-2xl border border-border"
             >
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -334,7 +334,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors cursor-pointer"
+                    className="px-6 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
                   >
                     Save Event 💕
                   </button>

@@ -110,7 +110,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full md:rounded-[2.5rem] md:glass-panel shadow-2xl overflow-hidden md:border border-border relative">
+    <div className="flex-1 flex flex-col h-full md:rounded-[36px] md:clay-card shadow-2xl overflow-hidden md:border border-border relative">
       
       {/* 1. PHOTO VAULT PASSWORD BARRIER */}
       {!isUnlocked ? (
@@ -120,7 +120,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-sm p-8 rounded-[2.5rem] glass-panel shadow-2xl flex flex-col items-center text-center border border-border"
+            className="w-full max-w-sm p-8 rounded-[36px] clay-card shadow-2xl flex flex-col items-center text-center border border-border"
           >
             <div className="w-16 h-16 rounded-full bg-surface-hover border border-border flex items-center justify-center mb-6 shadow-inner relative">
               <Lock className="w-7 h-7 text-pastel-pink-400 animate-pulse" />
@@ -161,7 +161,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 type="submit"
-                className="w-full py-3.5 rounded-full text-white font-bold text-xs uppercase tracking-widest shadow-md transition-colors bg-pastel-pink-400 hover:bg-pastel-pink-300 cursor-pointer"
+                className="w-full py-3.5 rounded-full text-white font-bold text-xs uppercase tracking-widest clay-btn cursor-pointer"
               >
                 Unlock Pictures
               </motion.button>
@@ -201,7 +201,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => fileInputRef.current?.click()}
-                className="px-5 py-2.5 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Add Memory
               </motion.button>
@@ -324,7 +324,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                       </button>
                       <button
                         type="submit"
-                        className="px-6 py-2.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors cursor-pointer"
+                        className="px-6 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
                       >
                         Pin Memory 💕
                       </button>
@@ -348,7 +348,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                   exit={{ scale: 0.9, opacity: 0 }}
                   transition={springConfig}
                   onClick={(e) => e.stopPropagation()}
-                  className="max-w-3xl w-full rounded-[2.5rem] overflow-hidden glass-panel border border-white/20 shadow-2xl flex flex-col"
+                  className="max-w-3xl w-full rounded-[36px] overflow-hidden clay-card border border-white/20 shadow-2xl flex flex-col"
                 >
                   <div className="p-3 bg-black/40 flex justify-center max-h-[70vh] overflow-hidden">
                     <img src={selectedPhoto.dataUrl} alt={selectedPhoto.caption} className="max-h-[68vh] object-contain rounded-2xl" />
@@ -367,7 +367,7 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDownload(selectedPhoto.dataUrl, selectedPhoto.caption)}
-                        className="px-4 py-2.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-2.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
                         title="Download High-Res Original"
                       >
                         <Download className="w-4 h-4" /> Download

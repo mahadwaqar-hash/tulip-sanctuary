@@ -128,7 +128,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
   const tulipInfo = getTulipStage();
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border">
+    <div className="flex-1 flex flex-col h-full rounded-[36px] clay-card overflow-hidden border border-border">
       
       {/* HEADER */}
       <div className="px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-2xl flex items-center justify-between">
@@ -156,7 +156,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between bg-gradient-to-br from-surface to-pastel-pink-50/40 dark:to-pastel-pink-950/20"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between bg-gradient-to-br from-surface to-pastel-pink-50/40 dark:to-pastel-pink-950/20"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
@@ -180,7 +180,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleWaterTulip}
-              className="mt-4 w-full py-3 rounded-2xl bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="mt-4 w-full py-3.5 rounded-full clay-btn text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
             >
               <Droplet className="w-4 h-4 fill-white" />
               <span>Water Our Tulip Together</span>
@@ -191,7 +191,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
@@ -238,7 +238,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400 flex items-center gap-1">
@@ -267,7 +267,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400 flex items-center gap-1">
@@ -296,7 +296,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
@@ -335,7 +335,7 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
           <motion.div
             whileHover={{ y: -3 }}
             transition={springConfig}
-            className="p-6 rounded-[2rem] glass-panel border border-border shadow-md flex flex-col justify-between md:col-span-2 lg:col-span-3"
+            className="p-6 rounded-[32px] clay-card border border-border shadow-md flex flex-col justify-between md:col-span-2 lg:col-span-3"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400 flex items-center gap-1.5">

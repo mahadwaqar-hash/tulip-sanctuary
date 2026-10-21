@@ -40,7 +40,7 @@ export default function ScratchpadView({ currentUser }: ScratchpadViewProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden border border-border relative">
+    <div className="flex-1 flex flex-col h-full rounded-[36px] clay-card overflow-hidden border border-border relative">
       {/* SVG Noise Texture Overlay */}
       <div 
         className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
