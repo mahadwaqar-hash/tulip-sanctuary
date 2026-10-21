@@ -55,6 +55,8 @@ export interface LdrLetter {
   isOpened: boolean;
   openedAt?: number;
   createdAt: number;
+  unlockDate?: string;
+  isBirthday?: boolean;
 }
 
 export interface LovePing {

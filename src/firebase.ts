@@ -131,6 +131,7 @@ export const fb = {
   ldrLetters: {
     add: async (data: any) => await setDoc(doc(firestoreDB, 'ldrLetters', data.id), data),
     update: async (id: string, data: any) => await updateDoc(doc(firestoreDB, 'ldrLetters', id), data),
+    delete: async (id: string) => await deleteDoc(doc(firestoreDB, 'ldrLetters', id)),
   },
   lovePings: {
     add: async (data: any) => await setDoc(doc(firestoreDB, 'lovePings', data.id), data),

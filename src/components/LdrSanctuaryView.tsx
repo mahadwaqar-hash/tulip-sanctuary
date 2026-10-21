@@ -10,7 +10,12 @@ import {
   X,
   Send,
   MapPin,
-  Edit3
+  Edit3,
+  Lock,
+  Unlock,
+  Trash2,
+  Calendar,
+  Gift
 } from 'lucide-react';
 import { useFirestore, fb } from '../firebase';
 import type { LdrLetter } from '../db';
@@ -22,6 +27,57 @@ const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 }
 interface LdrSanctuaryViewProps {
   currentUser: 'Mahad' | 'Ifa';
   onTriggerBurst: (type: LoveBurstType, sender: 'Mahad' | 'Ifa') => void;
+}
+
+export function getTodayInTimezone(tz: string = 'Europe/London'): string {
+  try {
+    const d = getNetworkDate();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: isValidTimezone(tz) ? tz : 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(d);
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+export function formatDateNice(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    return dateStr;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+export function calculateCountdown(targetDateStr?: string) {
+  if (!targetDateStr) return { days: 0, hours: 0, minutes: 0, seconds: 0, isReached: false };
+  try {
+    const target = new Date(`${targetDateStr}T00:00:00`).getTime();
+    const now = getNetworkNow();
+    const diff = target - now;
+    if (diff <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, isReached: true };
+    }
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return { days, hours, minutes, seconds, isReached: false };
+  } catch (e) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, isReached: false };
+  }
 }
 
 const ALL_TIMEZONES = (() => {
@@ -150,13 +206,45 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     }
   }, [mahadCityStr, mahadTzStr, ifaCityStr, ifaTzStr, isEditingCities]);
 
-  // Letter Reader & Writer
+  // Letter Reader & Writer & Birthday Lock
   const [selectedLetter, setSelectedLetter] = useState<LdrLetter | null>(null);
+  const [lockedBirthdayLetter, setLockedBirthdayLetter] = useState<LdrLetter | null>(null);
+  const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [showWriteModal, setShowWriteModal] = useState(false);
+  const [writeLetterType, setWriteLetterType] = useState<'standard' | 'birthday'>('standard');
   const [newLetterTitle, setNewLetterTitle] = useState('');
   const [newLetterContent, setNewLetterContent] = useState('');
+  const [newLetterUnlockDate, setNewLetterUnlockDate] = useState(() => {
+    return globalSettings.ifaBirthday || localStorage.getItem('tulip_ifa_birthday') || '';
+  });
+  const [showBirthdayConfetti, setShowBirthdayConfetti] = useState(false);
 
   const letters = useFirestore<LdrLetter>('ldrLetters', 'createdAt', true);
+
+  // Live countdown for locked birthday letter modal
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isReached: false });
+  useEffect(() => {
+    if (!lockedBirthdayLetter?.unlockDate) return;
+    const updateCountdown = () => {
+      setCountdown(calculateCountdown(lockedBirthdayLetter.unlockDate));
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [lockedBirthdayLetter]);
+
+  // Check if a letter is currently locked for a user
+  const isLetterLocked = (letter: LdrLetter) => {
+    if (!letter.unlockDate) return false;
+    // Author can always preview their own letter
+    if (currentUser === letter.sender) return false;
+    // Once unsealed, it can always be re-read
+    if (letter.isOpened) return false;
+
+    const recipientTz = letter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
+    const todayInTz = getTodayInTimezone(recipientTz);
+    return todayInTz < letter.unlockDate;
+  };
 
   // Seed default letters if empty
   useEffect(() => {
@@ -198,32 +286,115 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   };
 
   const handleOpenLetter = async (letter: LdrLetter) => {
+    // If it's locked for the recipient, open the locked countdown modal
+    if (isLetterLocked(letter)) {
+      setLockedBirthdayLetter(letter);
+      if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
+      return;
+    }
+
+    // If it's the author previewing their own locked letter before the date
+    if (currentUser === letter.sender && letter.unlockDate) {
+      const recipientTz = letter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
+      const todayInTz = getTodayInTimezone(recipientTz);
+      if (todayInTz < letter.unlockDate) {
+        setSelectedLetter(letter);
+        return; // Don't mark isOpened: true when author is previewing!
+      }
+    }
+
+    // Recipient unsealing on/after unlock date
     if (!letter.isOpened) {
       await fb.ldrLetters.update(letter.id, {
         isOpened: true,
         openedAt: Date.now()
       });
+      if (letter.isBirthday) {
+        setShowBirthdayConfetti(true);
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 200]);
+        setTimeout(() => setShowBirthdayConfetti(false), 7000);
+      }
     }
+
     setSelectedLetter(letter);
     if ('vibrate' in navigator) navigator.vibrate([40, 50]);
+  };
+
+  const handleOpenWriteModal = (type: 'standard' | 'birthday' = 'standard') => {
+    setEditingLetterId(null);
+    setWriteLetterType(type);
+    if (type === 'birthday') {
+      const savedBday = globalSettings.ifaBirthday || localStorage.getItem('tulip_ifa_birthday') || '';
+      setNewLetterUnlockDate(savedBday);
+      setNewLetterTitle('Open on your birthday, my love 🎂✨');
+    } else {
+      setNewLetterTitle('');
+      setNewLetterUnlockDate('');
+    }
+    setNewLetterContent('');
+    setShowWriteModal(true);
+  };
+
+  const handleStartEditLetter = (letter: LdrLetter) => {
+    setSelectedLetter(null);
+    setEditingLetterId(letter.id);
+    setWriteLetterType(letter.isBirthday ? 'birthday' : 'standard');
+    setNewLetterTitle(letter.title);
+    setNewLetterContent(letter.content);
+    setNewLetterUnlockDate(letter.unlockDate || '');
+    setShowWriteModal(true);
+  };
+
+  const handleDeleteLetter = async (letterId: string) => {
+    if (window.confirm('Are you sure you want to delete this sealed letter?')) {
+      await fb.ldrLetters.delete(letterId);
+      setSelectedLetter(null);
+      if ('vibrate' in navigator) navigator.vibrate(50);
+    }
   };
 
   const handleSaveNewLetter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLetterTitle.trim() || !newLetterContent.trim()) return;
 
+    const isBday = writeLetterType === 'birthday';
+    const unlockDate = isBday ? (newLetterUnlockDate.trim() || null) : null;
+
+    if (isBday && !unlockDate) {
+      alert("Please select Ifa's birthday date so the lock knows when to open!");
+      return;
+    }
+
     if ('vibrate' in navigator) navigator.vibrate(50);
 
-    await fb.ldrLetters.add({
-      id: crypto.randomUUID(),
-      title: newLetterTitle.trim(),
-      content: newLetterContent.trim(),
-      sender: currentUser,
-      recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
-      isOpened: false,
-      createdAt: Date.now()
-    });
+    // Persist Ifa's birthday into global settings for future automatic recall
+    if (isBday && unlockDate) {
+      localStorage.setItem('tulip_ifa_birthday', unlockDate);
+      await fb.userSettings.set('global', { ifaBirthday: unlockDate });
+    }
 
+    if (editingLetterId) {
+      await fb.ldrLetters.update(editingLetterId, {
+        title: newLetterTitle.trim(),
+        content: newLetterContent.trim(),
+        unlockDate: unlockDate || null,
+        isBirthday: isBday
+      });
+    } else {
+      await fb.ldrLetters.add({
+        id: crypto.randomUUID(),
+        title: newLetterTitle.trim(),
+        content: newLetterContent.trim(),
+        sender: currentUser,
+        recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
+        isOpened: false,
+        isBirthday: isBday,
+        unlockDate: unlockDate || null,
+        createdAt: Date.now()
+      });
+    }
+
+    setEditingLetterId(null);
     setNewLetterTitle('');
     setNewLetterContent('');
     setShowWriteModal(false);
@@ -277,7 +448,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsEditingCities(true)}
             className="px-4 py-2 rounded-full border border-border bg-surface-hover text-xs font-bold text-text-main hover:border-pastel-pink-400 transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -288,7 +459,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowWriteModal(true)}
+            onClick={() => handleOpenWriteModal('birthday')}
+            className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>🎂</span> Birthday Letter
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleOpenWriteModal('standard')}
             className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Seal A Letter
@@ -429,53 +609,200 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           </div>
         </div>
 
-        {/* ROW 3: "OPEN WHEN..." DIGITAL ENVELOPES */}
+        {/* ROW 3: "OPEN WHEN..." & BIRTHDAY SEALED ENVELOPES */}
         <div>
+          {/* BIRTHDAY NOTICE FOR IFA (TODAY OR UPCOMING) */}
+          {currentUser === 'Ifa' && (() => {
+            const todayInIfaTz = getTodayInTimezone(ifaTzStr);
+            const birthdayLetters = letters.filter(l => l.isBirthday && l.recipient === 'Ifa');
+            const readyToday = birthdayLetters.find(l => l.unlockDate && todayInIfaTz >= l.unlockDate && !l.isOpened);
+            const upcoming = birthdayLetters.find(l => l.unlockDate && todayInIfaTz < l.unlockDate && !l.isOpened);
+
+            if (readyToday) {
+              return (
+                <motion.div
+                  initial={{ scale: 0.96, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="p-5 rounded-3xl bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white shadow-xl flex items-center justify-between gap-4 border-2 border-amber-200/60 glow-rose-sm mb-6"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-3xl animate-bounce">🎂</span>
+                    <div>
+                      <h4 className="font-bold text-base md:text-lg font-serif-italic leading-tight">
+                        Happy Birthday Ifa! 🎉👑
+                      </h4>
+                      <p className="text-xs text-white/95 font-medium mt-0.5">
+                        Mahad sealed a special birthday letter for you! Tap to break the wax seal! ✨
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleOpenLetter(readyToday)}
+                    className="px-5 py-2.5 rounded-full bg-white text-pastel-pink-600 font-bold text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    Break Seal 💌
+                  </button>
+                </motion.div>
+              );
+            }
+
+            if (upcoming) {
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-between gap-3 text-xs mb-6"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🎁</span>
+                    <div>
+                      <span className="font-bold text-text-main flex items-center gap-1.5">
+                        A secret birthday letter is waiting for you! 🎂
+                      </span>
+                      <span className="text-text-muted text-[11px]">
+                        Mahad has sealed an enchanted surprise. Strictly unlocks on {formatDateNice(upcoming.unlockDate)}!
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleOpenLetter(upcoming)}
+                    className="text-[11px] font-bold text-amber-500 dark:text-amber-400 bg-amber-400/15 hover:bg-amber-400/25 px-3 py-1 rounded-full border border-amber-400/30 shrink-0 cursor-pointer transition-colors"
+                  >
+                    🔒 See Countdown
+                  </button>
+                </motion.div>
+              );
+            }
+
+            return null;
+          })()}
+
+          {/* BIRTHDAY PROMPT FOR MAHAD */}
+          {currentUser === 'Mahad' && (() => {
+            const ifaBdayLetters = letters.filter(l => l.isBirthday && l.recipient === 'Ifa');
+            if (ifaBdayLetters.length === 0) {
+              return (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-400/10 via-rose-400/10 to-pastel-pink-400/10 border border-amber-300/40 flex items-center justify-between gap-3 text-xs mb-6">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🎂</span>
+                    <div>
+                      <span className="font-bold text-text-main">
+                        Want to send Ifa a secret Birthday Letter?
+                      </span>
+                      <span className="text-text-muted text-[11px] block">
+                        You can write it now, and it will stay strictly locked until her birthday!
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleOpenWriteModal('birthday')}
+                    className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-400 to-rose-400 text-white font-bold text-[11px] uppercase tracking-wider shadow-sm hover:brightness-105 transition-all shrink-0 cursor-pointer"
+                  >
+                    Write Birthday Letter 💌
+                  </button>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-bold font-serif-italic text-text-main flex items-center gap-2">
-                <span>"Open When..." Sealed Letters</span>
+                <span>"Open When..." & Birthday Sealed Letters</span>
                 <Mail className="w-4 h-4 text-pastel-pink-400" />
               </h3>
               <p className="text-xs text-text-muted font-medium">
-                Wax-sealed emotional first-aid envelopes written just for your heart.
+                Wax-sealed romantic envelopes and enchanted birthday surprises.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {letters.map((letter) => (
-              <motion.div
-                key={letter.id}
-                whileHover={{ scale: 1.03, y: -3 }}
-                onClick={() => handleOpenLetter(letter)}
-                className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] relative shadow-md will-change-transform ${
-                  letter.isOpened
-                    ? 'bg-surface-hover/70 border-border'
-                    : 'bg-gradient-to-br from-white via-pastel-pink-50 to-pastel-pink-100/50 dark:from-surface dark:via-surface dark:to-pastel-pink-950/20 border-pastel-pink-300 dark:border-pastel-pink-400/40 shadow-pastel-pink-100/50'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
-                      From {letter.sender}
-                    </span>
-                    <span className="text-xs">
-                      {letter.isOpened ? '💌 Unsealed' : '🔒 Wax-Sealed'}
-                    </span>
+            {letters.map((letter) => {
+              const recipientTz = letter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
+              const todayInTz = getTodayInTimezone(recipientTz);
+              const isLockedForMe = isLetterLocked(letter);
+              const isAuthor = currentUser === letter.sender;
+              const isTimed = Boolean(letter.unlockDate);
+              const isReadyToday = isTimed && todayInTz >= (letter.unlockDate || '') && !letter.isOpened;
+
+              return (
+                <motion.div
+                  key={letter.id}
+                  whileHover={{ scale: 1.03, y: -3 }}
+                  onClick={() => handleOpenLetter(letter)}
+                  className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[185px] relative shadow-md will-change-transform ${
+                    letter.isBirthday
+                      ? letter.isOpened
+                        ? 'bg-surface-hover/70 border-amber-300/40 dark:border-amber-400/30'
+                        : isReadyToday
+                          ? 'bg-gradient-to-br from-amber-100/90 via-rose-50/90 to-pastel-pink-100 dark:from-amber-950/40 dark:via-surface dark:to-rose-950/30 border-2 border-amber-400 shadow-xl ring-2 ring-amber-400/30 animate-pulse'
+                          : 'bg-gradient-to-br from-amber-50/70 via-white to-pastel-pink-50/60 dark:from-amber-950/20 dark:via-surface dark:to-pastel-pink-950/20 border-amber-300/70 dark:border-amber-400/40 shadow-amber-100/50'
+                      : letter.isOpened
+                        ? 'bg-surface-hover/70 border-border'
+                        : 'bg-gradient-to-br from-white via-pastel-pink-50 to-pastel-pink-100/50 dark:from-surface dark:via-surface dark:to-pastel-pink-950/20 border-pastel-pink-300 dark:border-pastel-pink-400/40 shadow-pastel-pink-100/50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${letter.isBirthday ? 'text-amber-500 dark:text-amber-400 flex items-center gap-1' : 'text-pastel-pink-400'}`}>
+                        {letter.isBirthday ? (
+                          <>
+                            <span>🎂 Birthday Letter</span>
+                          </>
+                        ) : (
+                          `From ${letter.sender}`
+                        )}
+                      </span>
+                      <span className="text-xs">
+                        {letter.isOpened ? (
+                          '💌 Unsealed'
+                        ) : isLockedForMe ? (
+                          '🔒 Wax-Sealed'
+                        ) : isReadyToday ? (
+                          '🎉 Unseal Today!'
+                        ) : (
+                          '🔒 Wax-Sealed'
+                        )}
+                      </span>
+                    </div>
+
+                    <h4 className="font-bold text-base font-serif-italic text-text-main line-clamp-2 leading-snug">
+                      {letter.title}
+                    </h4>
+
+                    {letter.isBirthday && letter.unlockDate && (
+                      <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 border border-amber-300/30">
+                        <span>🎁 Birthday:</span>
+                        <span>{formatDateNice(letter.unlockDate)}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <h4 className="font-bold text-base font-serif-italic text-text-main line-clamp-2 leading-snug">
-                    {letter.title}
-                  </h4>
-                </div>
-
-                <div className="pt-4 border-t border-border/40 flex items-center justify-between text-[11px] text-text-muted">
-                  <span>{letter.isOpened ? 'Click to re-read' : 'Tap to break seal 💕'}</span>
-                  <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400" />
-                </div>
-              </motion.div>
-            ))}
+                  <div className="pt-4 border-t border-border/40 flex items-center justify-between text-[11px] text-text-muted">
+                    {letter.isOpened ? (
+                      <span className="flex items-center gap-1">Click to re-read 💕</span>
+                    ) : isLockedForMe ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Locked until birthday ✨
+                      </span>
+                    ) : isAuthor && isTimed && todayInTz < (letter.unlockDate || '') ? (
+                      <span className="text-text-muted flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-500" /> Locked for {letter.recipient} (Edit)
+                      </span>
+                    ) : isReadyToday ? (
+                      <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-bold flex items-center gap-1">
+                        <span>Tap to break seal 🎉</span>
+                      </span>
+                    ) : (
+                      <span>Tap to break seal 💕</span>
+                    )}
+                    <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400" />
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -678,7 +1005,101 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         )}
       </AnimatePresence>
 
-      {/* READ LETTER MODAL */}
+      {/* SHHH! NO PEEKING - LOCKED BIRTHDAY LETTER MODAL (FOR RECIPIENT BEFORE BIRTHDAY) */}
+      <AnimatePresence>
+        {lockedBirthdayLetter && (
+          <div
+            onClick={() => setLockedBirthdayLetter(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 cursor-pointer"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={springConfig}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-md w-full rounded-[2.5rem] p-8 md:p-9 glass-panel border-2 border-amber-300/60 dark:border-amber-400/40 shadow-2xl flex flex-col items-center text-center bg-surface relative overflow-hidden"
+            >
+              {/* Floating gold ribbon ornament */}
+              <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-300 via-rose-400 to-pastel-pink-400" />
+              
+              <button
+                onClick={() => setLockedBirthdayLetter(null)}
+                className="absolute top-5 right-5 p-2 rounded-full text-text-muted hover:text-text-main cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Shaking Lock Animation with Gift Box */}
+              <div className="relative mb-3 mt-1">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, -5, 5, -3, 3, 0],
+                    scale: [1, 1.05, 1]
+                  }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-300 via-rose-400 to-pastel-pink-400 text-white flex items-center justify-center shadow-xl shadow-amber-300/30 text-3xl"
+                >
+                  🎁
+                </motion.div>
+                <div className="absolute -bottom-2 -right-2 p-1.5 rounded-full bg-surface border-2 border-amber-300 text-amber-500 shadow-md">
+                  <Lock className="w-4 h-4 stroke-[2.5]" />
+                </div>
+              </div>
+
+              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-500 dark:text-amber-400 flex items-center gap-1.5 mb-1">
+                <Sparkles className="w-3.5 h-3.5" /> Enchanted Birthday Seal
+              </span>
+
+              <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-2">
+                Shhh! No Peeking! 🤫🎂
+              </h3>
+
+              <p className="text-xs text-text-muted mb-5 leading-relaxed font-medium">
+                Mahad has sealed this letter with fairy magic. It will strictly open <strong className="text-pastel-pink-500 font-bold">only on your birthday</strong> ({formatDateNice(lockedBirthdayLetter.unlockDate)})! No other day will unlock it.
+              </p>
+
+              {/* LIVE TICKING COUNTDOWN */}
+              <div className="w-full p-4 rounded-2xl bg-surface-hover/80 border border-amber-300/40 mb-5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-2">
+                  Unlocks in
+                </span>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="p-2 rounded-xl bg-surface border border-border shadow-2xs">
+                    <span className="text-lg font-bold font-sans text-text-main tabular-nums block">{countdown.days}</span>
+                    <span className="text-[9px] uppercase font-bold text-text-muted">Days</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-border shadow-2xs">
+                    <span className="text-lg font-bold font-sans text-text-main tabular-nums block">{countdown.hours}</span>
+                    <span className="text-[9px] uppercase font-bold text-text-muted">Hours</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-border shadow-2xs">
+                    <span className="text-lg font-bold font-sans text-text-main tabular-nums block">{countdown.minutes}</span>
+                    <span className="text-[9px] uppercase font-bold text-text-muted">Mins</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-border shadow-2xs">
+                    <span className="text-lg font-bold font-sans text-text-main tabular-nums block">{countdown.seconds}</span>
+                    <span className="text-[9px] uppercase font-bold text-text-muted">Secs</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-pastel-pink-400 font-fairytale lowercase -mt-2 mb-4">
+                patience, pretty girl... true love is worth waiting for 💕
+              </p>
+
+              <button
+                onClick={() => setLockedBirthdayLetter(null)}
+                className="w-full py-3 rounded-full bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:brightness-105 transition-all cursor-pointer"
+              >
+                I'll Be Patient! 🌸
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* READ / UNSEALED / AUTHOR PREVIEW LETTER MODAL */}
       <AnimatePresence>
         {selectedLetter && (
           <div
@@ -691,8 +1112,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               exit={{ scale: 0.9, opacity: 0 }}
               transition={springConfig}
               onClick={(e) => e.stopPropagation()}
-              className="max-w-lg w-full rounded-[2.5rem] p-8 md:p-10 glass-panel border border-border shadow-2xl flex flex-col bg-surface relative"
+              className={`max-w-lg w-full rounded-[2.5rem] p-8 md:p-10 glass-panel border shadow-2xl flex flex-col bg-surface relative overflow-hidden ${
+                selectedLetter.isBirthday
+                  ? 'border-2 border-amber-300 dark:border-amber-400/50 shadow-amber-200/40'
+                  : 'border-border'
+              }`}
             >
+              {/* Golden gradient strip for birthday letters */}
+              {selectedLetter.isBirthday && (
+                <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-300 via-rose-400 to-pastel-pink-400" />
+              )}
+
               <button
                 onClick={() => setSelectedLetter(null)}
                 className="absolute top-6 right-6 p-2 rounded-full text-text-muted hover:text-text-main cursor-pointer"
@@ -700,12 +1130,68 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                 <X className="w-4 h-4" />
               </button>
 
+              {/* Author Preview Notice (if Mahad views his sent letter before her birthday) */}
+              {currentUser === selectedLetter.sender && selectedLetter.unlockDate && (() => {
+                const recipientTz = selectedLetter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
+                const today = getTodayInTimezone(recipientTz);
+                const isStillLockedForHer = today < selectedLetter.unlockDate;
+                if (isStillLockedForHer) {
+                  return (
+                    <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-300/40 mb-4 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                        <div>
+                          <span className="font-bold text-text-main block">
+                            Author Preview • Sealed for {selectedLetter.recipient}'s Birthday
+                          </span>
+                          <span className="text-[11px] text-text-muted">
+                            🔒 Strictly locked for Ifa until {formatDateNice(selectedLetter.unlockDate)}. She cannot see this yet!
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleStartEditLetter(selectedLetter)}
+                          className="px-2.5 py-1 rounded-full bg-pastel-pink-400 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-pastel-pink-300 transition-colors cursor-pointer"
+                        >
+                          Edit ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLetter(selectedLetter.id)}
+                          className="p-1 rounded-full text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Delete letter"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-pastel-pink-400 mb-2">
-                <Mail className="w-4 h-4" />
-                <span>Written with love by {selectedLetter.sender}</span>
+                {selectedLetter.isBirthday ? (
+                  <>
+                    <span className="text-amber-500 font-bold flex items-center gap-1">🎂 Birthday Letter</span>
+                    <span>•</span>
+                    <span>From {selectedLetter.sender} to {selectedLetter.recipient}</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    <span>Written with love by {selectedLetter.sender}</span>
+                  </>
+                )}
               </div>
 
-              <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-6 leading-tight">
+              {selectedLetter.isBirthday && (
+                <div className="mb-3 text-2xl md:text-3xl font-serif-italic font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-rose-500 to-pastel-pink-500">
+                  Happy Birthday {selectedLetter.recipient}! 👑✨
+                </div>
+              )}
+
+              <h3 className="text-xl md:text-2xl font-bold font-serif-italic text-text-main mb-4 leading-tight">
                 {selectedLetter.title}
               </h3>
 
@@ -714,20 +1200,34 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               </div>
 
               <div className="mt-4 flex items-center justify-between text-xs text-text-muted">
-                <span>For: {selectedLetter.recipient}</span>
-                <button
-                  onClick={() => setSelectedLetter(null)}
-                  className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
-                >
-                  Keep in Heart 💕
-                </button>
+                <span>
+                  {selectedLetter.isBirthday && selectedLetter.unlockDate
+                    ? `Birthday: ${formatDateNice(selectedLetter.unlockDate)}`
+                    : `For: ${selectedLetter.recipient}`}
+                </span>
+                <div className="flex items-center gap-2">
+                  {currentUser === selectedLetter.sender && (
+                    <button
+                      onClick={() => handleStartEditLetter(selectedLetter)}
+                      className="px-3 py-1.5 rounded-full border border-border text-text-muted hover:text-text-main text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Edit ✏️
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedLetter(null)}
+                    className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-pastel-pink-300 transition-colors"
+                  >
+                    Keep in Heart 💕
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* WRITE NEW SEALED LETTER MODAL */}
+      {/* WRITE / EDIT SEALED LETTER MODAL */}
       <AnimatePresence>
         {showWriteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -738,15 +1238,70 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               transition={springConfig}
               className="max-w-lg w-full rounded-[2.5rem] p-8 glass-panel border border-border shadow-2xl flex flex-col bg-surface"
             >
-              <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-2">Write "Open When..." Letter</h3>
+              <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">
+                {editingLetterId ? 'Edit Sealed Letter' : 'Seal A Romantic Letter'}
+              </h3>
               <p className="text-xs text-text-muted mb-4 font-medium">
-                Write a sealed letter for {currentUser === 'Mahad' ? 'Ifa' : 'Mahad'} to open when they need you most.
+                {writeLetterType === 'birthday'
+                  ? `Write an enchanted birthday letter for Ifa that strictly unlocks ONLY on her birthday.`
+                  : `Write an emotional "Open When..." letter for your soulmate.`}
               </p>
 
+              {/* LETTER TYPE PICKER */}
+              <div className="grid grid-cols-2 gap-2 mb-4 p-1 rounded-2xl bg-surface-hover border border-border">
+                <button
+                  type="button"
+                  onClick={() => setWriteLetterType('standard')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    writeLetterType === 'standard'
+                      ? 'bg-pastel-pink-400 text-white shadow-xs'
+                      : 'text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Open When... 💌</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWriteLetterType('birthday');
+                    if (!newLetterTitle || newLetterTitle === '') {
+                      setNewLetterTitle('Open on your birthday, my love 🎂✨');
+                    }
+                  }}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    writeLetterType === 'birthday'
+                      ? 'bg-gradient-to-r from-amber-400 to-rose-400 text-white shadow-xs'
+                      : 'text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  <span>🎂 Birthday Surprise</span>
+                </button>
+              </div>
+
               <form onSubmit={handleSaveNewLetter} className="flex flex-col gap-3">
+                {/* BIRTHDAY DATE PICKER IF BIRTHDAY LETTER */}
+                {writeLetterType === 'birthday' && (
+                  <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-300/40 flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🎂 When is Ifa's Birthday?</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={newLetterUnlockDate}
+                      onChange={(e) => setNewLetterUnlockDate(e.target.value)}
+                      className="bg-surface p-2.5 rounded-xl border border-border text-text-main outline-none text-xs font-bold focus:border-amber-400"
+                      required
+                    />
+                    <span className="text-[10px] text-text-muted">
+                      🔒 <strong>Guaranteed Protection:</strong> This letter will stay strictly locked. Ifa will NOT be able to open it on any other day before this date!
+                    </span>
+                  </div>
+                )}
+
                 <input
                   type="text"
-                  placeholder="Envelope Label (e.g. Open when you feel lonely...)"
+                  placeholder={writeLetterType === 'birthday' ? 'Envelope Title (e.g. Happy Birthday to my princess 🎂)' : 'Envelope Label (e.g. Open when you feel lonely...)'}
                   value={newLetterTitle}
                   onChange={(e) => setNewLetterTitle(e.target.value)}
                   className="bg-surface-hover p-3.5 rounded-2xl border border-border text-text-main outline-none text-sm font-medium focus:border-pastel-pink-400"
@@ -754,7 +1309,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   autoFocus
                 />
                 <textarea
-                  placeholder="Pour your heart out here. This envelope will stay sealed until they tap it..."
+                  placeholder={writeLetterType === 'birthday' ? 'Pour your birthday wishes, memories, and love here. She will break this seal on her birthday... 💕' : 'Pour your heart out here. This envelope will stay sealed until they tap it...'}
                   value={newLetterContent}
                   onChange={(e) => setNewLetterContent(e.target.value)}
                   rows={6}
@@ -762,10 +1317,13 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   required
                 />
 
-                <div className="flex justify-end gap-3 mt-4">
+                <div className="flex justify-end gap-3 mt-3">
                   <button
                     type="button"
-                    onClick={() => setShowWriteModal(false)}
+                    onClick={() => {
+                      setShowWriteModal(false);
+                      setEditingLetterId(null);
+                    }}
                     className="px-5 py-2.5 rounded-full border border-border text-text-muted hover:text-text-main text-xs font-bold uppercase tracking-wider cursor-pointer"
                   >
                     Cancel
@@ -774,13 +1332,51 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="px-6 py-2.5 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className={`px-6 py-2.5 rounded-full text-white font-bold text-xs uppercase tracking-wider shadow-md transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      writeLetterType === 'birthday'
+                        ? 'bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 hover:brightness-105'
+                        : 'bg-pastel-pink-400 hover:bg-pastel-pink-300'
+                    }`}
                   >
-                    <Send className="w-3.5 h-3.5" /> Seal Envelope 💌
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{editingLetterId ? 'Update Letter 💾' : writeLetterType === 'birthday' ? 'Seal Birthday Letter 🎂💌' : 'Seal Envelope 💌'}</span>
                   </motion.button>
                 </div>
               </form>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING BIRTHDAY CONFETTI CELEBRATION OVERLAY */}
+      <AnimatePresence>
+        {showBirthdayConfetti && (
+          <div className="fixed inset-0 z-[120] pointer-events-none overflow-hidden select-none">
+            {Array.from({ length: 48 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{
+                  opacity: 1,
+                  y: -50,
+                  x: (Math.random() - 0.5) * (typeof window !== 'undefined' ? window.innerWidth : 800) + (typeof window !== 'undefined' ? window.innerWidth / 2 : 400),
+                  scale: 0.5 + Math.random() * 0.8,
+                  rotate: 0
+                }}
+                animate={{
+                  opacity: [1, 1, 0.9, 0],
+                  y: (typeof window !== 'undefined' ? window.innerHeight : 900) + 100,
+                  rotate: (Math.random() - 0.5) * 800
+                }}
+                transition={{
+                  duration: 3.5 + Math.random() * 2,
+                  ease: 'easeOut',
+                  delay: Math.random() * 0.6
+                }}
+                className="absolute text-2xl pointer-events-none drop-shadow-md"
+              >
+                {['🎉', '🎂', '✨', '💖', '🌸', '🎈', '🍰', '🎁'][i % 8]}
+              </motion.div>
+            ))}
           </div>
         )}
       </AnimatePresence>

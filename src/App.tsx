@@ -28,6 +28,7 @@ import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
 import ThemePickerModal, { applySanctuaryTheme } from './components/ThemePickerModal';
 import { useFirestore, fb } from './firebase';
+import { type LdrLetter } from './db';
 
 const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
 
@@ -430,6 +431,13 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
+  // Live Letters for Sanctuary Badge
+  const letters = useFirestore<LdrLetter>('ldrLetters', 'createdAt', false) || [];
+  const hasBirthdaySurpriseForIfa = useMemo(() => {
+    if (currentUser !== 'Ifa') return false;
+    return letters.some(l => l.isBirthday && l.recipient === 'Ifa' && !l.isOpened);
+  }, [currentUser, letters]);
+
   // Live Settings & Passwords from Firestore
   const settingsArray = useFirestore<any>('userSettings', 'id', false) || [];
   const globalSettings = settingsArray.find(s => s.id === 'global') || {};
@@ -705,6 +713,9 @@ export default function App() {
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span className="text-[11px] font-bold">{tab.label}</span>
+                    {tab.id === 'ldr' && hasBirthdaySurpriseForIfa && (
+                      <span className="text-[11px] animate-bounce">🎂</span>
+                    )}
                   </button>
                 );
               })}
@@ -754,7 +765,10 @@ export default function App() {
                       }`}
                     >
                       <Icon className="w-4 h-4" />
-                      <span>{tab.label}</span>
+                      <span className="flex-1 text-left">{tab.label}</span>
+                      {tab.id === 'ldr' && hasBirthdaySurpriseForIfa && (
+                        <span className="text-xs animate-bounce">🎂</span>
+                      )}
                     </motion.button>
                   );
                 })}
