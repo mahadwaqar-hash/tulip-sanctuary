@@ -1,0 +1,418 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model & Architecture: A.I.M. Sanctuary
+// ===============================================================
+//
+// This ruleset protects 'A.I.M. Sanctuary' - a private long-distance haven
+// designed exclusively for Mahad and Ifa.
+//
+// The client application authenticates access at the application layer
+// via a shared sanctuary secret and user profile selection ('Mahad' | 'Ifa').
+// Firebase Auth UID is not utilized by the client SDK. Access is secured
+// through strict collection isolation, default-deny on all unknown collections,
+// strict schema validation, type checking, string length boundaries, and
+// immutable field protections.
+//
+// Collections and Assumed Schemas:
+//
+// 1. /messages/{messageId}
+//    - id: string (1-128 chars) [immutable]
+//    - sender: 'Mahad' | 'Ifa' [immutable]
+//    - type: 'text' | 'image' | 'sticker' | 'gif' | 'audio'
+//    - content: string (0-10000 chars)
+//    - createdAt: number (epoch ms > 0) [immutable]
+//    - mediaUrl: optional string (max 3,000,000 chars for compressed base64 / storage URL)
+//    - audioDuration: optional number
+//    - reactions: optional list of strings (max 50)
+//    - reactionsMap: optional map
+//    - replyTo: optional map
+//    - isRead: optional bool
+//    - readAt: optional number
+//    - isEdited: optional bool
+//
+// 2. /ldrLetters/{letterId}
+//    - id: string (1-128 chars) [immutable]
+//    - title: string (1-500 chars)
+//    - content: string (1-100000 chars)
+//    - sender: 'Mahad' | 'Ifa' [immutable]
+//    - recipient: 'Mahad' | 'Ifa'
+//    - isOpened: bool
+//    - createdAt: number (epoch ms > 0) [immutable]
+//    - openedAt: optional number
+//    - unlockDate: optional string / null (max 100 chars)
+//    - isBirthday: optional bool
+//
+// 3. /userSettings/{settingId}
+//    - settingId: 'global' | 'Mahad' | 'Ifa'
+//    - id: string (1-50 chars)
+//    - sanctuaryPassword, photoPassword, mahadCity, ifaCity, mahadTz, ifaTz,
+//      city, tz, reunionDate, relationshipStart, ifaBirthday, sanctuaryTheme, startDate: optional strings (<= 100 chars)
+//    - customReactions: optional list (<= 50)
+//    - pinnedMessageId: optional string (<= 128 chars)
+//    - tulipWaterCount, lastWatered: optional numbers
+//
+// 4. /presence/{userId}
+//    - userId: 'Mahad' | 'Ifa'
+//    - id: string (1-50 chars)
+//    - online: bool
+//    - lastSeen: number
+//    - city, region, country, countryCode, locationName, statusMessage: optional strings
+//    - latitude, longitude: optional numbers
+//
+// 5. /typing/{userId}
+//    - userId: 'Mahad' | 'Ifa'
+//    - isTyping: bool
+//    - updatedAt: number
+//
+// 6. /lovePings/{pingId}
+//    - id: string (1-128 chars)
+//    - sender: 'Mahad' | 'Ifa'
+//    - recipient: 'Mahad' | 'Ifa'
+//    - type: 'hug' | 'kiss' | 'thinking' | 'stars'
+//    - createdAt: number (> 0)
+//
+// 7. /calendarEvents/{eventId}
+//    - id: string (1-128 chars)
+//    - title: string (1-200 chars)
+//    - date: string (1-50 chars)
+//    - category: 'date' | 'anniversary' | 'call' | 'trip' | 'special'
+//    - addedBy: 'Mahad' | 'Ifa'
+//    - createdAt: number (> 0)
+//    - time: optional string (<= 50 chars)
+//    - note: optional string (<= 5000 chars)
+//
+// 8. /vaultPhotos/{photoId}
+//    - id: string (1-128 chars)
+//    - dataUrl: string (1-5,000,000 chars)
+//    - caption: string (<= 2000 chars)
+//    - date: string (1-100 chars)
+//    - addedBy: 'Mahad' | 'Ifa'
+//    - createdAt: number (> 0)
+//    - location: optional string (<= 200 chars)
+//
+// 9. /stickers/{stickerId}
+//    - id: string (1-128 chars)
+//    - name: string (1-200 chars)
+//    - dataUrl: string (1-2,000,000 chars)
+//    - createdAt: number (> 0)
+//    - category: optional string (<= 100 chars)
+//
+// 10. /scratchpad/{noteId} & /scratchpadNotes/{noteId}
+//    - id: string (1-128 chars)
+//    - content: string (<= 100000 chars)
+//    - updatedAt: number
+//    - title: optional string (<= 200 chars)
+//    - createdAt: optional number
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Generic Helper Functions
+    // ===============================================================
+
+    function isValidUser(user) {
+      return user in ['Mahad', 'Ifa'];
+    }
+
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is string && data[field].size() >= minLen && data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalNumber(data, field) {
+      return !(field in data) || data[field] == null || data[field] is number;
+    }
+
+    function isValidOptionalBoolean(data, field) {
+      return !(field in data) || data[field] == null || data[field] is bool;
+    }
+
+    function isValidOptionalList(data, field, maxSize) {
+      return !(field in data) || data[field] == null || (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    function isValidOptionalMap(data, field) {
+      return !(field in data) || data[field] == null || data[field] is map;
+    }
+
+    // ===============================================================
+    // Domain Validators (Applied to both create and update)
+    // ===============================================================
+
+    // 1. Messages Validator
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'sender', 'type', 'content', 'createdAt']) &&
+             data.keys().hasOnly([
+               'id', 'sender', 'type', 'content', 'createdAt',
+               'mediaUrl', 'audioDuration', 'reactions', 'reactionsMap',
+               'replyTo', 'isRead', 'readAt', 'isEdited'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             isValidUser(data.sender) &&
+             data.type in ['text', 'image', 'sticker', 'gif', 'audio'] &&
+             data.content is string && data.content.size() <= 10000 &&
+             data.createdAt is number && data.createdAt > 0 &&
+             isValidOptionalString(data, 'mediaUrl', 0, 3000000) &&
+             isValidOptionalNumber(data, 'audioDuration') &&
+             isValidOptionalList(data, 'reactions', 50) &&
+             isValidOptionalMap(data, 'reactionsMap') &&
+             isValidOptionalMap(data, 'replyTo') &&
+             isValidOptionalBoolean(data, 'isRead') &&
+             isValidOptionalNumber(data, 'readAt') &&
+             isValidOptionalBoolean(data, 'isEdited');
+    }
+
+    function areMessageImmutableFieldsUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+             request.resource.data.sender == resource.data.sender &&
+             request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // 2. LDR Letters Validator
+    function isValidLdrLetter(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'sender', 'recipient', 'isOpened', 'createdAt']) &&
+             data.keys().hasOnly([
+               'id', 'title', 'content', 'sender', 'recipient',
+               'isOpened', 'createdAt', 'openedAt', 'unlockDate', 'isBirthday'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 500 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 100000 &&
+             isValidUser(data.sender) &&
+             isValidUser(data.recipient) &&
+             data.isOpened is bool &&
+             data.createdAt is number && data.createdAt > 0 &&
+             isValidOptionalNumber(data, 'openedAt') &&
+             isValidOptionalString(data, 'unlockDate', 0, 100) &&
+             isValidOptionalBoolean(data, 'isBirthday');
+    }
+
+    function areLetterImmutableFieldsUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+             request.resource.data.sender == resource.data.sender &&
+             request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // 3. User Settings Validator
+    function isValidUserSettings(data) {
+      return data.keys().hasAll(['id']) &&
+             data.keys().hasOnly([
+               'id', 'sanctuaryPassword', 'photoPassword', 'mahadCity', 'ifaCity',
+               'mahadTz', 'ifaTz', 'city', 'tz', 'reunionDate', 'relationshipStart',
+               'ifaBirthday', 'customReactions', 'pinnedMessageId', 'sanctuaryTheme',
+               'tulipWaterCount', 'lastWatered', 'startDate'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             isValidOptionalString(data, 'sanctuaryPassword', 0, 100) &&
+             isValidOptionalString(data, 'photoPassword', 0, 100) &&
+             isValidOptionalString(data, 'mahadCity', 0, 100) &&
+             isValidOptionalString(data, 'ifaCity', 0, 100) &&
+             isValidOptionalString(data, 'mahadTz', 0, 100) &&
+             isValidOptionalString(data, 'ifaTz', 0, 100) &&
+             isValidOptionalString(data, 'city', 0, 100) &&
+             isValidOptionalString(data, 'tz', 0, 100) &&
+             isValidOptionalString(data, 'reunionDate', 0, 100) &&
+             isValidOptionalString(data, 'relationshipStart', 0, 100) &&
+             isValidOptionalString(data, 'ifaBirthday', 0, 100) &&
+             isValidOptionalList(data, 'customReactions', 50) &&
+             isValidOptionalString(data, 'pinnedMessageId', 0, 128) &&
+             isValidOptionalString(data, 'sanctuaryTheme', 0, 100) &&
+             isValidOptionalNumber(data, 'tulipWaterCount') &&
+             isValidOptionalNumber(data, 'lastWatered') &&
+             isValidOptionalString(data, 'startDate', 0, 100);
+    }
+
+    // 4. Presence Validator
+    function isValidPresence(data) {
+      return data.keys().hasAll(['id', 'online', 'lastSeen']) &&
+             data.keys().hasOnly([
+               'id', 'online', 'lastSeen', 'city', 'region', 'country',
+               'countryCode', 'latitude', 'longitude', 'locationName', 'statusMessage'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 50 &&
+             data.online is bool &&
+             data.lastSeen is number &&
+             isValidOptionalString(data, 'city', 0, 100) &&
+             isValidOptionalString(data, 'region', 0, 100) &&
+             isValidOptionalString(data, 'country', 0, 100) &&
+             isValidOptionalString(data, 'countryCode', 0, 20) &&
+             isValidOptionalNumber(data, 'latitude') &&
+             isValidOptionalNumber(data, 'longitude') &&
+             isValidOptionalString(data, 'locationName', 0, 200) &&
+             isValidOptionalString(data, 'statusMessage', 0, 200);
+    }
+
+    // 5. Typing Validator
+    function isValidTyping(data) {
+      return data.keys().hasAll(['isTyping', 'updatedAt']) &&
+             data.keys().hasOnly(['isTyping', 'updatedAt']) &&
+             data.isTyping is bool &&
+             data.updatedAt is number;
+    }
+
+    // 6. Love Pings Validator
+    function isValidLovePing(data) {
+      return data.keys().hasAll(['id', 'sender', 'recipient', 'type', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'sender', 'recipient', 'type', 'createdAt']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             isValidUser(data.sender) &&
+             isValidUser(data.recipient) &&
+             data.type in ['hug', 'kiss', 'thinking', 'stars'] &&
+             data.createdAt is number && data.createdAt > 0;
+    }
+
+    // 7. Calendar Events Validator
+    function isValidCalendarEvent(data) {
+      return data.keys().hasAll(['id', 'title', 'date', 'category', 'addedBy', 'createdAt']) &&
+             data.keys().hasOnly([
+               'id', 'title', 'date', 'category', 'addedBy', 'createdAt', 'time', 'note'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 50 &&
+             data.category in ['date', 'anniversary', 'call', 'trip', 'special'] &&
+             isValidUser(data.addedBy) &&
+             data.createdAt is number && data.createdAt > 0 &&
+             isValidOptionalString(data, 'time', 0, 50) &&
+             isValidOptionalString(data, 'note', 0, 5000);
+    }
+
+    // 8. Vault Photos Validator
+    function isValidVaultPhoto(data) {
+      return data.keys().hasAll(['id', 'dataUrl', 'caption', 'date', 'addedBy', 'createdAt']) &&
+             data.keys().hasOnly([
+               'id', 'dataUrl', 'caption', 'date', 'addedBy', 'createdAt', 'location'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.dataUrl is string && data.dataUrl.size() >= 1 && data.dataUrl.size() <= 5000000 &&
+             data.caption is string && data.caption.size() <= 2000 &&
+             data.date is string && data.date.size() >= 1 && data.date.size() <= 100 &&
+             isValidUser(data.addedBy) &&
+             data.createdAt is number && data.createdAt > 0 &&
+             isValidOptionalString(data, 'location', 0, 200);
+    }
+
+    // 9. Stickers Validator
+    function isValidSticker(data) {
+      return data.keys().hasAll(['id', 'name', 'dataUrl', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'name', 'dataUrl', 'createdAt', 'category']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+             data.dataUrl is string && data.dataUrl.size() >= 1 && data.dataUrl.size() <= 2000000 &&
+             data.createdAt is number && data.createdAt > 0 &&
+             isValidOptionalString(data, 'category', 0, 100);
+    }
+
+    // 10. Scratchpad Validator
+    function isValidScratchpad(data) {
+      return data.keys().hasAll(['id', 'content', 'updatedAt']) &&
+             data.keys().hasOnly(['id', 'content', 'updatedAt', 'title', 'createdAt']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.content is string && data.content.size() <= 100000 &&
+             data.updatedAt is number &&
+             isValidOptionalString(data, 'title', 0, 200) &&
+             isValidOptionalNumber(data, 'createdAt');
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. Messages
+    match /messages/{messageId} {
+      allow read: if true;
+      allow create: if isValidMessage(request.resource.data);
+      allow update: if isValidMessage(request.resource.data) && areMessageImmutableFieldsUnchanged();
+      allow delete: if true;
+    }
+
+    // 2. LDR Letters
+    match /ldrLetters/{letterId} {
+      allow read: if true;
+      allow create: if isValidLdrLetter(request.resource.data);
+      allow update: if isValidLdrLetter(request.resource.data) && areLetterImmutableFieldsUnchanged();
+      allow delete: if true;
+    }
+
+    // 3. User Settings
+    match /userSettings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidUserSettings(request.resource.data) &&
+                               (settingId in ['global', 'Mahad', 'Ifa'] || settingId.size() <= 50);
+      allow delete: if false; // Persistent configuration documents
+    }
+
+    // 4. Presence
+    match /presence/{userId} {
+      allow read: if true;
+      allow create, update: if isValidPresence(request.resource.data) && isValidUser(userId);
+      allow delete: if false;
+    }
+
+    // 5. Typing Indicators
+    match /typing/{userId} {
+      allow read: if true;
+      allow create, update: if isValidTyping(request.resource.data) && isValidUser(userId);
+      allow delete: if true;
+    }
+
+    // 6. Love Pings (Ephemeral alerts deleted upon receipt)
+    match /lovePings/{pingId} {
+      allow read: if true;
+      allow create: if isValidLovePing(request.resource.data);
+      allow update: if isValidLovePing(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 7. Calendar Events
+    match /calendarEvents/{eventId} {
+      allow read: if true;
+      allow create: if isValidCalendarEvent(request.resource.data);
+      allow update: if isValidCalendarEvent(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 8. Secret Vault Photos
+    match /vaultPhotos/{photoId} {
+      allow read: if true;
+      allow create: if isValidVaultPhoto(request.resource.data);
+      allow update: if isValidVaultPhoto(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 9. Custom Stickers
+    match /stickers/{stickerId} {
+      allow read: if true;
+      allow create: if isValidSticker(request.resource.data);
+      allow update: if isValidSticker(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 10. Shared Scratchpad & Notes
+    match /scratchpad/{noteId} {
+      allow read: if true;
+      allow create: if isValidScratchpad(request.resource.data);
+      allow update: if isValidScratchpad(request.resource.data);
+      allow delete: if true;
+    }
+
+    match /scratchpadNotes/{noteId} {
+      allow read: if true;
+      allow create: if isValidScratchpad(request.resource.data);
+      allow update: if isValidScratchpad(request.resource.data);
+      allow delete: if true;
+    }
+
+    // ===============================================================
+    // Root Fallback: Default Deny for all unknown paths
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

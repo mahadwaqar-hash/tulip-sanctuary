@@ -33,6 +33,8 @@ export function useFirestore<T>(collectionName: string, orderField: string = 'cr
         items.push({ id: doc.id, ...doc.data() } as T);
       });
       setData(items);
+    }, (err) => {
+      console.warn(`[Firestore] Subscription error on ${collectionName}:`, err);
     });
 
     return () => unsubscribe();
@@ -68,6 +70,8 @@ export function useChatMessages(limitCount = 30) {
       if (snapshot.docs.length < limitCount) {
         setHasMore(false);
       }
+    }, (err) => {
+      console.warn('[Firestore] Chat messages subscription error:', err);
     });
 
     return () => unsubscribe();
