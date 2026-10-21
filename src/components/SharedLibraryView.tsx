@@ -308,6 +308,16 @@ interface SharedLibraryViewProps {
 }
 
 export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibraryViewProps) {
+  // Reliable active user derivation from prop or sessionStorage
+  const activeUser: 'Mahad' | 'Ifa' = useMemo(() => {
+    if (currentUser === 'Mahad' || currentUser === 'Ifa') return currentUser;
+    try {
+      const session = sessionStorage.getItem('tulip_user');
+      if (session === 'Mahad' || session === 'Ifa') return session as 'Mahad' | 'Ifa';
+    } catch (e) {}
+    return 'Mahad';
+  }, [currentUser]);
+
   // Books State (persisted to localStorage with automatic genre upgrade)
   const [books, setBooks] = useState<SavedBook[]>(() => {
     try {
@@ -339,6 +349,18 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
 
   // Active Shelf Filter: 'all' | 'reading' | 'favorites' | 'wishlist'
   const [activeFilter, setActiveFilter] = useState<'all' | ShelfCategory>('all');
+
+  // User Ownership Filter: 'all' | 'Mahad' | 'Ifa'
+  const [userFilter, setUserFilter] = useState<'all' | 'Mahad' | 'Ifa'>('all');
+
+  // Custom Draft Modal State
+  const [showCustomDraftModal, setShowCustomDraftModal] = useState(false);
+  const [customTitle, setCustomTitle] = useState('');
+  const [customAuthor, setCustomAuthor] = useState('');
+  const [customGenre, setCustomGenre] = useState('');
+  const [customShelf, setCustomShelf] = useState<ShelfCategory>('reading');
+  const [customCoverUrl, setCustomCoverUrl] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -408,14 +430,43 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
       genres: book.genres && book.genres.length > 0 ? book.genres : [book.genre],
       shelf: targetShelf,
       rating: 5,
-      addedBy: (currentUser as 'Mahad' | 'Ifa') || 'Mahad',
-      notes: `Added to our ${targetShelf} shelf with love 💕`,
+      addedBy: activeUser,
+      notes: `Added to our ${targetShelf} shelf with love by ${activeUser} 💕`,
       year: book.year
     };
 
     setBooks(prev => [newBook, ...prev]);
     setSearchQuery('');
     setShowResultsDropdown(false);
+    if ('vibrate' in navigator) navigator.vibrate([40, 50]);
+  };
+
+  const handleAddCustomDraft = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!customTitle.trim()) return;
+
+    const resolvedGenre = customGenre.trim() || 'Personal Draft';
+    const newBook: SavedBook = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      title: customTitle.trim(),
+      author: customAuthor.trim() || (activeUser === 'Mahad' ? 'Mahad' : 'Ifa'),
+      coverUrl: customCoverUrl.trim() || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300',
+      genre: resolvedGenre,
+      genres: [resolvedGenre],
+      shelf: customShelf,
+      rating: 5,
+      addedBy: activeUser,
+      notes: customNotes.trim() || `Draft placed on our ${customShelf} shelf by ${activeUser} 💕`,
+      year: new Date().getFullYear().toString()
+    };
+
+    setBooks(prev => [newBook, ...prev]);
+    setShowCustomDraftModal(false);
+    setCustomTitle('');
+    setCustomAuthor('');
+    setCustomGenre('');
+    setCustomCoverUrl('');
+    setCustomNotes('');
     if ('vibrate' in navigator) navigator.vibrate([40, 50]);
   };
 
@@ -448,145 +499,206 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
   return (
     <div className="flex-1 flex flex-col h-full rounded-[36px] clay-card overflow-hidden border border-border relative select-none">
       
-      {/* HEADER WITH ANIMATED EXPANDABLE SEARCH BAR & FILTERS */}
-      <div className="px-6 sm:px-8 py-5 border-b border-border bg-surface/85 backdrop-blur-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-20">
+      {/* HEADER WITH ANIMATED SEARCH BAR, + ADD CUSTOM DRAFT, & FILTERS */}
+      <div className="px-6 sm:px-8 py-4 sm:py-5 border-b border-border bg-surface/85 backdrop-blur-2xl flex flex-col gap-3.5 relative z-20">
         
-        {/* Title & Badge */}
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-[22px] clay-btn text-white flex items-center justify-center shrink-0 shadow-md">
-            <BookOpen className="w-6 h-6 animate-pulse" />
+        {/* Top Row: Title & Search + Add Draft */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Title & Badge */}
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-[22px] clay-btn text-white flex items-center justify-center shrink-0 shadow-md">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold font-serif-italic text-text-main flex items-center gap-2 leading-tight">
+                <span>Shared Library</span>
+                <span className="font-fairytale text-xl text-pastel-pink-400 lowercase font-normal">for mahad & ifa</span>
+              </h2>
+              <p className="text-xs text-text-muted font-medium mt-0.5 flex items-center gap-2">
+                <span>{books.length} volumes nestled on our shelves</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-pastel-pink-400" />
+                <span className="font-semibold text-text-main/80">Active: {activeUser === 'Mahad' ? 'Mahad 🌹' : 'Ifa 🌷'}</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold font-serif-italic text-text-main flex items-center gap-2 leading-tight">
-              <span>Shared Library</span>
-              <span className="font-fairytale text-xl text-pastel-pink-400 lowercase font-normal">for mahad & ifa</span>
-            </h2>
-            <p className="text-xs text-text-muted font-medium mt-0.5 flex items-center gap-2">
-              <span>{books.length} volumes nestled on our 3D shelves</span>
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-pastel-pink-400" />
-              <span>{currentUser === 'Mahad' ? 'Mahad’s Haven 🌹' : 'Ifa’s Haven 🌷'}</span>
-            </p>
+
+          {/* Search Bar & + Add Custom Draft */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Animated Search Bar: Floating glass-clay pill that expands and glows on focus */}
+            <div className="relative group transition-all duration-300 w-full sm:w-auto">
+              <div className="flex items-center px-4 py-2 rounded-full clay-card border border-border/70 backdrop-blur-xl focus-within:ring-4 focus-within:ring-[var(--accent-glow)] focus-within:border-pastel-pink-400 focus-within:shadow-[0_0_24px_var(--accent-glow)] transition-all duration-300 w-full sm:w-56 focus-within:sm:w-80">
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 text-pastel-pink-400 animate-spin mr-2 shrink-0" />
+                ) : (
+                  <Search className="w-4 h-4 text-text-muted group-hover:text-pastel-pink-400 transition-colors mr-2 shrink-0" />
+                )}
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => { if (searchResults.length > 0) setShowResultsDropdown(true); }}
+                  placeholder="Search any book or author..."
+                  className="w-full bg-transparent text-xs text-text-main placeholder-text-muted/60 outline-none font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setShowResultsDropdown(false); }}
+                    className="p-1 rounded-full text-text-muted hover:text-text-main transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              <AnimatePresence>
+                {showResultsDropdown && searchResults.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.96 }}
+                    transition={springBezier}
+                    className="absolute right-0 top-full mt-3 w-full sm:w-96 p-3 rounded-[28px] clay-card bg-surface/95 backdrop-blur-2xl border border-border shadow-2xl z-50 flex flex-col gap-2 max-h-96 overflow-y-auto"
+                  >
+                    <div className="flex items-center justify-between px-2 pt-1 pb-2 border-b border-border/40">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                          Search Results ({searchResults.length})
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-pastel-pink-400/15 text-pastel-pink-400 text-[9px] font-bold">
+                          Adding as {activeUser} {activeUser === 'Mahad' ? '🌹' : '🌷'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setShowResultsDropdown(false)}
+                        className="text-[10px] font-bold text-pastel-pink-400 hover:underline cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    {searchResults.map((result) => {
+                      const tagStyle = getGenreBadgeStyle(result.genre);
+                      const allGenres = result.genres && result.genres.length > 0 ? result.genres : [result.genre];
+
+                      return (
+                        <div
+                          key={result.id}
+                          className="p-2.5 rounded-2xl bg-surface-hover/70 hover:bg-surface-hover border border-border/40 hover:border-pastel-pink-400/40 transition-all flex items-center justify-between gap-3 group"
+                        >
+                          <img
+                            src={result.coverUrl}
+                            alt={result.title}
+                            className="w-10 h-14 object-cover rounded-md shadow-sm border border-black/10 shrink-0"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=200';
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-xs font-bold text-text-main truncate font-serif-italic">
+                              {result.title}
+                            </h4>
+                            <p className="text-[11px] text-text-muted truncate">
+                              {result.author} {result.year ? `(${result.year})` : ''}
+                            </p>
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {allGenres.slice(0, 2).map((g) => {
+                                const s = getGenreBadgeStyle(g);
+                                return (
+                                  <span key={g} className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${s.bg} ${s.text} ${s.border} ${s.glow}`}>
+                                    {g}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button
+                              onClick={() => handleAddSearchedBook(result, 'reading')}
+                              className="px-2 py-1 rounded-full bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
+                              title={`Add to Reading as ${activeUser}`}
+                            >
+                              <Plus className="w-3 h-3" /> Reading
+                            </button>
+                            <button
+                              onClick={() => handleAddSearchedBook(result, 'wishlist')}
+                              className="px-2 py-1 rounded-full bg-surface hover:bg-surface-hover border border-border text-text-muted hover:text-text-main text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                              title={`Add to Wishlist as ${activeUser}`}
+                            >
+                              <Bookmark className="w-3 h-3" /> Wishlist
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* + Add Custom Draft Button */}
+            <button
+              onClick={() => {
+                setCustomAuthor(activeUser === 'Mahad' ? 'Mahad' : 'Ifa');
+                setShowCustomDraftModal(true);
+              }}
+              className="px-3.5 py-2 rounded-full clay-btn text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+              title={`Add a custom draft or personal book as ${activeUser}`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">+ Add Custom Draft</span>
+              <span className="sm:hidden">+ Draft</span>
+            </button>
           </div>
         </div>
 
-        {/* Search Bar & Shelves Filter Pills */}
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        {/* Bottom Row: User Ownership Toggle & Shelf Filters */}
+        <div className="flex items-center justify-between gap-3 flex-wrap pt-2 border-t border-border/40">
           
-          {/* Animated Search Bar: Floating glass-clay pill that expands and glows on focus */}
-          <div className="relative group transition-all duration-300 w-full sm:w-auto">
-            <div className="flex items-center px-4 py-2.5 rounded-full clay-card border border-border/70 backdrop-blur-xl focus-within:ring-4 focus-within:ring-[var(--accent-glow)] focus-within:border-pastel-pink-400 focus-within:shadow-[0_0_24px_var(--accent-glow)] transition-all duration-300 w-full sm:w-56 focus-within:sm:w-80">
-              {isSearching ? (
-                <Loader2 className="w-4 h-4 text-pastel-pink-400 animate-spin mr-2 shrink-0" />
-              ) : (
-                <Search className="w-4 h-4 text-text-muted group-hover:text-pastel-pink-400 transition-colors mr-2 shrink-0" />
-              )}
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => { if (searchResults.length > 0) setShowResultsDropdown(true); }}
-                placeholder="Search any book or author..."
-                className="w-full bg-transparent text-xs text-text-main placeholder-text-muted/60 outline-none font-medium"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => { setSearchQuery(''); setShowResultsDropdown(false); }}
-                  className="p-1 rounded-full text-text-muted hover:text-text-main transition-colors cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Search Results Dropdown */}
-            <AnimatePresence>
-              {showResultsDropdown && searchResults.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                  transition={springBezier}
-                  className="absolute right-0 top-full mt-3 w-full sm:w-96 p-3 rounded-[28px] clay-card bg-surface/95 backdrop-blur-2xl border border-border shadow-2xl z-50 flex flex-col gap-2 max-h-96 overflow-y-auto"
-                >
-                  <div className="flex items-center justify-between px-2 pt-1 pb-2 border-b border-border/40">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                      Search Results ({searchResults.length})
-                    </span>
-                    <button
-                      onClick={() => setShowResultsDropdown(false)}
-                      className="text-[10px] font-bold text-pastel-pink-400 hover:underline cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                  {searchResults.map((result) => {
-                    const tagStyle = getGenreBadgeStyle(result.genre);
-                    const allGenres = result.genres && result.genres.length > 0 ? result.genres : [result.genre];
-
-                    return (
-                      <div
-                        key={result.id}
-                        className="p-2.5 rounded-2xl bg-surface-hover/70 hover:bg-surface-hover border border-border/40 hover:border-pastel-pink-400/40 transition-all flex items-center justify-between gap-3 group"
-                      >
-                        <img
-                          src={result.coverUrl}
-                          alt={result.title}
-                          className="w-10 h-14 object-cover rounded-md shadow-sm border border-black/10 shrink-0"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=200';
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-text-main truncate font-serif-italic">
-                            {result.title}
-                          </h4>
-                          <p className="text-[11px] text-text-muted truncate">
-                            {result.author} {result.year ? `(${result.year})` : ''}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            {allGenres.slice(0, 2).map((g) => {
-                              const s = getGenreBadgeStyle(g);
-                              return (
-                                <span key={g} className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${s.bg} ${s.text} ${s.border} ${s.glow}`}>
-                                  {g}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1 shrink-0">
-                          <button
-                            onClick={() => handleAddSearchedBook(result, 'reading')}
-                            className="px-2 py-1 rounded-full bg-pastel-pink-400/20 hover:bg-pastel-pink-400 text-pastel-pink-400 hover:text-white text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Add to Reading"
-                          >
-                            <Plus className="w-3 h-3" /> Reading
-                          </button>
-                          <button
-                            onClick={() => handleAddSearchedBook(result, 'wishlist')}
-                            className="px-2 py-1 rounded-full bg-surface hover:bg-surface-hover border border-border text-text-muted hover:text-text-main text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                            title="Add to Wishlist"
-                          >
-                            <Bookmark className="w-3 h-3" /> Wishlist
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
+          {/* User Ownership Toggle: "All Books", "Added by Mahad", "Added by Ifa" */}
+          <div className="flex items-center gap-1 p-1 rounded-full bg-surface-hover/80 border border-border/50">
+            <button
+              onClick={() => setUserFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                userFilter === 'all'
+                  ? 'clay-btn text-white shadow-xs'
+                  : 'text-text-muted hover:text-text-main hover:bg-surface/60'
+              }`}
+            >
+              All Books
+            </button>
+            <button
+              onClick={() => setUserFilter('Mahad')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                userFilter === 'Mahad'
+                  ? 'clay-btn text-white shadow-xs'
+                  : 'text-text-muted hover:text-text-main hover:bg-surface/60'
+              }`}
+            >
+              <span>Added by Mahad</span>
+              <span>🌹</span>
+            </button>
+            <button
+              onClick={() => setUserFilter('Ifa')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                userFilter === 'Ifa'
+                  ? 'clay-btn text-white shadow-xs'
+                  : 'text-text-muted hover:text-text-main hover:bg-surface/60'
+              }`}
+            >
+              <span>Added by Ifa</span>
+              <span>🌷</span>
+            </button>
           </div>
 
           {/* Shelf Category Filter Pills */}
-          <div className="hidden md:flex items-center gap-1.5 p-1 rounded-full bg-surface-hover/80 border border-border/50">
+          <div className="flex items-center gap-1 p-1 rounded-full bg-surface-hover/80 border border-border/50 overflow-x-auto">
             {(['all', 'reading', 'favorites', 'wishlist'] as const).map((filter) => {
               const isActive = activeFilter === filter;
               const labels = {
-                all: 'All Books',
+                all: 'All Shelves',
                 reading: 'Reading 💕',
                 favorites: 'Favorites 🌷',
                 wishlist: 'Wishlist ✨'
@@ -595,7 +707,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
                     isActive 
                       ? 'clay-btn text-white shadow-xs' 
                       : 'text-text-muted hover:text-text-main hover:bg-surface/60'
@@ -608,13 +720,18 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
           </div>
 
         </div>
+
       </div>
 
       {/* 3D CLAY SHELVES CONTAINER (Scrollable) */}
       <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 space-y-12 relative z-10">
         
         {filteredShelves.map((shelf) => {
-          const shelfBooks = books.filter(b => b.shelf === shelf.id);
+          const shelfBooks = books.filter(b => {
+            const matchesShelf = b.shelf === shelf.id;
+            const matchesUser = userFilter === 'all' || b.addedBy === userFilter;
+            return matchesShelf && matchesUser;
+          });
 
           return (
             <div key={shelf.id} className="relative flex flex-col">
@@ -628,6 +745,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                       <span>{shelf.title}</span>
                       <span className="px-2.5 py-0.5 rounded-full bg-pastel-pink-400/15 border border-pastel-pink-400/30 text-pastel-pink-400 text-[10px] font-bold">
                         {shelfBooks.length} {shelfBooks.length === 1 ? 'book' : 'books'}
+                        {userFilter !== 'all' ? ` by ${userFilter}` : ''}
                       </span>
                     </h3>
                     <p className="text-[11px] text-text-muted font-medium">
@@ -638,7 +756,9 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
 
                 {shelfBooks.length === 0 && (
                   <span className="text-xs text-text-muted italic">
-                    Empty shelf — search a book above to place it here!
+                    {userFilter === 'all' 
+                      ? 'Empty shelf — search a book above or add a custom draft!' 
+                      : `No books added by ${userFilter} on this shelf yet.`}
                   </span>
                 )}
               </div>
@@ -694,14 +814,22 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                           }}
                         />
 
-                        {/* Bottom Gradient Overlay for Title & Genre */}
+                        {/* Bottom Gradient Overlay for Title, Author & User Ownership */}
                         <div className="absolute inset-x-0 bottom-0 pt-10 pb-2.5 px-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-10 flex flex-col justify-end">
                           <h4 className="text-white text-[11px] sm:text-xs font-bold leading-tight font-serif-italic truncate drop-shadow-sm">
                             {book.title}
                           </h4>
-                          <p className="text-stone-300 text-[9px] sm:text-[10px] truncate leading-tight mt-0.5">
-                            {book.author}
-                          </p>
+                          <div className="flex items-center justify-between gap-1 mt-0.5">
+                            <p className="text-stone-300 text-[9px] sm:text-[10px] truncate leading-tight flex-1">
+                              {book.author}
+                            </p>
+                            <span 
+                              className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-black/50 text-white/95 border border-white/10 shrink-0"
+                              title={`Added by ${book.addedBy}`}
+                            >
+                              {book.addedBy === 'Mahad' ? '🌹 M' : '🌷 I'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Hover Quick Action Heart/Star Badge */}
@@ -712,13 +840,19 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                         </div>
                       </motion.div>
 
-                      {/* Vibrant Actual Genre Tag: Tiny ultra-rounded clay pill with high-contrast neon/pastel glow based on real genre */}
-                      <div className="mt-2.5 select-none z-10 flex items-center justify-center gap-1 max-w-[170px] flex-wrap">
+                      {/* Vibrant Actual Genre Tag & Owner Pill */}
+                      <div className="mt-2.5 select-none z-10 flex items-center justify-center gap-1.5 max-w-[170px] flex-wrap">
                         <span 
                           className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border transition-transform hover:scale-105 whitespace-nowrap ${tagStyle.bg} ${tagStyle.text} ${tagStyle.border} ${tagStyle.glow}`}
                           title={book.genre}
                         >
                           {book.genre}
+                        </span>
+                        <span 
+                          className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-surface/85 border border-border text-text-muted shadow-2xs whitespace-nowrap"
+                          title={`Brought to shelf by ${book.addedBy}`}
+                        >
+                          {book.addedBy === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'}
                         </span>
                       </div>
 
@@ -795,8 +929,9 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                         </span>
                       );
                     })}
-                    <span className="text-[10px] text-text-muted font-medium ml-1">
-                      Added by {selectedBook.addedBy}
+                    <span className="px-2 py-0.5 rounded-full bg-pastel-pink-400/15 border border-pastel-pink-400/30 text-pastel-pink-400 text-[9px] font-bold flex items-center gap-1 ml-1">
+                      <span>Brought by {selectedBook.addedBy}</span>
+                      <span>{selectedBook.addedBy === 'Mahad' ? '🌹' : '🌷'}</span>
                     </span>
                   </div>
 
@@ -876,6 +1011,188 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                   Done
                 </button>
               </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CUSTOM DRAFT MODAL */}
+      <AnimatePresence>
+        {showCustomDraftModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 20 }}
+              transition={springBezier}
+              className="max-w-md w-full p-6 sm:p-7 rounded-[36px] clay-card bg-surface border border-border shadow-2xl flex flex-col relative overflow-hidden max-h-[92vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-border/40 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full clay-btn text-white flex items-center justify-center text-sm shadow-xs">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold font-serif-italic text-text-main leading-tight">
+                      Add Custom Book or Draft
+                    </h3>
+                    <p className="text-[11px] text-text-muted">
+                      Bring your personal favorite or draft to our shared library
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowCustomDraftModal(false)}
+                  className="p-1.5 rounded-full text-text-muted hover:text-text-main hover:bg-surface-hover transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Active User Ownership Banner */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-hover/80 border border-border/50 mb-4">
+                <span className="text-xs text-text-muted font-medium">Adding to shelf as:</span>
+                <span className="px-3 py-1 rounded-full text-xs font-bold clay-btn text-white shadow-xs flex items-center gap-1.5">
+                  <span>{activeUser}</span>
+                  <span>{activeUser === 'Mahad' ? '🌹' : '🌷'}</span>
+                </span>
+              </div>
+
+              <form onSubmit={handleAddCustomDraft} className="space-y-4">
+                {/* Book Title */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Book Title <span className="text-pastel-pink-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    placeholder="e.g. Midnight Letters, Our Tokyo Journal..."
+                    className="w-full bg-surface-hover px-3.5 py-2.5 rounded-2xl border border-border text-xs text-text-main placeholder-text-muted/60 outline-none focus:border-pastel-pink-400 focus:ring-2 focus:ring-pastel-pink-400/20 font-medium shadow-inner"
+                  />
+                </div>
+
+                {/* Author Name */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Author / Creator
+                  </label>
+                  <input
+                    type="text"
+                    value={customAuthor}
+                    onChange={(e) => setCustomAuthor(e.target.value)}
+                    placeholder={`e.g. ${activeUser}, or author name`}
+                    className="w-full bg-surface-hover px-3.5 py-2.5 rounded-2xl border border-border text-xs text-text-main placeholder-text-muted/60 outline-none focus:border-pastel-pink-400 focus:ring-2 focus:ring-pastel-pink-400/20 font-medium shadow-inner"
+                  />
+                </div>
+
+                {/* Genre & Quick Tags */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Genre / Classification
+                  </label>
+                  <input
+                    type="text"
+                    value={customGenre}
+                    onChange={(e) => setCustomGenre(e.target.value)}
+                    placeholder="e.g. Contemporary Romance, Cozy Fantasy..."
+                    className="w-full bg-surface-hover px-3.5 py-2.5 rounded-2xl border border-border text-xs text-text-main placeholder-text-muted/60 outline-none focus:border-pastel-pink-400 focus:ring-2 focus:ring-pastel-pink-400/20 font-medium shadow-inner mb-2"
+                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['Contemporary Romance', 'Romantic Fantasy', 'Magical Realism', 'Poetry', 'Personal Memoir'].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setCustomGenre(preset)}
+                        className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-surface hover:bg-surface-hover border border-border text-text-muted hover:text-pastel-pink-400 transition-colors cursor-pointer"
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target Shelf Selection */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                    Target Shelf
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['reading', 'favorites', 'wishlist'] as ShelfCategory[]).map((shelfId) => {
+                      const isSelected = customShelf === shelfId;
+                      const labels: Record<ShelfCategory, string> = {
+                        reading: 'Reading 💕',
+                        favorites: 'Favorites 🌷',
+                        wishlist: 'Wishlist ✨'
+                      };
+                      return (
+                        <button
+                          key={shelfId}
+                          type="button"
+                          onClick={() => setCustomShelf(shelfId)}
+                          className={`py-2 px-2 rounded-2xl text-[11px] font-bold text-center transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'clay-btn text-white border-transparent shadow-xs'
+                              : 'bg-surface-hover/70 hover:bg-surface-hover border-border text-text-muted hover:text-text-main'
+                          }`}
+                        >
+                          {labels[shelfId]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Cover URL (Optional) */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Cover Image URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={customCoverUrl}
+                    onChange={(e) => setCustomCoverUrl(e.target.value)}
+                    placeholder="https://... (or leave blank for romantic default)"
+                    className="w-full bg-surface-hover px-3.5 py-2.5 rounded-2xl border border-border text-xs text-text-main placeholder-text-muted/60 outline-none focus:border-pastel-pink-400 focus:ring-2 focus:ring-pastel-pink-400/20 font-medium shadow-inner"
+                  />
+                </div>
+
+                {/* Romantic Note */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Special Thought or Dedication (Optional)
+                  </label>
+                  <textarea
+                    value={customNotes}
+                    onChange={(e) => setCustomNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Why this volume is special to us..."
+                    className="w-full bg-surface-hover px-3.5 py-2.5 rounded-2xl border border-border text-xs text-text-main placeholder-text-muted/60 outline-none focus:border-pastel-pink-400 focus:ring-2 focus:ring-pastel-pink-400/20 font-medium resize-none shadow-inner"
+                  />
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomDraftModal(false)}
+                    className="px-4 py-2 rounded-full text-xs font-semibold text-text-muted hover:text-text-main cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-full clay-btn text-white text-xs font-bold uppercase tracking-wider cursor-pointer shadow-md flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Place on Shelf</span>
+                  </button>
+                </div>
+              </form>
 
             </motion.div>
           </div>
