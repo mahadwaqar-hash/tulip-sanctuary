@@ -19,12 +19,14 @@ import {
   Eye,
   EyeOff,
   Palette,
-  BookOpen
+  BookOpen,
+  Film
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
 import SharedLibraryView from './components/SharedLibraryView';
+import WatchlistView from './components/WatchlistView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
@@ -277,21 +279,36 @@ function ProfileSelectScreen({ onSelect }: { onSelect: (user: 'Mahad' | 'Ifa') =
   );
 }
 
-// Settings Modal for changing passcodes
+// Settings Modal for changing passcodes & API keys
 function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => void; currentPassword?: string }) {
   const [sanctuaryPass, setSanctuaryPass] = useState(() => {
     return currentPassword || localStorage.getItem('tulip_custom_sanctuary_pass') || '311212';
+  });
+  const [tmdbApiKey, setTmdbApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('tulip_tmdb_api_key') || '';
+    } catch (e) {
+      return '';
+    }
   });
   const [showPass, setShowPass] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = sanctuaryPass.trim();
-    if (!clean) return;
+    const cleanPass = sanctuaryPass.trim();
+    const cleanTmdb = tmdbApiKey.trim();
+    if (!cleanPass) return;
 
-    await fb.userSettings.set('global', { sanctuaryPassword: clean });
-    localStorage.setItem('tulip_custom_sanctuary_pass', clean);
+    await fb.userSettings.set('global', { 
+      sanctuaryPassword: cleanPass,
+      ...(cleanTmdb ? { tmdbApiKey: cleanTmdb } : {})
+    });
+    localStorage.setItem('tulip_custom_sanctuary_pass', cleanPass);
+    if (cleanTmdb) {
+      localStorage.setItem('tulip_tmdb_api_key', cleanTmdb);
+    }
+    window.dispatchEvent(new Event('tmdb_key_updated'));
     setSavedNotice(true);
     if ('vibrate' in navigator) navigator.vibrate([40, 40]);
     setTimeout(() => {
@@ -318,12 +335,12 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
 
         <div className="flex items-center gap-2 mb-2 text-pastel-pink-400 font-bold text-xs uppercase tracking-wider">
           <ShieldCheck className="w-4 h-4" />
-          <span>Security & Password</span>
+          <span>Security & Settings</span>
         </div>
 
-        <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Change Password</h3>
+        <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Sanctuary Settings</h3>
         <p className="text-xs text-text-muted mb-6">
-          Change the password required to enter our sanctuary. Updating it here immediately syncs across all devices for both of you.
+          Manage your shared sanctuary password and integration keys. Changes immediately sync across all devices for both of you.
         </p>
 
         <form onSubmit={handleSave} className="flex flex-col gap-4">
@@ -349,6 +366,32 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
             </div>
             <span className="text-[11px] text-text-muted/70 mt-1.5 block">
               Default password: <strong className="text-pastel-pink-400">311212</strong>
+            </span>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-text-main uppercase tracking-wider block">
+                TMDB API Key (Watchlist)
+              </label>
+              <a
+                href="https://www.themoviedb.org/settings/api"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-pastel-pink-400 hover:underline flex items-center gap-1 font-semibold"
+              >
+                Get Key ↗
+              </a>
+            </div>
+            <input
+              type="text"
+              value={tmdbApiKey}
+              onChange={(e) => setTmdbApiKey(e.target.value)}
+              placeholder="e.g. 32-character TMDB v3 API Key"
+              className="w-full bg-surface-hover p-3.5 rounded-2xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-mono"
+            />
+            <span className="text-[11px] text-text-muted/70 mt-1 block">
+              Powers the Watchlist tab to search movies, TV shows, and anime.
             </span>
           </div>
 
@@ -430,7 +473,7 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'library' | 'photos' | 'scratchpad'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad'>('chat');
   const [showSettings, setShowSettings] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
@@ -455,6 +498,17 @@ export default function App() {
       } catch (e) {}
     }
   }, [globalSettings.sanctuaryPassword]);
+
+  useEffect(() => {
+    if (globalSettings.tmdbApiKey) {
+      try {
+        if (!localStorage.getItem('tulip_tmdb_api_key')) {
+          localStorage.setItem('tulip_tmdb_api_key', globalSettings.tmdbApiKey);
+          window.dispatchEvent(new Event('tmdb_key_updated'));
+        }
+      } catch (e) {}
+    }
+  }, [globalSettings.tmdbApiKey]);
 
   // Global Full Screen Love Burst state
   const [currentBurst, setCurrentBurst] = useState<{ type: LoveBurstType; sender: 'Mahad' | 'Ifa' } | null>(null);
@@ -614,6 +668,7 @@ export default function App() {
     { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
     { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
     { id: 'library', label: 'Shared Library', emoji: '📚', icon: BookOpen },
+    { id: 'watchlist', label: 'Watchlist', emoji: '🎬', icon: Film },
   ];
 
   return (
@@ -838,13 +893,25 @@ export default function App() {
                       <SharedLibraryView currentUser={currentUser} />
                     </motion.div>
                   )}
+                  {activeTab === 'watchlist' && (
+                    <motion.div
+                      key="watchlist"
+                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                      className="h-full pt-1 lg:pt-4 pb-2"
+                    >
+                      <WatchlistView currentUser={currentUser} />
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </div>
 
-            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary & Shared Library to provide spacious views) */}
+            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary, Shared Library & Watchlist to provide spacious views) */}
             <AnimatePresence>
-              {activeTab !== 'ldr' && activeTab !== 'library' && (
+              {activeTab !== 'ldr' && activeTab !== 'library' && activeTab !== 'watchlist' && (
                 <motion.div
                   key="right-hud"
                   initial={{ opacity: 0, width: 0, x: 20 }}

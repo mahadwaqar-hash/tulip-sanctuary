@@ -46,60 +46,42 @@ export function useFirestore<T>(collectionName: string, orderField: string = 'cr
 // Optimized Chat Fetching Hook
 export function useChatMessages(limitCount = 30) {
   const [messages, setMessages] = useState<any[]>([]);
+  const [currentLimit, setCurrentLimit] = useState(limitCount);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const lastDocRef = useRef<DocumentSnapshot | null>(null);
 
   useEffect(() => {
-    // Initial fetch for the latest messages
+    // Real-time listener with expanding limit for seamless older message loading
     const q = query(
       collection(firestoreDB, 'messages'), 
       orderBy('createdAt', 'desc'), 
-      limit(limitCount)
+      limit(currentLimit)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
-      }
       const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       // We fetch desc so newest is first. We reverse to render oldest at top.
       setMessages(newMessages.reverse());
       
-      if (snapshot.docs.length < limitCount) {
+      if (snapshot.docs.length < currentLimit) {
         setHasMore(false);
+      } else {
+        setHasMore(true);
       }
+      setLoadingMore(false);
     }, (err) => {
       console.warn('[Firestore] Chat messages subscription error:', err);
+      setLoadingMore(false);
     });
 
     return () => unsubscribe();
-  }, [limitCount]);
+  }, [currentLimit]);
 
-  const fetchMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !lastDocRef.current) return;
+  const fetchMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
     setLoadingMore(true);
-
-    const q = query(
-      collection(firestoreDB, 'messages'),
-      orderBy('createdAt', 'desc'),
-      startAfter(lastDocRef.current),
-      limit(limitCount)
-    );
-
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
-      const olderMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
-      
-      setMessages(prev => [...olderMessages, ...prev]);
-    }
-
-    if (snapshot.docs.length < limitCount) {
-      setHasMore(false);
-    }
-    setLoadingMore(false);
+    setCurrentLimit(prev => prev + limitCount);
   }, [loadingMore, hasMore, limitCount]);
 
   return { messages, fetchMore, loadingMore, hasMore };

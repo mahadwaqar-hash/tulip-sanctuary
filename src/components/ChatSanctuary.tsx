@@ -1142,6 +1142,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageMsgRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevOldestMsgIdRef = useRef<string | null>(null);
+  const prevNewestMsgIdRef = useRef<string | null>(null);
+  const prevScrollHeightRef = useRef<number>(0);
+  const isInitialChatLoadRef = useRef<boolean>(true);
   // Auto-mark incoming messages as seen/read when viewing the chat
   useEffect(() => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
@@ -1186,6 +1191,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
+        if (chatScrollContainerRef.current) {
+          prevScrollHeightRef.current = chatScrollContainerRef.current.scrollHeight;
+        }
         fetchMore();
       }
     });
@@ -1194,14 +1202,42 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
   const customStickers = useFirestore<any>('stickers', 'createdAt', true);
 
-  // Auto-scroll logic: only scroll to bottom if we were already at bottom or if it's the initial load.
-  // For simplicity, let's just scroll to bottom if the new message is from us.
+  // Smart Auto-Scroll & Scroll Position Preservation
   useEffect(() => {
-    // Only scroll if we are not loading older messages
-    if (!loadingMore) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!encryptedMessages || encryptedMessages.length === 0) return;
+
+    const oldestId = encryptedMessages[0]?.id;
+    const newestId = encryptedMessages[encryptedMessages.length - 1]?.id;
+
+    // 1. Initial Load: scroll to bottom once
+    if (isInitialChatLoadRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      isInitialChatLoadRef.current = false;
+      prevOldestMsgIdRef.current = oldestId;
+      prevNewestMsgIdRef.current = newestId;
+      return;
     }
-  }, [encryptedMessages.length, loadingMore]);
+
+    // 2. Older messages loaded (prepended at top): preserve viewport position!
+    if (oldestId && oldestId !== prevOldestMsgIdRef.current && prevOldestMsgIdRef.current) {
+      if (chatScrollContainerRef.current && prevScrollHeightRef.current > 0) {
+        const heightDifference = chatScrollContainerRef.current.scrollHeight - prevScrollHeightRef.current;
+        if (heightDifference > 0) {
+          chatScrollContainerRef.current.scrollTop += heightDifference;
+        }
+      }
+      prevOldestMsgIdRef.current = oldestId;
+      prevNewestMsgIdRef.current = newestId;
+      return;
+    }
+
+    // 3. New message received or sent (appended at bottom): scroll to bottom
+    if (newestId && newestId !== prevNewestMsgIdRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      prevOldestMsgIdRef.current = oldestId;
+      prevNewestMsgIdRef.current = newestId;
+    }
+  }, [encryptedMessages]);
 
   const typingStatuses = useFirestore<any>('typing', 'updatedAt', true);
   const otherUser = currentUser === 'Mahad' ? 'Ifa' : 'Mahad';
@@ -1806,6 +1842,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       {/* MESSAGE STREAM */}
       <div 
+        ref={chatScrollContainerRef}
         onClick={(e) => { 
           const target = e.target as HTMLElement;
           if (!target.closest('[data-msg-bubble]') && !target.closest('[data-action-row]')) {
