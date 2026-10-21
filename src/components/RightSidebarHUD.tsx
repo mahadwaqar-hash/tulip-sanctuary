@@ -102,7 +102,7 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
   const daysLeft = isNaN(diff) || diff <= 0 ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="w-80 hidden lg:flex flex-col gap-4 h-full overflow-y-auto px-1 pb-6 scrollbar-hide shrink-0 pt-0">
+    <div className="w-80 hidden lg:flex flex-col gap-4 h-full overflow-y-auto px-3.5 pt-3 pb-8 scrollbar-hide shrink-0">
       
       {/* Live Timer */}
       <div className="p-6 rounded-[32px] clay-card interactive-spring flex flex-col justify-between relative overflow-hidden group cursor-default">

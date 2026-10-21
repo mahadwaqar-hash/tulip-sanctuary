@@ -749,7 +749,7 @@ export default function App() {
             </div>
             
             {/* Scrollable Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-3 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-3 py-2.5">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -840,7 +840,7 @@ export default function App() {
 
             {/* CENTER COLUMN (Active View) */}
             <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-              <div className={`w-full h-full mx-auto lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+              <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' ? 'max-w-6xl' : 'max-w-4xl'}`}>
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (
                     <motion.div
@@ -849,7 +849,7 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -14, scale: 0.985 }}
                       transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-1 lg:pt-4 pb-2"
+                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                     >
                       <ChatSanctuary currentUser={currentUser} />
                     </motion.div>
@@ -861,7 +861,7 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -14, scale: 0.985 }}
                       transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-1 lg:pt-4 pb-2"
+                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                     >
                       <LdrSanctuaryView
                         currentUser={currentUser}
@@ -876,7 +876,7 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -14, scale: 0.985 }}
                       transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-1 lg:pt-4 pb-2"
+                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                     >
                       <CalendarView currentUser={currentUser} />
                     </motion.div>
@@ -888,7 +888,7 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -14, scale: 0.985 }}
                       transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-1 lg:pt-4 pb-2"
+                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                     >
                       <SharedLibraryView currentUser={currentUser} />
                     </motion.div>
@@ -900,7 +900,7 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -14, scale: 0.985 }}
                       transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-1 lg:pt-4 pb-2"
+                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                     >
                       <WatchlistView currentUser={currentUser} />
                     </motion.div>

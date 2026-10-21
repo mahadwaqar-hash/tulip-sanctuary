@@ -137,7 +137,7 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
         </div>
 
         {/* Days Grid */}
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-2 p-1 sm:p-1.5">
           {/* Empty prefix slots */}
           {Array.from({ length: firstDayIndex }).map((_, i) => (
             <div key={`empty-${i}`} className="aspect-square rounded-2xl p-1 opacity-20" />

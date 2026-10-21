@@ -875,7 +875,7 @@ export default function WatchlistView({ currentUser }: { currentUser: 'Mahad' | 
                     No shows on this shelf yet ✨ Search above to add one!
                   </div>
                 ) : (
-                  <div className="flex flex-wrap sm:flex-nowrap sm:overflow-x-auto sm:no-scrollbar gap-4 sm:gap-6 pt-3 pb-2 px-1 items-end justify-start">
+                  <div className="flex flex-wrap sm:flex-nowrap sm:overflow-x-auto sm:no-scrollbar gap-5 sm:gap-7 pt-10 sm:pt-12 pb-5 px-4 sm:px-6 items-end justify-start">
                     {shelfItems.map((item) => {
                       const isFlipped = !!flippedCards[item.id];
                       const badge = getMediaTypeBadge(item.mediaType);

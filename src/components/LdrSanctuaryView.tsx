@@ -539,7 +539,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 pt-3 pb-3 px-1 sm:px-2">
             {/* 1. Giant Kiss Card */}
             <motion.button
               whileHover={{ scale: 1.04, y: -8, rotate: -1.5 }}
@@ -632,7 +632,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pt-3 pb-3 px-1 sm:px-2">
             {letters.map((letter, index) => {
               const recipientTz = letter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
               const todayInTz = getTodayInTimezone(recipientTz);

@@ -762,7 +762,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
               </div>
 
               {/* 3D BOOK VOLUMES ON SHELF (Fluid Touch-Horizontal Shelf Track) */}
-              <div className="relative min-h-[200px] sm:min-h-[250px] md:min-h-[290px] flex items-end justify-start gap-3.5 sm:gap-6 md:gap-8 flex-nowrap overflow-x-auto snap-x snap-mandatory shelf-track no-scrollbar pb-2.5 pt-5 px-2 -mx-1">
+              <div className="relative min-h-[220px] sm:min-h-[270px] md:min-h-[310px] flex items-end justify-start gap-4 sm:gap-7 md:gap-8 flex-nowrap overflow-x-auto snap-x snap-mandatory shelf-track no-scrollbar pb-5 pt-12 sm:pt-14 px-4 sm:px-6">
                 {shelfBooks.map((book) => {
                   const tagStyle = getGenreBadgeStyle(book.genre);
 
