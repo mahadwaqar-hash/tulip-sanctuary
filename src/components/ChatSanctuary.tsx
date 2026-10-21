@@ -354,7 +354,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
       <div 
         onMouseEnter={() => onHoverMsg(msg.id)}
         onMouseLeave={() => onHoverMsg(null)}
-        className={`max-w-[88%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}
+        className={`max-w-[85%] sm:max-w-[75%] min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'} relative`}
       >
         {/* Sender Tag (Only show for first in cluster) */}
         {showName && (
@@ -392,7 +392,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
             }
           }}
           style={{ touchAction: 'pan-y' }}
-          className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing"
+          className="relative group/bubble flex flex-col cursor-grab active:cursor-grabbing min-w-0 max-w-full"
         >
           {/* Swipe-to-Reply Hint Indicator */}
           <div
@@ -410,7 +410,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 e.stopPropagation();
                 onScrollToMessage(msg.replyTo.id);
               }}
-              className={`mb-1.5 px-3 py-1.5 rounded-2xl border-l-4 border-pastel-pink-400 text-xs cursor-pointer hover:opacity-90 transition-opacity flex flex-col select-none max-w-full ${
+              className={`mb-1.5 px-3 py-1.5 rounded-2xl border-l-4 border-pastel-pink-400 text-xs cursor-pointer hover:opacity-90 transition-opacity flex flex-col select-none max-w-full min-w-0 ${
                 isMe
                   ? 'bg-black/25 text-white shadow-sm'
                   : 'bg-surface-hover/80 text-text-main border border-border/40 shadow-sm'
@@ -420,7 +420,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 <Reply className="w-3 h-3 rotate-180 inline shrink-0" />
                 <span>{msg.replyTo.sender}</span>
               </div>
-              <span className="truncate text-[12px] mt-0.5 max-w-[220px] sm:max-w-xs font-normal opacity-90">
+              <span className="truncate text-[12px] mt-0.5 max-w-full font-normal opacity-90 break-words break-all">
                 {msg.replyTo.type === 'text' && (msg.replyTo.content || 'Message')}
                 {msg.replyTo.type === 'image' && '📷 Photo'}
                 {msg.replyTo.type === 'gif' && '✨ GIF'}
@@ -440,7 +440,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 e.stopPropagation();
                 onQuickLove(msg.id);
               }}
-              className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full ${corners} ${
+              className={`px-5 py-3.5 shadow-md font-medium text-[15px] leading-relaxed transition-all cursor-pointer relative select-text break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap min-w-0 max-w-full ${corners} ${
                 isMe
                   ? 'bubble-me-gradient chat-text-crisp font-semibold shadow-pastel-pink-400/20'
                   : 'bubble-other-themed font-medium'
@@ -456,7 +456,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                   <Heart className="w-12 h-12 fill-red-500 text-red-500 drop-shadow-2xl" />
                 </motion.div>
               )}
-              <span className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap block">
+              <span className="break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap block min-w-0 max-w-full">
                 {msg.content}
               </span>
             </div>
