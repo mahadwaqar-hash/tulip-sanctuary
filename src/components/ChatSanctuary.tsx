@@ -1197,7 +1197,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const ifaSettings = settingsArray.find(s => s.id === 'Ifa') || {};
   const userTz = currentUser === 'Mahad' 
     ? (mahadSettings.tz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi')
-    : (ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London');
+    : (ifaSettings.tz || localStorage.getItem('tulip_ifa_tz') || 'Asia/Karachi');
 
   // Typing debounce
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);

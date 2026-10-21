@@ -1,13 +1,13 @@
 // src/utils/timezone.ts
 
 export const POPULAR_CITIES = [
+  { city: 'Gujranwala, PK', tz: 'Asia/Karachi', label: 'Gujranwala (PKT)' },
   { city: 'Lahore, PK', tz: 'Asia/Karachi', label: 'Lahore (PKT)' },
-  { city: 'London, UK', tz: 'Europe/London', label: 'London (GMT/BST)' },
   { city: 'Islamabad, PK', tz: 'Asia/Karachi', label: 'Islamabad (PKT)' },
   { city: 'Karachi, PK', tz: 'Asia/Karachi', label: 'Karachi (PKT)' },
   { city: 'Rawalpindi, PK', tz: 'Asia/Karachi', label: 'Rawalpindi (PKT)' },
-  { city: 'Manchester, UK', tz: 'Europe/London', label: 'Manchester (GMT/BST)' },
-  { city: 'Birmingham, UK', tz: 'Europe/London', label: 'Birmingham (GMT/BST)' },
+  { city: 'Sialkot, PK', tz: 'Asia/Karachi', label: 'Sialkot (PKT)' },
+  { city: 'Faisalabad, PK', tz: 'Asia/Karachi', label: 'Faisalabad (PKT)' },
   { city: 'New York, US', tz: 'America/New_York', label: 'New York (EST/EDT)' },
   { city: 'Los Angeles, US', tz: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
   { city: 'Chicago, US', tz: 'America/Chicago', label: 'Chicago (CST/CDT)' },
@@ -172,7 +172,7 @@ export function getNetworkDate(): Date {
 
 const CITY_KEYWORD_MAP: Array<{ keywords: string[]; tz: string }> = [
   { keywords: ['london', 'uk', 'england', 'britain', 'manchester', 'birmingham', 'edinburgh', 'glasgow', 'gmt', 'bst'], tz: 'Europe/London' },
-  { keywords: ['lahore', 'karachi', 'islamabad', 'rawalpindi', 'pakistan', 'peshawar', 'multan', 'faisalabad', 'quetta', 'pk', 'pkt'], tz: 'Asia/Karachi' },
+  { keywords: ['lahore', 'gujranwala', 'karachi', 'islamabad', 'rawalpindi', 'sialkot', 'pakistan', 'peshawar', 'multan', 'faisalabad', 'quetta', 'pk', 'pkt'], tz: 'Asia/Karachi' },
   { keywords: ['dubai', 'uae', 'abu dhabi', 'sharjah', 'emirates', 'gst'], tz: 'Asia/Dubai' },
   { keywords: ['riyadh', 'jeddah', 'makkah', 'mecca', 'medina', 'saudi', 'ast'], tz: 'Asia/Riyadh' },
   { keywords: ['doha', 'qatar'], tz: 'Asia/Qatar' },

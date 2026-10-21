@@ -29,11 +29,11 @@ interface LdrSanctuaryViewProps {
   onTriggerBurst: (type: LoveBurstType, sender: 'Mahad' | 'Ifa') => void;
 }
 
-export function getTodayInTimezone(tz: string = 'Europe/London'): string {
+export function getTodayInTimezone(tz: string = 'Asia/Karachi'): string {
   try {
     const d = getNetworkDate();
     const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: isValidTimezone(tz) ? tz : 'Europe/London',
+      timeZone: isValidTimezone(tz) ? tz : 'Asia/Karachi',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -84,7 +84,7 @@ const ALL_TIMEZONES = (() => {
   try {
     return Intl.supportedValuesOf('timeZone');
   } catch (e) {
-    return ['Europe/London', 'Asia/Karachi', 'America/New_York', 'America/Los_Angeles', 'Asia/Dubai', 'Australia/Sydney'];
+    return ['Asia/Karachi', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Asia/Dubai', 'Australia/Sydney'];
   }
 })();
 
@@ -128,7 +128,7 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
     };
   }, []);
 
-  const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
+  const safeTz = resolveTimezone(city, timezone, 'Asia/Karachi');
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
@@ -180,8 +180,8 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const mahadCityStr = mahadSettings.city || globalSettings.mahadCity || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
   const mahadTzStr = mahadSettings.tz || globalSettings.mahadTz || localStorage.getItem('tulip_mahad_tz') || resolveTimezone(mahadCityStr, undefined, 'Asia/Karachi');
 
-  const ifaCityStr = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTzStr = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || resolveTimezone(ifaCityStr, undefined, 'Europe/London');
+  const ifaCityStr = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'Gujranwala, PK';
+  const ifaTzStr = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || resolveTimezone(ifaCityStr, undefined, 'Asia/Karachi');
 
   // Custom Cities & Timezones State (for editing)
   const [mahadCity, setMahadCity] = useState(mahadCityStr);
@@ -211,7 +211,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const [lockedBirthdayLetter, setLockedBirthdayLetter] = useState<LdrLetter | null>(null);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [showWriteModal, setShowWriteModal] = useState(false);
-  const [writeLetterType, setWriteLetterType] = useState<'standard' | 'birthday'>('standard');
+  const [isDateLocked, setIsDateLocked] = useState(false);
   const [newLetterTitle, setNewLetterTitle] = useState('');
   const [newLetterContent, setNewLetterContent] = useState('');
   const [newLetterUnlockDate, setNewLetterUnlockDate] = useState(() => {
@@ -320,17 +320,12 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     if ('vibrate' in navigator) navigator.vibrate([40, 50]);
   };
 
-  const handleOpenWriteModal = (type: 'standard' | 'birthday' = 'standard') => {
+  const handleOpenWriteModal = () => {
     setEditingLetterId(null);
-    setWriteLetterType(type);
-    if (type === 'birthday') {
-      const savedBday = globalSettings.ifaBirthday || localStorage.getItem('tulip_ifa_birthday') || '';
-      setNewLetterUnlockDate(savedBday);
-      setNewLetterTitle('Open on your birthday, my love 🎂✨');
-    } else {
-      setNewLetterTitle('');
-      setNewLetterUnlockDate('');
-    }
+    setIsDateLocked(false);
+    setNewLetterTitle('');
+    const savedBday = globalSettings.ifaBirthday || localStorage.getItem('tulip_ifa_birthday') || '';
+    setNewLetterUnlockDate(savedBday);
     setNewLetterContent('');
     setShowWriteModal(true);
   };
@@ -338,7 +333,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
   const handleStartEditLetter = (letter: LdrLetter) => {
     setSelectedLetter(null);
     setEditingLetterId(letter.id);
-    setWriteLetterType(letter.isBirthday ? 'birthday' : 'standard');
+    setIsDateLocked(Boolean(letter.unlockDate));
     setNewLetterTitle(letter.title);
     setNewLetterContent(letter.content);
     setNewLetterUnlockDate(letter.unlockDate || '');
@@ -357,18 +352,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     e.preventDefault();
     if (!newLetterTitle.trim() || !newLetterContent.trim()) return;
 
-    const isBday = writeLetterType === 'birthday';
-    const unlockDate = isBday ? (newLetterUnlockDate.trim() || null) : null;
+    const unlockDate = isDateLocked ? (newLetterUnlockDate.trim() || null) : null;
 
-    if (isBday && !unlockDate) {
-      alert("Please select Ifa's birthday date so the lock knows when to open!");
+    if (isDateLocked && !unlockDate) {
+      alert("Please select the date so the letter knows when to unlock!");
       return;
     }
 
     if ('vibrate' in navigator) navigator.vibrate(50);
 
-    // Persist Ifa's birthday into global settings for future automatic recall
-    if (isBday && unlockDate) {
+    if (isDateLocked && unlockDate) {
       localStorage.setItem('tulip_ifa_birthday', unlockDate);
       await fb.userSettings.set('global', { ifaBirthday: unlockDate });
     }
@@ -378,7 +371,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         title: newLetterTitle.trim(),
         content: newLetterContent.trim(),
         unlockDate: unlockDate || null,
-        isBirthday: isBday
+        isBirthday: Boolean(unlockDate)
       });
     } else {
       await fb.ldrLetters.add({
@@ -388,7 +381,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         sender: currentUser,
         recipient: currentUser === 'Mahad' ? 'Ifa' : 'Mahad',
         isOpened: false,
-        isBirthday: isBday,
+        isBirthday: Boolean(unlockDate),
         unlockDate: unlockDate || null,
         createdAt: Date.now()
       });
@@ -397,15 +390,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
     setEditingLetterId(null);
     setNewLetterTitle('');
     setNewLetterContent('');
+    setIsDateLocked(false);
     setShowWriteModal(false);
   };
 
   const handleSaveCities = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanMahadCity = mahadCity.trim() || 'Lahore, PK';
-    const cleanIfaCity = ifaCity.trim() || 'London, UK';
+    const cleanIfaCity = ifaCity.trim() || 'Gujranwala, PK';
     const cleanMahadTz = isValidTimezone(mahadTz) ? mahadTz : resolveTimezone(cleanMahadCity, undefined, 'Asia/Karachi');
-    const cleanIfaTz = isValidTimezone(ifaTz) ? ifaTz : resolveTimezone(cleanIfaCity, undefined, 'Europe/London');
+    const cleanIfaTz = isValidTimezone(ifaTz) ? ifaTz : resolveTimezone(cleanIfaCity, undefined, 'Asia/Karachi');
 
     localStorage.setItem('tulip_mahad_city', cleanMahadCity);
     localStorage.setItem('tulip_ifa_city', cleanIfaCity);
@@ -459,16 +453,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => handleOpenWriteModal('birthday')}
-            className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>🎂</span> Birthday Letter
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleOpenWriteModal('standard')}
+            onClick={handleOpenWriteModal}
             className="px-5 py-2 rounded-full bg-pastel-pink-400 text-white text-xs font-bold uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-colors flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Seal A Letter
@@ -609,111 +594,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           </div>
         </div>
 
-        {/* ROW 3: "OPEN WHEN..." & BIRTHDAY SEALED ENVELOPES */}
+        {/* ROW 3: "OPEN WHEN..." & SEALED ENVELOPES */}
         <div>
-          {/* BIRTHDAY NOTICE FOR IFA (TODAY OR UPCOMING) */}
-          {currentUser === 'Ifa' && (() => {
-            const todayInIfaTz = getTodayInTimezone(ifaTzStr);
-            const birthdayLetters = letters.filter(l => l.isBirthday && l.recipient === 'Ifa');
-            const readyToday = birthdayLetters.find(l => l.unlockDate && todayInIfaTz >= l.unlockDate && !l.isOpened);
-            const upcoming = birthdayLetters.find(l => l.unlockDate && todayInIfaTz < l.unlockDate && !l.isOpened);
-
-            if (readyToday) {
-              return (
-                <motion.div
-                  initial={{ scale: 0.96, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="p-5 rounded-3xl bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white shadow-xl flex items-center justify-between gap-4 border-2 border-amber-200/60 glow-rose-sm mb-6"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <span className="text-3xl animate-bounce">🎂</span>
-                    <div>
-                      <h4 className="font-bold text-base md:text-lg font-serif-italic leading-tight">
-                        Happy Birthday Ifa! 🎉👑
-                      </h4>
-                      <p className="text-xs text-white/95 font-medium mt-0.5">
-                        Mahad sealed a special birthday letter for you! Tap to break the wax seal! ✨
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleOpenLetter(readyToday)}
-                    className="px-5 py-2.5 rounded-full bg-white text-pastel-pink-600 font-bold text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
-                  >
-                    Break Seal 💌
-                  </button>
-                </motion.div>
-              );
-            }
-
-            if (upcoming) {
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-between gap-3 text-xs mb-6"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl">🎁</span>
-                    <div>
-                      <span className="font-bold text-text-main flex items-center gap-1.5">
-                        A secret birthday letter is waiting for you! 🎂
-                      </span>
-                      <span className="text-text-muted text-[11px]">
-                        Mahad has sealed an enchanted surprise. Strictly unlocks on {formatDateNice(upcoming.unlockDate)}!
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleOpenLetter(upcoming)}
-                    className="text-[11px] font-bold text-amber-500 dark:text-amber-400 bg-amber-400/15 hover:bg-amber-400/25 px-3 py-1 rounded-full border border-amber-400/30 shrink-0 cursor-pointer transition-colors"
-                  >
-                    🔒 See Countdown
-                  </button>
-                </motion.div>
-              );
-            }
-
-            return null;
-          })()}
-
-          {/* BIRTHDAY PROMPT FOR MAHAD */}
-          {currentUser === 'Mahad' && (() => {
-            const ifaBdayLetters = letters.filter(l => l.isBirthday && l.recipient === 'Ifa');
-            if (ifaBdayLetters.length === 0) {
-              return (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-400/10 via-rose-400/10 to-pastel-pink-400/10 border border-amber-300/40 flex items-center justify-between gap-3 text-xs mb-6">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl">🎂</span>
-                    <div>
-                      <span className="font-bold text-text-main">
-                        Want to send Ifa a secret Birthday Letter?
-                      </span>
-                      <span className="text-text-muted text-[11px] block">
-                        You can write it now, and it will stay strictly locked until her birthday!
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleOpenWriteModal('birthday')}
-                    className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-400 to-rose-400 text-white font-bold text-[11px] uppercase tracking-wider shadow-sm hover:brightness-105 transition-all shrink-0 cursor-pointer"
-                  >
-                    Write Birthday Letter 💌
-                  </button>
-                </div>
-              );
-            }
-            return null;
-          })()}
-
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-bold font-serif-italic text-text-main flex items-center gap-2">
-                <span>"Open When..." & Birthday Sealed Letters</span>
+                <span>"Open When..." & Sealed Letters</span>
                 <Mail className="w-4 h-4 text-pastel-pink-400" />
               </h3>
               <p className="text-xs text-text-muted font-medium">
-                Wax-sealed romantic envelopes and enchanted birthday surprises.
+                Wax-sealed romantic envelopes and special date-locked surprises.
               </p>
             </div>
           </div>
@@ -733,27 +623,17 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   whileHover={{ scale: 1.03, y: -3 }}
                   onClick={() => handleOpenLetter(letter)}
                   className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[185px] relative shadow-md will-change-transform ${
-                    letter.isBirthday
-                      ? letter.isOpened
-                        ? 'bg-surface-hover/70 border-amber-300/40 dark:border-amber-400/30'
-                        : isReadyToday
-                          ? 'bg-gradient-to-br from-amber-100/90 via-rose-50/90 to-pastel-pink-100 dark:from-amber-950/40 dark:via-surface dark:to-rose-950/30 border-2 border-amber-400 shadow-xl ring-2 ring-amber-400/30 animate-pulse'
-                          : 'bg-gradient-to-br from-amber-50/70 via-white to-pastel-pink-50/60 dark:from-amber-950/20 dark:via-surface dark:to-pastel-pink-950/20 border-amber-300/70 dark:border-amber-400/40 shadow-amber-100/50'
-                      : letter.isOpened
-                        ? 'bg-surface-hover/70 border-border'
+                    letter.isOpened
+                      ? 'bg-surface-hover/70 border-border'
+                      : isReadyToday
+                        ? 'bg-gradient-to-br from-amber-50 via-white to-pastel-pink-50 dark:from-surface dark:via-surface dark:to-rose-950/20 border-2 border-pastel-pink-400 shadow-xl'
                         : 'bg-gradient-to-br from-white via-pastel-pink-50 to-pastel-pink-100/50 dark:from-surface dark:via-surface dark:to-pastel-pink-950/20 border-pastel-pink-300 dark:border-pastel-pink-400/40 shadow-pastel-pink-100/50'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${letter.isBirthday ? 'text-amber-500 dark:text-amber-400 flex items-center gap-1' : 'text-pastel-pink-400'}`}>
-                        {letter.isBirthday ? (
-                          <>
-                            <span>🎂 Birthday Letter</span>
-                          </>
-                        ) : (
-                          `From ${letter.sender}`
-                        )}
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
+                        From {letter.sender}
                       </span>
                       <span className="text-xs">
                         {letter.isOpened ? (
@@ -761,7 +641,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                         ) : isLockedForMe ? (
                           '🔒 Wax-Sealed'
                         ) : isReadyToday ? (
-                          '🎉 Unseal Today!'
+                          '🎉 Ready Today'
                         ) : (
                           '🔒 Wax-Sealed'
                         )}
@@ -772,9 +652,9 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                       {letter.title}
                     </h4>
 
-                    {letter.isBirthday && letter.unlockDate && (
-                      <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 border border-amber-300/30">
-                        <span>🎁 Birthday:</span>
+                    {letter.unlockDate && (
+                      <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pastel-pink-500/10 text-pastel-pink-600 dark:text-pastel-pink-400 border border-pastel-pink-300/30">
+                        <span>🔒 Date:</span>
                         <span>{formatDateNice(letter.unlockDate)}</span>
                       </div>
                     )}
@@ -784,12 +664,12 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     {letter.isOpened ? (
                       <span className="flex items-center gap-1">Click to re-read 💕</span>
                     ) : isLockedForMe ? (
-                      <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> Locked until birthday ✨
+                      <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-bold flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Locked until {formatDateNice(letter.unlockDate)}
                       </span>
                     ) : isAuthor && isTimed && todayInTz < (letter.unlockDate || '') ? (
                       <span className="text-text-muted flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-amber-500" /> Locked for {letter.recipient} (Edit)
+                        <Lock className="w-3 h-3 text-pastel-pink-400" /> Locked for {letter.recipient} (Edit)
                       </span>
                     ) : isReadyToday ? (
                       <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-bold flex items-center gap-1">
@@ -855,10 +735,10 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   <div className="flex flex-wrap gap-1 mt-0.5">
                     {[
                       { city: 'Lahore, PK', tz: 'Asia/Karachi', label: 'Lahore' },
+                      { city: 'Gujranwala, PK', tz: 'Asia/Karachi', label: 'Gujranwala' },
                       { city: 'Islamabad, PK', tz: 'Asia/Karachi', label: 'Islamabad' },
                       { city: 'Karachi, PK', tz: 'Asia/Karachi', label: 'Karachi' },
                       { city: 'Dubai, UAE', tz: 'Asia/Dubai', label: 'Dubai' },
-                      { city: 'London, UK', tz: 'Europe/London', label: 'London' },
                       { city: 'New York, US', tz: 'America/New_York', label: 'New York' }
                     ].map(p => (
                       <button
@@ -891,7 +771,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                         setMahadTz(newTz);
                         // Also auto-update city display label if user didn't write a custom one
                         const foundCity = POPULAR_CITIES.find(c => c.tz === newTz);
-                        if (foundCity && (!mahadCity || mahadCity.includes('Lahore') || mahadCity.includes('London'))) {
+                        if (foundCity && (!mahadCity || mahadCity.includes('Lahore') || mahadCity.includes('Gujranwala'))) {
                           setMahadCity(foundCity.city);
                         }
                       }}
@@ -922,11 +802,11 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                       const val = e.target.value;
                       setIfaCity(val);
                       const detected = resolveTimezone(val, undefined, '');
-                      if (detected && detected !== 'Europe/London') {
+                      if (detected && detected !== 'Asia/Karachi') {
                         setIfaTz(detected);
                       }
                     }}
-                    placeholder="City Name (e.g. London, UK)"
+                    placeholder="City Name (e.g. Gujranwala, PK)"
                     className="w-full bg-surface p-2.5 rounded-xl border border-border text-sm text-text-main outline-none focus:border-pastel-pink-400 font-medium"
                     required
                   />
@@ -934,12 +814,12 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   {/* Quick Presets for Ifa */}
                   <div className="flex flex-wrap gap-1 mt-0.5">
                     {[
-                      { city: 'London, UK', tz: 'Europe/London', label: 'London' },
-                      { city: 'Manchester, UK', tz: 'Europe/London', label: 'Manchester' },
-                      { city: 'Birmingham, UK', tz: 'Europe/London', label: 'Birmingham' },
+                      { city: 'Gujranwala, PK', tz: 'Asia/Karachi', label: 'Gujranwala' },
                       { city: 'Lahore, PK', tz: 'Asia/Karachi', label: 'Lahore' },
-                      { city: 'Dubai, UAE', tz: 'Asia/Dubai', label: 'Dubai' },
-                      { city: 'New York, US', tz: 'America/New_York', label: 'New York' }
+                      { city: 'Islamabad, PK', tz: 'Asia/Karachi', label: 'Islamabad' },
+                      { city: 'Sialkot, PK', tz: 'Asia/Karachi', label: 'Sialkot' },
+                      { city: 'Karachi, PK', tz: 'Asia/Karachi', label: 'Karachi' },
+                      { city: 'Dubai, UAE', tz: 'Asia/Dubai', label: 'Dubai' }
                     ].map(p => (
                       <button
                         key={p.label}
@@ -971,7 +851,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                         setIfaTz(newTz);
                         // Also auto-update city display label if user didn't write a custom one
                         const foundCity = POPULAR_CITIES.find(c => c.tz === newTz);
-                        if (foundCity && (!ifaCity || ifaCity.includes('London') || ifaCity.includes('Lahore'))) {
+                        if (foundCity && (!ifaCity || ifaCity.includes('Gujranwala') || ifaCity.includes('Lahore'))) {
                           setIfaCity(foundCity.city);
                         }
                       }}
@@ -1047,16 +927,16 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                 </div>
               </div>
 
-              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-500 dark:text-amber-400 flex items-center gap-1.5 mb-1">
-                <Sparkles className="w-3.5 h-3.5" /> Enchanted Birthday Seal
+              <span className="text-[11px] font-bold uppercase tracking-widest text-pastel-pink-400 flex items-center gap-1.5 mb-1">
+                <Sparkles className="w-3.5 h-3.5" /> Enchanted Lock
               </span>
 
               <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-2">
-                Shhh! No Peeking! 🤫🎂
+                Shhh! No Peeking! 🤫
               </h3>
 
               <p className="text-xs text-text-muted mb-5 leading-relaxed font-medium">
-                Mahad has sealed this letter with fairy magic. It will strictly open <strong className="text-pastel-pink-500 font-bold">only on your birthday</strong> ({formatDateNice(lockedBirthdayLetter.unlockDate)})! No other day will unlock it.
+                Mahad has sealed this letter with fairy magic. It will strictly open <strong className="text-pastel-pink-500 font-bold">only on {formatDateNice(lockedBirthdayLetter.unlockDate)}</strong>! No other day will unlock it.
               </p>
 
               {/* LIVE TICKING COUNTDOWN */}
@@ -1090,7 +970,7 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
               <button
                 onClick={() => setLockedBirthdayLetter(null)}
-                className="w-full py-3 rounded-full bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:brightness-105 transition-all cursor-pointer"
+                className="w-full py-3 rounded-full bg-pastel-pink-400 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-pastel-pink-300 transition-all cursor-pointer"
               >
                 I'll Be Patient! 🌸
               </button>
@@ -1137,15 +1017,15 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                 const isStillLockedForHer = today < selectedLetter.unlockDate;
                 if (isStillLockedForHer) {
                   return (
-                    <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-300/40 mb-4 flex items-center justify-between gap-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-pastel-pink-500/10 border border-pastel-pink-300/40 mb-4 flex items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                        <Lock className="w-4 h-4 text-pastel-pink-400 shrink-0" />
                         <div>
                           <span className="font-bold text-text-main block">
-                            Author Preview • Sealed for {selectedLetter.recipient}'s Birthday
+                            Author Preview • Sealed for {selectedLetter.recipient}
                           </span>
                           <span className="text-[11px] text-text-muted">
-                            🔒 Strictly locked for Ifa until {formatDateNice(selectedLetter.unlockDate)}. She cannot see this yet!
+                            🔒 Strictly locked for {selectedLetter.recipient} until {formatDateNice(selectedLetter.unlockDate)}. She cannot see this yet!
                           </span>
                         </div>
                       </div>
@@ -1171,25 +1051,9 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               })()}
 
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-pastel-pink-400 mb-2">
-                {selectedLetter.isBirthday ? (
-                  <>
-                    <span className="text-amber-500 font-bold flex items-center gap-1">🎂 Birthday Letter</span>
-                    <span>•</span>
-                    <span>From {selectedLetter.sender} to {selectedLetter.recipient}</span>
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4" />
-                    <span>Written with love by {selectedLetter.sender}</span>
-                  </>
-                )}
+                <Mail className="w-4 h-4" />
+                <span>Written with love by {selectedLetter.sender}</span>
               </div>
-
-              {selectedLetter.isBirthday && (
-                <div className="mb-3 text-2xl md:text-3xl font-serif-italic font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-rose-500 to-pastel-pink-500">
-                  Happy Birthday {selectedLetter.recipient}! 👑✨
-                </div>
-              )}
 
               <h3 className="text-xl md:text-2xl font-bold font-serif-italic text-text-main mb-4 leading-tight">
                 {selectedLetter.title}
@@ -1201,8 +1065,8 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
               <div className="mt-4 flex items-center justify-between text-xs text-text-muted">
                 <span>
-                  {selectedLetter.isBirthday && selectedLetter.unlockDate
-                    ? `Birthday: ${formatDateNice(selectedLetter.unlockDate)}`
+                  {selectedLetter.unlockDate
+                    ? `Date: ${formatDateNice(selectedLetter.unlockDate)}`
                     : `For: ${selectedLetter.recipient}`}
                 </span>
                 <div className="flex items-center gap-2">
@@ -1242,66 +1106,13 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                 {editingLetterId ? 'Edit Sealed Letter' : 'Seal A Romantic Letter'}
               </h3>
               <p className="text-xs text-text-muted mb-4 font-medium">
-                {writeLetterType === 'birthday'
-                  ? `Write an enchanted birthday letter for Ifa that strictly unlocks ONLY on her birthday.`
-                  : `Write an emotional "Open When..." letter for your soulmate.`}
+                Write an emotional letter for your soulmate.
               </p>
 
-              {/* LETTER TYPE PICKER */}
-              <div className="grid grid-cols-2 gap-2 mb-4 p-1 rounded-2xl bg-surface-hover border border-border">
-                <button
-                  type="button"
-                  onClick={() => setWriteLetterType('standard')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    writeLetterType === 'standard'
-                      ? 'bg-pastel-pink-400 text-white shadow-xs'
-                      : 'text-text-muted hover:text-text-main'
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Open When... 💌</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWriteLetterType('birthday');
-                    if (!newLetterTitle || newLetterTitle === '') {
-                      setNewLetterTitle('Open on your birthday, my love 🎂✨');
-                    }
-                  }}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    writeLetterType === 'birthday'
-                      ? 'bg-gradient-to-r from-amber-400 to-rose-400 text-white shadow-xs'
-                      : 'text-text-muted hover:text-text-main'
-                  }`}
-                >
-                  <span>🎂 Birthday Surprise</span>
-                </button>
-              </div>
-
               <form onSubmit={handleSaveNewLetter} className="flex flex-col gap-3">
-                {/* BIRTHDAY DATE PICKER IF BIRTHDAY LETTER */}
-                {writeLetterType === 'birthday' && (
-                  <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-300/40 flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>🎂 When is Ifa's Birthday?</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={newLetterUnlockDate}
-                      onChange={(e) => setNewLetterUnlockDate(e.target.value)}
-                      className="bg-surface p-2.5 rounded-xl border border-border text-text-main outline-none text-xs font-bold focus:border-amber-400"
-                      required
-                    />
-                    <span className="text-[10px] text-text-muted">
-                      🔒 <strong>Guaranteed Protection:</strong> This letter will stay strictly locked. Ifa will NOT be able to open it on any other day before this date!
-                    </span>
-                  </div>
-                )}
-
                 <input
                   type="text"
-                  placeholder={writeLetterType === 'birthday' ? 'Envelope Title (e.g. Happy Birthday to my princess 🎂)' : 'Envelope Label (e.g. Open when you feel lonely...)'}
+                  placeholder="Envelope Label (e.g. Open when you miss me, Open on your birthday...)"
                   value={newLetterTitle}
                   onChange={(e) => setNewLetterTitle(e.target.value)}
                   className="bg-surface-hover p-3.5 rounded-2xl border border-border text-text-main outline-none text-sm font-medium focus:border-pastel-pink-400"
@@ -1309,13 +1120,47 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                   autoFocus
                 />
                 <textarea
-                  placeholder={writeLetterType === 'birthday' ? 'Pour your birthday wishes, memories, and love here. She will break this seal on her birthday... 💕' : 'Pour your heart out here. This envelope will stay sealed until they tap it...'}
+                  placeholder="Pour your heart out here. This envelope will stay sealed until opened..."
                   value={newLetterContent}
                   onChange={(e) => setNewLetterContent(e.target.value)}
                   rows={6}
                   className="bg-surface-hover p-3.5 rounded-2xl border border-border text-text-main outline-none text-sm font-medium focus:border-pastel-pink-400 resize-none leading-relaxed font-sans"
                   required
                 />
+
+                {/* Optional Date Lock Setting */}
+                <div className="p-3.5 rounded-2xl bg-surface-hover/70 border border-border flex flex-col gap-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isDateLocked}
+                      onChange={(e) => setIsDateLocked(e.target.checked)}
+                      className="w-4 h-4 rounded text-pastel-pink-400 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-pastel-pink-400" />
+                      <span>Lock until a specific date (optional)</span>
+                    </span>
+                  </label>
+
+                  {isDateLocked && (
+                    <div className="pt-2 border-t border-border/50 flex flex-col gap-1.5">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                        Unlock Date
+                      </label>
+                      <input
+                        type="date"
+                        value={newLetterUnlockDate}
+                        onChange={(e) => setNewLetterUnlockDate(e.target.value)}
+                        className="bg-surface p-2.5 rounded-xl border border-border text-text-main outline-none text-xs font-bold focus:border-pastel-pink-400"
+                        required={isDateLocked}
+                      />
+                      <span className="text-[10px] text-text-muted">
+                        🔒 Strictly locked for the recipient until this date.
+                      </span>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex justify-end gap-3 mt-3">
                   <button
@@ -1332,14 +1177,10 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className={`px-6 py-2.5 rounded-full text-white font-bold text-xs uppercase tracking-wider shadow-md transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      writeLetterType === 'birthday'
-                        ? 'bg-gradient-to-r from-amber-400 via-rose-400 to-pastel-pink-400 hover:brightness-105'
-                        : 'bg-pastel-pink-400 hover:bg-pastel-pink-300'
-                    }`}
+                    className="px-6 py-2.5 rounded-full text-white font-bold text-xs uppercase tracking-wider shadow-md bg-pastel-pink-400 hover:bg-pastel-pink-300 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>{editingLetterId ? 'Update Letter 💾' : writeLetterType === 'birthday' ? 'Seal Birthday Letter 🎂💌' : 'Seal Envelope 💌'}</span>
+                    <span>{editingLetterId ? 'Update Letter 💾' : 'Seal Envelope 💌'}</span>
                   </motion.button>
                 </div>
               </form>

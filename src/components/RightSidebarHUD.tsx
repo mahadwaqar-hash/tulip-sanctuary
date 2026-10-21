@@ -16,7 +16,7 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
     };
   }, []);
 
-  const safeTz = resolveTimezone(city, timezone, label.includes('Mahad') ? 'Asia/Karachi' : 'Europe/London');
+  const safeTz = resolveTimezone(city, timezone, 'Asia/Karachi');
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
@@ -68,8 +68,8 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
 
   const mahadCity = mahadSettings.city || globalSettings.mahadCity || localStorage.getItem('tulip_mahad_city') || 'Lahore, PK';
   const mahadTz = mahadSettings.tz || globalSettings.mahadTz || localStorage.getItem('tulip_mahad_tz') || 'Asia/Karachi';
-  const ifaCity = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'London, UK';
-  const ifaTz = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || 'Europe/London';
+  const ifaCity = ifaSettings.city || globalSettings.ifaCity || localStorage.getItem('tulip_ifa_city') || 'Gujranwala, PK';
+  const ifaTz = ifaSettings.tz || globalSettings.ifaTz || localStorage.getItem('tulip_ifa_tz') || 'Asia/Karachi';
 
   const parseSafeDate = (dateStr: string, fallback: string) => {
     const s = (dateStr || fallback).trim();
