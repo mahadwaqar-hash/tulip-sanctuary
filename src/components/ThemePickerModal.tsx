@@ -169,12 +169,14 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden shadow-sm ${
                   isSelected
                     ? 'border-pastel-pink-400 shadow-md ring-2 ring-pastel-pink-400/20'
-                    : 'border-border/60 hover:border-pastel-pink-400/50 bg-surface-hover/50'
+                    : theme.isDark
+                      ? 'border-border/60 hover:border-pastel-pink-400/50 bg-surface-hover/50'
+                      : 'border-slate-200/90 hover:border-pastel-pink-400/60 shadow-xs'
                 }`}
                 style={{ backgroundColor: theme.cardBg }}
               >
                 {/* Visual Preview Banner */}
-                <div className={`h-12 w-full rounded-xl bg-gradient-to-r ${theme.bgGrad} p-2 flex items-center justify-between mb-3 border border-white/10 shadow-inner`}>
+                <div className={`h-12 w-full rounded-xl bg-gradient-to-r ${theme.bgGrad} p-2 flex items-center justify-between mb-3 border border-black/10 dark:border-white/10 shadow-inner`}>
                   <span className="text-xl">{theme.emoji}</span>
                   <div className="flex items-center gap-1.5">
                     <span className="w-4 h-4 rounded-full border border-white/30 shadow-xs" style={{ backgroundColor: theme.accent }} />
@@ -184,11 +186,11 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-sm font-serif-italic flex items-center gap-1.5 text-white">
+                    <h4 className={`font-bold text-sm font-serif-italic flex items-center gap-1.5 ${theme.isDark ? 'text-white' : 'text-slate-800'}`}>
                       <span>{theme.name}</span>
                       <span className="text-xs">{theme.emoji}</span>
                     </h4>
-                    <p className="text-[11px] text-white/70 mt-0.5 font-medium leading-tight">
+                    <p className={`text-[11px] mt-0.5 font-medium leading-tight ${theme.isDark ? 'text-white/70' : 'text-slate-600'}`}>
                       {theme.subtitle}
                     </p>
                   </div>

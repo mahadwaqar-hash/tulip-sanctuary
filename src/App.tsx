@@ -777,7 +777,7 @@ export default function App() {
 
             {/* CENTER COLUMN (Active View) */}
             <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-              <div className="w-full h-full max-w-4xl mx-auto lg:px-6">
+              <div className={`w-full h-full mx-auto lg:px-6 transition-all duration-300 ${activeTab === 'ldr' ? 'max-w-6xl' : 'max-w-4xl'}`}>
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (
                     <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
@@ -801,8 +801,21 @@ export default function App() {
               </div>
             </div>
 
-            {/* RIGHT SIDEBAR HUD (Desktop Only) */}
-            <RightSidebarHUD currentUser={currentUser} />
+            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary to avoid duplicate clocks) */}
+            <AnimatePresence>
+              {activeTab !== 'ldr' && (
+                <motion.div
+                  key="right-hud"
+                  initial={{ opacity: 0, width: 0, x: 20 }}
+                  animate={{ opacity: 1, width: 'auto', x: 0 }}
+                  exit={{ opacity: 0, width: 0, x: 20 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  className="hidden lg:flex shrink-0 overflow-hidden"
+                >
+                  <RightSidebarHUD currentUser={currentUser} />
+                </motion.div>
+              )}
+            </AnimatePresence>
             
           </div>
 

@@ -539,56 +539,72 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* 1. Giant Kiss Card */}
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('kiss')}
-              className="p-4 rounded-2xl bg-surface-hover border border-border hover:border-rose-400 flex items-center gap-3 transition-all cursor-pointer shadow-xs group"
+              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-rose-400/30 hover:border-rose-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-rose-500/20 group"
             >
-              <span className="text-3xl group-hover:scale-120 transition-transform">💋</span>
-              <div className="text-left">
-                <span className="font-bold text-xs text-text-main block">Giant Kiss</span>
-                <span className="text-[10px] text-pastel-pink-400 font-semibold">Kiss Burst Animation</span>
+              {/* Soft Radial Gradient Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(244,63,94,0.18)_0%,transparent_70%)] pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-400/20 flex items-center justify-center text-3xl group-hover:scale-115 transition-transform duration-300 relative z-10 mb-2.5 shadow-inner">
+                <span>💋</span>
+              </div>
+              <div className="relative z-10">
+                <span className="font-bold text-sm text-text-main block leading-tight">Giant Kiss</span>
+                <span className="text-[10px] text-rose-500 dark:text-rose-400 font-semibold block mt-1">Kiss Burst</span>
               </div>
             </motion.button>
 
+            {/* 2. Warm Hug Card */}
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('hug')}
-              className="p-4 rounded-2xl bg-surface-hover border border-border hover:border-amber-400 flex items-center gap-3 transition-all cursor-pointer shadow-xs group"
+              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-amber-400/30 hover:border-amber-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-amber-500/20 group"
             >
-              <span className="text-3xl group-hover:scale-120 transition-transform">🫂</span>
-              <div className="text-left">
-                <span className="font-bold text-xs text-text-main block">Warm Hug</span>
-                <span className="text-[10px] text-amber-500 font-semibold">Wrapping Arms Animation</span>
+              {/* Soft Radial Gradient Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,0.18)_0%,transparent_70%)] pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-400/20 flex items-center justify-center text-3xl group-hover:scale-115 transition-transform duration-300 relative z-10 mb-2.5 shadow-inner">
+                <span>🤗</span>
+              </div>
+              <div className="relative z-10">
+                <span className="font-bold text-sm text-text-main block leading-tight">Warm Hug</span>
+                <span className="text-[10px] text-amber-500 dark:text-amber-400 font-semibold block mt-1">Wrapping Arms</span>
               </div>
             </motion.button>
 
+            {/* 3. Thinking of You Card */}
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('thinking')}
-              className="p-4 rounded-2xl bg-surface-hover border border-border hover:border-purple-400 flex items-center gap-3 transition-all cursor-pointer shadow-xs group"
+              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-purple-400/30 hover:border-purple-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-purple-500/20 group"
             >
-              <span className="text-3xl group-hover:scale-120 transition-transform">💭</span>
-              <div className="text-left">
-                <span className="font-bold text-xs text-text-main block">Thinking of You</span>
-                <span className="text-[10px] text-purple-400 font-semibold">Love Thoughts Burst</span>
+              {/* Soft Radial Gradient Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(168,85,247,0.18)_0%,transparent_70%)] pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-400/20 flex items-center justify-center text-3xl group-hover:scale-115 transition-transform duration-300 relative z-10 mb-2.5 shadow-inner">
+                <span>💭</span>
+              </div>
+              <div className="relative z-10">
+                <span className="font-bold text-sm text-text-main block leading-tight">Thinking of You</span>
+                <span className="text-[10px] text-purple-500 dark:text-purple-400 font-semibold block mt-1">Love Thoughts</span>
               </div>
             </motion.button>
 
+            {/* 4. Fairytale Stars Card */}
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => handleSendLoveBurst('stars')}
-              className="p-4 rounded-2xl bg-surface-hover border border-border hover:border-yellow-400 flex items-center gap-3 transition-all cursor-pointer shadow-xs group"
+              className="p-5 rounded-[1.75rem] bg-surface/70 backdrop-blur-xl border border-yellow-400/30 hover:border-yellow-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-yellow-500/20 group"
             >
-              <span className="text-3xl group-hover:scale-120 transition-transform">✨</span>
-              <div className="text-left">
-                <span className="font-bold text-xs text-text-main block">Fairytale Stars</span>
-                <span className="text-[10px] text-yellow-500 font-semibold">Golden Starfall</span>
+              {/* Soft Radial Gradient Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(234,179,8,0.18)_0%,transparent_70%)] pointer-events-none" />
+              <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-400/20 flex items-center justify-center text-3xl group-hover:scale-115 transition-transform duration-300 relative z-10 mb-2.5 shadow-inner">
+                <span>✨</span>
+              </div>
+              <div className="relative z-10">
+                <span className="font-bold text-sm text-text-main block leading-tight">Fairytale Stars</span>
+                <span className="text-[10px] text-yellow-500 dark:text-yellow-400 font-semibold block mt-1">Golden Starfall</span>
               </div>
             </motion.button>
           </div>
@@ -620,32 +636,61 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
               return (
                 <motion.div
                   key={letter.id}
-                  whileHover={{ scale: 1.03, y: -3 }}
+                  whileHover={{ scale: 1.02, y: -4 }}
                   onClick={() => handleOpenLetter(letter)}
-                  className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[185px] relative shadow-md will-change-transform ${
+                  className={`p-6 pt-7 rounded-[2rem] border transition-all cursor-pointer flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-sm hover:shadow-xl will-change-transform group ${
                     letter.isOpened
-                      ? 'bg-surface-hover/70 border-border'
+                      ? 'bg-surface/75 border-border/80 dark:border-border/50'
                       : isReadyToday
-                        ? 'bg-gradient-to-br from-amber-50 via-white to-pastel-pink-50 dark:from-surface dark:via-surface dark:to-rose-950/20 border-2 border-pastel-pink-400 shadow-xl'
-                        : 'bg-gradient-to-br from-white via-pastel-pink-50 to-pastel-pink-100/50 dark:from-surface dark:via-surface dark:to-pastel-pink-950/20 border-pastel-pink-300 dark:border-pastel-pink-400/40 shadow-pastel-pink-100/50'
+                        ? 'bg-gradient-to-b from-amber-500/10 via-surface/90 to-surface border-2 border-amber-400/80 shadow-amber-500/15'
+                        : 'bg-gradient-to-b from-pastel-pink-500/10 via-surface/90 to-surface border border-pastel-pink-300/60 dark:border-pastel-pink-400/40 shadow-rose-500/10'
                   }`}
                 >
-                  <div>
+                  {/* Subtle V-shaped romantic envelope flap border & gradient */}
+                  <div className="absolute top-0 left-0 right-0 h-10 pointer-events-none overflow-hidden z-0">
+                    <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full drop-shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                      <polygon
+                        points="0,0 100,0 50,38"
+                        className={
+                          letter.isOpened
+                            ? "fill-surface-hover/80 stroke-border/50 stroke-[0.8]"
+                            : isReadyToday
+                              ? "fill-amber-100/70 dark:fill-amber-950/40 stroke-amber-400/50 stroke-[0.8]"
+                              : "fill-pastel-pink-100/70 dark:fill-pastel-pink-950/40 stroke-pastel-pink-300/50 stroke-[0.8]"
+                        }
+                      />
+                    </svg>
+                  </div>
+
+                  <div className="relative z-10">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-500 dark:text-pastel-pink-400 bg-surface/80 px-2 py-0.5 rounded-full border border-border/40 backdrop-blur-xs">
                         From {letter.sender}
                       </span>
-                      <span className="text-xs">
-                        {letter.isOpened ? (
-                          '💌 Unsealed'
-                        ) : isLockedForMe ? (
-                          '🔒 Wax-Sealed'
-                        ) : isReadyToday ? (
-                          '🎉 Ready Today'
-                        ) : (
-                          '🔒 Wax-Sealed'
-                        )}
-                      </span>
+                      
+                      {/* Circular, Embossed Wax Seal Badge */}
+                      {letter.isOpened ? (
+                        <div 
+                          className="w-7 h-7 rounded-full bg-surface-hover border border-pastel-pink-300/50 text-pastel-pink-500 flex items-center justify-center shadow-xs"
+                          title="Unsealed Letter"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                        </div>
+                      ) : isReadyToday ? (
+                        <div 
+                          className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 text-white flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.4),0_3px_8px_rgba(245,158,11,0.5)] border border-amber-300/70 ring-2 ring-amber-400/30 animate-pulse"
+                          title="Ready to Unseal Today!"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+                        </div>
+                      ) : (
+                        <div 
+                          className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-600 via-rose-700 to-rose-900 text-rose-100 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),inset_0_-1px_2px_rgba(0,0,0,0.5),0_3px_8px_rgba(190,18,60,0.35)] border border-rose-500/60 ring-2 ring-rose-400/25 group-hover:scale-110 transition-transform"
+                          title="Wax Sealed"
+                        >
+                          <Lock className="w-3 h-3 stroke-[2.5]" />
+                        </div>
+                      )}
                     </div>
 
                     <h4 className="font-bold text-base font-serif-italic text-text-main line-clamp-2 leading-snug">
@@ -653,32 +698,32 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
                     </h4>
 
                     {letter.unlockDate && (
-                      <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pastel-pink-500/10 text-pastel-pink-600 dark:text-pastel-pink-400 border border-pastel-pink-300/30">
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-pastel-pink-500/10 text-pastel-pink-600 dark:text-pastel-pink-400 border border-pastel-pink-300/30">
                         <span>🔒 Date:</span>
                         <span>{formatDateNice(letter.unlockDate)}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="pt-4 border-t border-border/40 flex items-center justify-between text-[11px] text-text-muted">
+                  <div className="pt-4 mt-3 border-t border-border/40 flex items-center justify-between text-[11px] text-text-muted relative z-10">
                     {letter.isOpened ? (
-                      <span className="flex items-center gap-1">Click to re-read 💕</span>
+                      <span className="flex items-center gap-1 font-medium">Click to re-read 💕</span>
                     ) : isLockedForMe ? (
                       <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-bold flex items-center gap-1">
                         <Lock className="w-3 h-3" /> Locked until {formatDateNice(letter.unlockDate)}
                       </span>
                     ) : isAuthor && isTimed && todayInTz < (letter.unlockDate || '') ? (
-                      <span className="text-text-muted flex items-center gap-1">
+                      <span className="text-text-muted flex items-center gap-1 font-medium">
                         <Lock className="w-3 h-3 text-pastel-pink-400" /> Locked for {letter.recipient} (Edit)
                       </span>
                     ) : isReadyToday ? (
-                      <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-bold flex items-center gap-1">
+                      <span className="text-amber-500 dark:text-amber-400 font-bold flex items-center gap-1">
                         <span>Tap to break seal 🎉</span>
                       </span>
                     ) : (
-                      <span>Tap to break seal 💕</span>
+                      <span className="text-pastel-pink-500 dark:text-pastel-pink-400 font-semibold">Tap to break seal 💕</span>
                     )}
-                    <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400" />
+                    <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400 group-hover:scale-125 transition-transform" />
                   </div>
                 </motion.div>
               );
