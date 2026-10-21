@@ -351,7 +351,9 @@ export default function CoupleWidgetsView({ currentUser: _currentUser }: CoupleW
                 return (
                   <motion.div
                     key={coupon.id}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.04, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                     onClick={() => handleRedeemCoupon(coupon.id)}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between select-none ${
                       isRedeemed

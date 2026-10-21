@@ -301,10 +301,11 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="max-w-md w-full p-8 rounded-[2.5rem] glass-panel border border-border shadow-2xl flex flex-col bg-surface relative"
+        initial={{ scale: 0.85, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.85, opacity: 0, y: 15 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 22, mass: 0.8 }}
+        className="max-w-md w-full p-8 rounded-[36px] clay-card border border-border shadow-2xl flex flex-col bg-surface relative"
       >
         <button
           onClick={onClose}
@@ -695,18 +696,21 @@ export default function App() {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
-                  <button
+                  <motion.button
                     key={tab.id}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
                       isActive 
                         ? 'clay-btn text-white shadow-md' 
-                        : 'text-text-muted hover:bg-surface-hover hover:text-text-main'
+                        : 'text-text-muted hover:bg-surface-hover hover:text-text-main interactive-spring'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span className="text-[11px] font-bold">{tab.label}</span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -729,7 +733,7 @@ export default function App() {
                   <span>Logged in as</span>
                   <button
                     onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-3 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs"
+                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-3 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs interactive-spring"
                   >
                     <span>{currentUser}</span>
                     <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
@@ -745,13 +749,14 @@ export default function App() {
                   return (
                     <motion.button
                       key={tab.id}
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.04, x: 4 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                       onClick={() => setActiveTab(tab.id as any)}
                       className={`px-4 py-3 rounded-[28px] text-sm font-bold transition-all cursor-pointer flex items-center gap-3 ${
                         isActive
                           ? 'clay-btn text-white shadow-lg'
-                          : 'bg-surface/50 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50'
+                          : 'bg-surface/50 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50 interactive-spring'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -763,13 +768,13 @@ export default function App() {
 
               <div className="mt-auto flex flex-col gap-1.5 pt-3 border-t border-border/40">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Settings</span>
-                <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
                   <Settings className="w-4 h-4" /> Password
                 </button>
-                <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
                   <Palette className="w-4 h-4" /> Aesthetic Themes
                 </button>
-                <button onClick={handleLock} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left">
+                <button onClick={handleLock} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
                   <Lock className="w-4 h-4" /> Lock Sanctuary
                 </button>
               </div>
@@ -780,12 +785,26 @@ export default function App() {
               <div className={`w-full h-full mx-auto lg:px-6 transition-all duration-300 ${activeTab === 'ldr' ? 'max-w-6xl' : 'max-w-4xl'}`}>
                 <AnimatePresence mode="wait">
                   {activeTab === 'chat' && (
-                    <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                    <motion.div
+                      key="chat"
+                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                      className="h-full pt-1 lg:pt-4 pb-2"
+                    >
                       <ChatSanctuary currentUser={currentUser} />
                     </motion.div>
                   )}
                   {activeTab === 'ldr' && (
-                    <motion.div key="ldr" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                    <motion.div
+                      key="ldr"
+                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                      className="h-full pt-1 lg:pt-4 pb-2"
+                    >
                       <LdrSanctuaryView
                         currentUser={currentUser}
                         onTriggerBurst={(type, sender) => setCurrentBurst({ type, sender })}
@@ -793,7 +812,14 @@ export default function App() {
                     </motion.div>
                   )}
                   {activeTab === 'calendar' && (
-                    <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full pt-1 lg:pt-4 pb-2">
+                    <motion.div
+                      key="calendar"
+                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                      className="h-full pt-1 lg:pt-4 pb-2"
+                    >
                       <CalendarView currentUser={currentUser} />
                     </motion.div>
                   )}

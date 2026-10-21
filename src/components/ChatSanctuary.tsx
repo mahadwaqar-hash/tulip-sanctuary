@@ -32,7 +32,7 @@ import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
 import { encryptMessage, decryptMessage } from '../crypto';
 import { getNetworkNow, formatMessageTime } from '../utils/timezone';
 
-const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
+const springConfig: Transition = { type: 'spring', stiffness: 360, damping: 22, mass: 0.8 };
 
 const DEFAULT_REACTIONS = ['❤️', '🌸', '✨', '🥺', '🤍', '🌙', '💍', '🥰'];
 
@@ -2106,7 +2106,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   handleSendMessage();
                   chatInputRef.current?.focus();
                 }}
-                className="p-3.5 rounded-[28px] clay-btn text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0 duration-200"
+                className="p-3.5 rounded-[28px] clay-btn text-white shadow-md disabled:opacity-40 transition-all cursor-pointer shrink-0 bouncy-spring"
               >
                 <Send className="w-4 h-4 md:w-5 md:h-5" />
               </button>
@@ -2324,11 +2324,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           >
             <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
+              transition={springConfig}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-[2.5rem] bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-lg rounded-[36px] clay-card bg-surface/98 md:backdrop-blur-xl border border-pastel-pink-300/40 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-border">

@@ -22,7 +22,7 @@ import type { LdrLetter } from '../db';
 import type { LoveBurstType } from './FullScreenLoveBurst';
 import { resolveTimezone, formatTimeInZone, POPULAR_CITIES, MAJOR_TIMEZONES, isValidTimezone, getAllTimezones, getNetworkDate, getNetworkNow } from '../utils/timezone';
 
-const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
+const springConfig: Transition = { type: 'spring', stiffness: 360, damping: 22, mass: 0.8 };
 
 interface LdrSanctuaryViewProps {
   currentUser: 'Mahad' | 'Ifa';
@@ -542,9 +542,11 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {/* 1. Giant Kiss Card */}
             <motion.button
-              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.04, y: -8, rotate: -1.5 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 20 }}
               onClick={() => handleSendLoveBurst('kiss')}
-              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-rose-400/30 hover:border-rose-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-rose-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-rose-400/30 hover:border-rose-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:shadow-rose-500/25 group wobble-lift-left will-change-transform"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(244,63,94,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -559,9 +561,11 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
             {/* 2. Warm Hug Card */}
             <motion.button
-              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.04, y: -8, rotate: 1.5 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 20 }}
               onClick={() => handleSendLoveBurst('hug')}
-              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-amber-400/30 hover:border-amber-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-amber-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-amber-400/30 hover:border-amber-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:shadow-amber-500/25 group wobble-lift-right will-change-transform"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -576,9 +580,11 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
             {/* 3. Thinking of You Card */}
             <motion.button
-              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.04, y: -8, rotate: -1.5 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 20 }}
               onClick={() => handleSendLoveBurst('thinking')}
-              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-purple-400/30 hover:border-purple-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[-1deg] hover:shadow-purple-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-purple-400/30 hover:border-purple-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:shadow-purple-500/25 group wobble-lift-left will-change-transform"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(168,85,247,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -593,9 +599,11 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
 
             {/* 4. Fairytale Stars Card */}
             <motion.button
-              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.04, y: -8, rotate: 1.5 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 20 }}
               onClick={() => handleSendLoveBurst('stars')}
-              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-yellow-400/30 hover:border-yellow-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:rotate-[1deg] hover:shadow-yellow-500/20 group"
+              className="p-5 rounded-[32px] clay-card bg-surface/80 border border-yellow-400/30 hover:border-yellow-400/70 flex flex-col items-center text-center justify-center min-h-[155px] relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:shadow-yellow-500/25 group wobble-lift-right will-change-transform"
             >
               {/* Soft Radial Gradient Background Glow */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(234,179,8,0.18)_0%,transparent_70%)] pointer-events-none" />
@@ -625,20 +633,25 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {letters.map((letter) => {
+            {letters.map((letter, index) => {
               const recipientTz = letter.recipient === 'Ifa' ? ifaTzStr : mahadTzStr;
               const todayInTz = getTodayInTimezone(recipientTz);
               const isLockedForMe = isLetterLocked(letter);
               const isAuthor = currentUser === letter.sender;
               const isTimed = Boolean(letter.unlockDate);
               const isReadyToday = isTimed && todayInTz >= (letter.unlockDate || '') && !letter.isOpened;
+              const isEven = index % 2 === 0;
 
               return (
                 <motion.div
                   key={letter.id}
-                  whileHover={{ scale: 1.02, y: -4 }}
+                  whileHover={{ scale: 1.04, y: -8, rotate: isEven ? -1.5 : 1.5 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 20 }}
                   onClick={() => handleOpenLetter(letter)}
-                  className={`p-6 pt-7 rounded-[32px] clay-card border transition-all cursor-pointer flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-sm hover:shadow-xl will-change-transform group ${
+                  className={`p-6 pt-7 rounded-[32px] clay-card border transition-all cursor-pointer flex flex-col justify-between min-h-[200px] relative overflow-hidden shadow-sm hover:shadow-2xl will-change-transform group ${
+                    isEven ? 'wobble-lift-left' : 'wobble-lift-right'
+                  } ${
                     letter.isOpened
                       ? 'bg-surface/75 border-border/80 dark:border-border/50'
                       : isReadyToday
@@ -738,9 +751,10 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         {isEditingCities && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
+              transition={springConfig}
               className="max-w-md w-full rounded-[36px] p-8 clay-card border border-border shadow-2xl flex flex-col bg-surface"
             >
               <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-1">Set Your Cities</h3>
@@ -938,9 +952,9 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 cursor-pointer"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
               transition={springConfig}
               onClick={(e) => e.stopPropagation()}
               className="max-w-md w-full rounded-[36px] p-8 md:p-9 clay-card border-2 border-amber-300/60 dark:border-amber-400/40 shadow-2xl flex flex-col items-center text-center bg-surface relative overflow-hidden"
@@ -1032,9 +1046,9 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 cursor-pointer"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
               transition={springConfig}
               onClick={(e) => e.stopPropagation()}
               className={`max-w-lg w-full rounded-[36px] p-8 md:p-10 clay-card border shadow-2xl flex flex-col bg-surface relative overflow-hidden ${
@@ -1141,9 +1155,9 @@ export default function LdrSanctuaryView({ currentUser, onTriggerBurst }: LdrSan
         {showWriteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
               transition={springConfig}
               className="max-w-lg w-full rounded-[36px] p-8 clay-card border border-border shadow-2xl flex flex-col bg-surface"
             >

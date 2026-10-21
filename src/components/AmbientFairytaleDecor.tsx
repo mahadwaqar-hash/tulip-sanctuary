@@ -87,7 +87,66 @@ export default function AmbientFairytaleDecor() {
         <rect width="100%" height="100%" filter="url(#fairytale-grain)" />
       </svg>
 
-      {/* 4. Gentle floating ambient fairytale elements */}
+      {/* 4. Continuous GPU-accelerated ambient drifting glowing particles (CSS keyframes, zero JS runtime cost) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Particle 1: Soft Glowing Heart (Top-Left Drift) */}
+        <div 
+          className="absolute top-[18%] left-[8%] text-lg opacity-35 dark:opacity-20 ambient-particle-1"
+          style={{ filter: 'drop-shadow(0 0 10px var(--accent-glow, rgba(255,20,147,0.5)))' }}
+        >
+          <span>💖</span>
+        </div>
+
+        {/* Particle 2: Fairy Starlight (Top-Right Drift) */}
+        <div 
+          className="absolute top-[22%] right-[12%] text-base opacity-40 dark:opacity-25 ambient-particle-2"
+          style={{ filter: 'drop-shadow(0 0 12px rgba(255, 230, 120, 0.75))' }}
+        >
+          <span>✨</span>
+        </div>
+
+        {/* Particle 3: Gentle Blossom Petal (Mid-Left Drift) */}
+        <div 
+          className="absolute top-[52%] left-[14%] text-xl opacity-30 dark:opacity-20 ambient-particle-3"
+          style={{ filter: 'drop-shadow(0 0 10px var(--accent-glow, rgba(255,105,180,0.5)))' }}
+        >
+          <span>🌸</span>
+        </div>
+
+        {/* Particle 4: Floating Tulip (Bottom-Right Drift) */}
+        <div 
+          className="absolute bottom-[24%] right-[18%] text-lg opacity-35 dark:opacity-20 ambient-particle-1"
+          style={{ filter: 'drop-shadow(0 0 10px var(--accent-glow, rgba(255,20,147,0.5)))' }}
+        >
+          <span>🌷</span>
+        </div>
+
+        {/* Particle 5: Breathing Golden Star (Center Aura) */}
+        <div 
+          className="absolute top-[38%] left-[48%] text-xs opacity-30 dark:opacity-20 ambient-breathing"
+          style={{ filter: 'drop-shadow(0 0 14px rgba(255, 240, 150, 0.8))' }}
+        >
+          <span>⭐</span>
+        </div>
+
+        {/* Particle 6: Soft Twin Hearts (Bottom-Left Drift) */}
+        <div 
+          className="absolute bottom-[16%] left-[24%] text-sm opacity-35 dark:opacity-20 ambient-particle-2"
+          style={{ filter: 'drop-shadow(0 0 10px var(--accent-glow, rgba(255,20,147,0.5)))' }}
+        >
+          <span>💕</span>
+        </div>
+
+        {/* Particle 7: Starlight Glimmer (Far-Right Drift) */}
+        <div 
+          className="absolute top-[68%] right-[8%] text-base opacity-40 dark:opacity-25 ambient-particle-3"
+          style={{ filter: 'drop-shadow(0 0 12px rgba(255, 230, 120, 0.75))' }}
+        >
+          <span>✨</span>
+        </div>
+      </div>
+
+      {/* 5. Gentle rising floating fairytale elements */}
       <div className="absolute inset-0 pointer-events-none opacity-45 dark:opacity-25">
         {FLOATING_ELEMENTS.map((item) => (
           <motion.div

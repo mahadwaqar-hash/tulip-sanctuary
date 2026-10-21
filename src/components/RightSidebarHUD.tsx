@@ -20,7 +20,7 @@ function WorldClock({ timezone, city, label, icon: Icon }: { timezone: string; c
   const { formattedTime, isDaytime } = formatTimeInZone(time, safeTz);
 
   return (
-    <div className={`p-6 rounded-[32px] clay-card flex flex-col justify-between overflow-hidden relative ${
+    <div className={`p-6 rounded-[32px] clay-card interactive-spring flex flex-col justify-between overflow-hidden relative cursor-default ${
       isDaytime 
         ? 'bg-gradient-to-br from-amber-500/15 to-surface/40' 
         : 'bg-gradient-to-br from-indigo-900/30 to-surface/40'
@@ -105,7 +105,7 @@ export default function RightSidebarHUD({ currentUser }: { currentUser: 'Mahad' 
     <div className="w-80 hidden lg:flex flex-col gap-4 h-full overflow-y-auto px-1 pb-6 scrollbar-hide shrink-0 pt-0">
       
       {/* Live Timer */}
-      <div className="p-6 rounded-[32px] clay-card flex flex-col justify-between relative overflow-hidden group">
+      <div className="p-6 rounded-[32px] clay-card interactive-spring flex flex-col justify-between relative overflow-hidden group cursor-default">
         <div className="absolute inset-0 bg-gradient-to-br from-pastel-pink-400/10 to-transparent pointer-events-none" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-pastel-pink-400 mb-1 relative z-10">
           In Love For

@@ -15,7 +15,7 @@ import {
 import { useFirestore, fb } from '../firebase';
 import type { VaultPhoto } from '../db';
 
-const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
+const springConfig: Transition = { type: 'spring', stiffness: 360, damping: 22, mass: 0.8 };
 
 interface SecretPhotosViewProps {
   currentUser: 'Mahad' | 'Ifa';
@@ -116,10 +116,10 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
       {!isUnlocked ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6 bg-surface-hover/20 backdrop-blur-md z-10 relative">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0, scale: 0.85, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.85, y: 15 }}
+            transition={springConfig}
             className="w-full max-w-sm p-8 rounded-[36px] clay-card shadow-2xl flex flex-col items-center text-center border border-border"
           >
             <div className="w-16 h-16 rounded-full bg-surface-hover border border-border flex items-center justify-center mb-6 shadow-inner relative">
@@ -281,11 +281,11 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
             {showUploadModal && tempDataUrl && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
+                  initial={{ scale: 0.85, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.85, opacity: 0, y: 15 }}
                   transition={springConfig}
-                  className="bg-surface glass-panel p-8 rounded-[2.5rem] max-w-md w-full shadow-2xl border border-border flex flex-col"
+                  className="bg-surface p-8 rounded-[36px] clay-card max-w-md w-full shadow-2xl border border-border flex flex-col"
                 >
                   <h3 className="text-2xl font-bold font-serif-italic text-text-main mb-4">Add Sweet Memory</h3>
 
@@ -343,9 +343,9 @@ export default function SecretPhotosView({ currentUser, sanctuaryPassword }: Sec
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 cursor-pointer"
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
+                  initial={{ scale: 0.85, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.85, opacity: 0, y: 15 }}
                   transition={springConfig}
                   onClick={(e) => e.stopPropagation()}
                   className="max-w-3xl w-full rounded-[36px] overflow-hidden clay-card border border-white/20 shadow-2xl flex flex-col"

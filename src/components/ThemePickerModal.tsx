@@ -127,9 +127,10 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
       <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 15 }}
+        initial={{ opacity: 0, scale: 0.85, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 15 }}
+        exit={{ opacity: 0, scale: 0.85, y: 15 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 22, mass: 0.8 }}
         className="w-full max-w-lg rounded-[36px] p-6 md:p-8 clay-card border border-border flex flex-col max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
@@ -163,8 +164,9 @@ export default function ThemePickerModal({ currentThemeId, onSelectTheme, onClos
             return (
               <motion.div
                 key={theme.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 onClick={() => handleSelect(theme)}
                 className={`p-4 rounded-[28px] border-2 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden shadow-[0_8px_20px_-6px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-3px_6px_rgba(0,0,0,0.1)] ${
                   isSelected

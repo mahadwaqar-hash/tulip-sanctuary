@@ -13,7 +13,7 @@ import {
 import { useFirestore, fb } from '../firebase';
 import type { CalendarEvent } from '../db';
 
-const springConfig: Transition = { type: 'spring', stiffness: 400, damping: 26 };
+const springConfig: Transition = { type: 'spring', stiffness: 360, damping: 22, mass: 0.8 };
 
 interface CalendarViewProps {
   currentUser: 'Mahad' | 'Ifa';
@@ -116,13 +116,13 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-2 rounded-full border border-border bg-surface-hover hover:bg-pastel-pink-100 dark:hover:bg-pastel-pink-400/20 text-text-main transition-colors cursor-pointer"
+              className="p-2 rounded-full border border-border bg-surface-hover hover:bg-pastel-pink-100 dark:hover:bg-pastel-pink-400/20 text-text-main transition-colors cursor-pointer interactive-spring"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-full border border-border bg-surface-hover hover:bg-pastel-pink-100 dark:hover:bg-pastel-pink-400/20 text-text-main transition-colors cursor-pointer"
+              className="p-2 rounded-full border border-border bg-surface-hover hover:bg-pastel-pink-100 dark:hover:bg-pastel-pink-400/20 text-text-main transition-colors cursor-pointer interactive-spring"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -156,8 +156,9 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
             return (
               <motion.button
                 key={dayNum}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.93 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                 onClick={() => setSelectedDateStr(dateStr)}
                 className={`aspect-square rounded-2xl p-1.5 sm:p-2 flex flex-col justify-between items-center transition-all cursor-pointer relative border ${
                   isSelected
@@ -221,7 +222,10 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
                 key={evt.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-5 rounded-[24px] clay-card bg-surface/90 border border-border/60 flex flex-col gap-2 relative group hover:border-pastel-pink-400 transition-all"
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                className="p-5 rounded-[24px] clay-card bg-surface/90 border border-border/60 flex flex-col gap-2 relative group hover:border-pastel-pink-400 transition-all cursor-default"
               >
                 <div className="flex items-center justify-between">
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${cat.color}`}>
@@ -269,9 +273,9 @@ export default function CalendarView({ currentUser }: CalendarViewProps) {
         {showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.85, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 15 }}
               transition={springConfig}
               className="bg-surface p-8 rounded-[36px] clay-card max-w-md w-full shadow-2xl border border-border"
             >
