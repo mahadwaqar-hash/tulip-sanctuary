@@ -92,7 +92,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-1',
     title: 'Normal People',
     author: 'Sally Rooney',
-    coverUrl: 'https://covers.openlibrary.org/b/id/8794265-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/8794265-M.jpg',
     genre: 'Romance',
     shelf: 'reading',
     rating: 5,
@@ -104,7 +104,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-2',
     title: 'The Night Circus',
     author: 'Erin Morgenstern',
-    coverUrl: 'https://covers.openlibrary.org/b/id/8314134-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/8314134-M.jpg',
     genre: 'Fantasy',
     shelf: 'reading',
     rating: 5,
@@ -116,7 +116,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-3',
     title: 'The Seven Husbands of Evelyn Hugo',
     author: 'Taylor Jenkins Reid',
-    coverUrl: 'https://covers.openlibrary.org/b/id/12836267-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/12836267-M.jpg',
     genre: 'Romance',
     shelf: 'favorites',
     rating: 5,
@@ -128,7 +128,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-4',
     title: 'The Song of Achilles',
     author: 'Madeline Miller',
-    coverUrl: 'https://covers.openlibrary.org/b/id/8235111-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/8235111-M.jpg',
     genre: 'Fantasy',
     shelf: 'favorites',
     rating: 5,
@@ -140,7 +140,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-5',
     title: 'The Little Prince',
     author: 'Antoine de Saint-Exupéry',
-    coverUrl: 'https://covers.openlibrary.org/b/id/10531580-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/10531580-M.jpg',
     genre: 'Classic',
     shelf: 'favorites',
     rating: 5,
@@ -152,7 +152,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-6',
     title: 'Before the Coffee Gets Cold',
     author: 'Toshikazu Kawaguchi',
-    coverUrl: 'https://covers.openlibrary.org/b/id/10297074-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/10297074-M.jpg',
     genre: 'Sci-Fi',
     shelf: 'wishlist',
     rating: 5,
@@ -164,7 +164,7 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-7',
     title: 'A Court of Thorns and Roses',
     author: 'Sarah J. Maas',
-    coverUrl: 'https://covers.openlibrary.org/b/id/10398642-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/10398642-M.jpg',
     genre: 'Fantasy',
     shelf: 'wishlist',
     rating: 5,
@@ -176,13 +176,34 @@ const DEFAULT_BOOKS: SavedBook[] = [
     id: 'book-8',
     title: 'Norwegian Wood',
     author: 'Haruki Murakami',
-    coverUrl: 'https://covers.openlibrary.org/b/id/8231856-L.jpg',
+    coverUrl: 'https://covers.openlibrary.org/b/id/8231856-M.jpg',
     genre: 'Poetry',
     shelf: 'wishlist',
     rating: 4,
     addedBy: 'Mahad',
     notes: 'Melancholic, poetic and deeply atmospheric 🍂',
     year: '1987'
+  }
+];
+
+const SHELVES_CONFIG = [
+  {
+    id: 'reading' as ShelfCategory,
+    title: 'Currently Reading Together',
+    emoji: '💕',
+    subtitle: 'Chapters we share under cozy blankets'
+  },
+  {
+    id: 'favorites' as ShelfCategory,
+    title: 'Our All-Time Favorites',
+    emoji: '🌷',
+    subtitle: 'Stories that have earned a permanent place in our hearts'
+  },
+  {
+    id: 'wishlist' as ShelfCategory,
+    title: 'Our Fairytale Wishlist',
+    emoji: '✨',
+    subtitle: 'Adventures waiting for our next rainy afternoon'
   }
 ];
 
@@ -239,8 +260,8 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
           const items: SearchResultBook[] = (data.docs || []).map((doc: any, index: number) => {
             const coverId = doc.cover_i;
             const coverUrl = coverId 
-              ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
-              : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400';
+              ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
+              : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300';
             
             // Infer genre from subjects or cycle tastefully
             const subjects = Array.isArray(doc.subject) ? doc.subject.join(' ').toLowerCase() : '';
@@ -319,42 +340,14 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
     if ('vibrate' in navigator) navigator.vibrate([50, 40]);
   };
 
-  // Group books by shelf
-  const shelvesConfig = [
-    {
-      id: 'reading' as ShelfCategory,
-      title: 'Currently Reading Together',
-      emoji: '💕',
-      subtitle: 'Chapters we share under cozy blankets'
-    },
-    {
-      id: 'favorites' as ShelfCategory,
-      title: 'Our All-Time Favorites',
-      emoji: '🌷',
-      subtitle: 'Stories that have earned a permanent place in our hearts'
-    },
-    {
-      id: 'wishlist' as ShelfCategory,
-      title: 'Our Fairytale Wishlist',
-      emoji: '✨',
-      subtitle: 'Adventures waiting for our next rainy afternoon'
-    }
-  ];
-
   const filteredShelves = useMemo(() => {
-    if (activeFilter === 'all') return shelvesConfig;
-    return shelvesConfig.filter(s => s.id === activeFilter);
+    if (activeFilter === 'all') return SHELVES_CONFIG;
+    return SHELVES_CONFIG.filter(s => s.id === activeFilter);
   }, [activeFilter]);
 
   return (
     <div className="flex-1 flex flex-col h-full rounded-[36px] clay-card overflow-hidden border border-border relative select-none">
       
-      {/* SVG Noise Texture Overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.035] pointer-events-none mix-blend-overlay z-0"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
-      />
-
       {/* HEADER WITH ANIMATED EXPANDABLE SEARCH BAR & FILTERS */}
       <div className="px-6 sm:px-8 py-5 border-b border-border bg-surface/85 backdrop-blur-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-20">
         
@@ -542,10 +535,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
               </div>
 
               {/* 3D BOOK VOLUMES ON SHELF (Perspective Stage) */}
-              <div 
-                className="relative min-h-[220px] sm:min-h-[260px] md:min-h-[290px] flex items-end justify-start gap-5 sm:gap-7 md:gap-9 flex-wrap sm:flex-nowrap overflow-x-auto pb-2 px-3 pt-6"
-                style={{ perspective: '1200px' }}
-              >
+              <div className="relative min-h-[220px] sm:min-h-[260px] md:min-h-[290px] flex items-end justify-start gap-5 sm:gap-7 md:gap-9 flex-wrap sm:flex-nowrap overflow-x-auto pb-2 px-3 pt-6">
                 {shelfBooks.map((book) => {
                   const tagStyle = GENRE_TAG_STYLES[book.genre] || GENRE_TAG_STYLES.Romance;
 
@@ -568,6 +558,9 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                         onClick={() => setSelectedBook(book)}
                         style={{
                           transformStyle: 'preserve-3d',
+                          willChange: 'transform',
+                          transform: 'translateZ(0)',
+                          backfaceVisibility: 'hidden',
                           boxShadow: 'inset 10px 0 18px -2px rgba(0,0,0,0.65), inset 1px 0 2px rgba(255,255,255,0.4), 0 14px 28px -6px rgba(0,0,0,0.5)'
                         }}
                         className="relative w-28 sm:w-36 md:w-44 h-40 sm:h-52 md:h-64 rounded-r-xl rounded-l-[4px] overflow-hidden cursor-pointer select-none border-t border-b border-r border-white/20 bg-stone-900 group"
@@ -584,9 +577,11 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                         <img
                           src={book.coverUrl}
                           alt={book.title}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover rounded-r-xl rounded-l-[4px] group-hover:brightness-105 transition-all duration-300"
                           onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400';
+                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300';
                           }}
                         />
 
@@ -632,7 +627,7 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                   }}
                 />
                 {/* Deep Under-Shelf Shadow & Bottom Edge Bevel */}
-                <div className="h-2.5 w-[98.5%] mx-auto -mt-1 rounded-b-2xl bg-black/40 blur-[1px]" />
+                <div className="h-2.5 w-[98.5%] mx-auto -mt-1 rounded-b-2xl bg-gradient-to-b from-black/40 to-transparent" />
               </div>
 
             </div>

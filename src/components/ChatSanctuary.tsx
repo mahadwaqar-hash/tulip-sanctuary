@@ -758,14 +758,20 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
 
-  // Auto-resize chat input so text wraps smoothly without horizontal scroll
+  // Auto-resize chat input so text wraps smoothly without cutting off or horizontal scrolling
+  const autoResizeInput = useCallback(() => {
+    const el = chatInputRef.current;
+    if (!el) return;
+    el.style.height = '0px';
+    const scrollHeight = el.scrollHeight;
+    // 1 line is 44px, 2 lines is ~66px, 3 lines is ~88px, max 144px
+    const newHeight = Math.min(Math.max(scrollHeight, 44), 144);
+    el.style.height = `${newHeight}px`;
+  }, []);
+
   useEffect(() => {
-    if (chatInputRef.current) {
-      chatInputRef.current.style.height = 'auto';
-      const scrollHeight = chatInputRef.current.scrollHeight;
-      chatInputRef.current.style.height = `${Math.min(Math.max(scrollHeight, 40), 140)}px`;
-    }
-  }, [inputText]);
+    autoResizeInput();
+  }, [inputText, autoResizeInput]);
 
   // Presence & Exact Location Tracking
   const presenceData = useFirestore<any>('presence', 'none');
@@ -1216,6 +1222,13 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   const handleInputChange = (val: string) => {
     setInputText(val);
     
+    // Auto-expand immediately on typing so text wraps to 2nd line without lag
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = '0px';
+      const scrollHeight = chatInputRef.current.scrollHeight;
+      chatInputRef.current.style.height = `${Math.min(Math.max(scrollHeight, 44), 144)}px`;
+    }
+
     // Set typing to true
     fb.typing.set(currentUser, true);
     
@@ -1258,6 +1271,9 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
       const textToSend = inputText.trim();
       setInputText('');
+      if (chatInputRef.current) {
+        chatInputRef.current.style.height = '44px';
+      }
       fb.typing.set(currentUser, false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
@@ -1968,7 +1984,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         </AnimatePresence>
 
         {/* Floating Bubbly Clay Pill Input Container */}
-        <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-end relative z-20 overflow-hidden transition-all duration-300">
+        <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-end relative z-20 overflow-hidden transition-all duration-150">
           
           {editingMsgId ? (
             <div className="w-full flex items-center gap-2 px-3 py-1.5 min-h-[42px] md:min-h-[46px]">
@@ -1986,7 +2002,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                     }
                   }}
                   rows={1}
-                  className="flex-1 bg-surface-hover/50 rounded-2xl py-2 px-3 outline-none text-sm font-medium text-text-main focus:border-pastel-pink-400 border border-transparent transition-all resize-none max-h-24 overflow-x-hidden overflow-y-auto break-words whitespace-pre-wrap leading-relaxed"
+                  className="flex-1 bg-surface-hover/50 rounded-2xl py-2 px-3 outline-none text-sm font-medium text-text-main focus:border-pastel-pink-400 border border-transparent transition-all resize-none min-h-[40px] max-h-28 overflow-x-hidden overflow-y-auto break-words [overflow-wrap:anywhere] whitespace-pre-wrap leading-normal"
                   autoFocus
                 />
                 <button
@@ -2082,11 +2098,12 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <ImageIcon className="w-5 h-5 md:w-5 md:h-5" />
               </button>
 
-              {/* Main Input Field - Auto-expanding, wraps lines so text never needs horizontal scrolling */}
+              {/* Main Input Field - Auto-expanding, wraps lines to 2nd line cleanly without cutting off */}
               <textarea
                 ref={chatInputRef}
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
+                onInput={autoResizeInput}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -2096,8 +2113,7 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 rows={1}
                 autoCapitalize="sentences"
                 placeholder={replyingTo ? `Reply to ${replyingTo.sender}...` : `Message ${currentUser === 'Mahad' ? 'Ifa' : 'Mahad'}...`}
-                className="flex-1 bg-transparent py-2.5 px-2 outline-none transition-all text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0 resize-none max-h-36 overflow-x-hidden overflow-y-auto leading-relaxed break-words whitespace-pre-wrap"
-                style={{ height: 'auto', minHeight: '38px' }}
+                className="flex-1 bg-transparent py-2.5 px-3 outline-none text-[15px] font-medium text-text-main placeholder:text-text-muted/60 min-w-0 resize-none min-h-[44px] max-h-36 overflow-x-hidden overflow-y-auto leading-normal break-words [overflow-wrap:anywhere] whitespace-pre-wrap transition-[height] duration-75"
               />
 
               {/* Voice Note Toggle Button */}
