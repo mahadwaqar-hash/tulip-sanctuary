@@ -792,50 +792,78 @@ export default function SharedLibraryView({ currentUser = 'Mahad' }: SharedLibra
                           backfaceVisibility: 'hidden',
                           boxShadow: 'inset 10px 0 18px -2px rgba(0,0,0,0.65), inset 1px 0 2px rgba(255,255,255,0.4), 0 14px 28px -6px rgba(0,0,0,0.5)'
                         }}
-                        className="relative w-28 sm:w-36 md:w-44 h-40 sm:h-52 md:h-64 rounded-r-xl rounded-l-[4px] overflow-hidden cursor-pointer select-none border-t border-b border-r border-white/20 bg-stone-900 group"
+                        className="relative w-28 sm:w-36 md:w-44 h-40 sm:h-52 md:h-64 rounded-r-xl rounded-l-[4px] cursor-pointer select-none border-t border-b border-r border-white/20 bg-stone-900 group"
                       >
-                        {/* Book Spine Crease & Shadow on Left */}
-                        <div className="absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-black/60 via-black/20 to-transparent border-r border-black/35 z-20 pointer-events-none" />
-                        <div className="absolute inset-y-0 left-3 w-px bg-white/25 z-20 pointer-events-none" />
+                        {/* Inner Clipped Book Cover & Decorative Layers */}
+                        <div className="absolute inset-0 rounded-r-xl rounded-l-[4px] overflow-hidden">
+                          {/* Book Spine Crease & Shadow on Left */}
+                          <div className="absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-black/60 via-black/20 to-transparent border-r border-black/35 z-20 pointer-events-none" />
+                          <div className="absolute inset-y-0 left-3 w-px bg-white/25 z-20 pointer-events-none" />
 
-                        {/* Top / Right Paper Pages Highlight Edge */}
-                        <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-l from-stone-200 via-stone-300 to-transparent dark:from-stone-600 dark:via-stone-700 opacity-60 z-20 pointer-events-none" />
-                        <div className="absolute top-0 inset-x-0 h-1 bg-white/30 z-20 pointer-events-none" />
+                          {/* Top / Right Paper Pages Highlight Edge */}
+                          <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-l from-stone-200 via-stone-300 to-transparent dark:from-stone-600 dark:via-stone-700 opacity-60 z-20 pointer-events-none" />
+                          <div className="absolute top-0 inset-x-0 h-1 bg-white/30 z-20 pointer-events-none" />
 
-                        {/* Front Face Book Cover */}
-                        <img
-                          src={book.coverUrl}
-                          alt={book.title}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover rounded-r-xl rounded-l-[4px] group-hover:brightness-105 transition-all duration-300"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300';
-                          }}
-                        />
+                          {/* Front Face Book Cover */}
+                          <img
+                            src={book.coverUrl}
+                            alt={book.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover rounded-r-xl rounded-l-[4px] group-hover:brightness-105 transition-all duration-300"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300';
+                            }}
+                          />
 
-                        {/* Bottom Gradient Overlay for Title, Author & User Ownership */}
-                        <div className="absolute inset-x-0 bottom-0 pt-10 pb-2.5 px-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-10 flex flex-col justify-end">
-                          <h4 className="text-white text-[11px] sm:text-xs font-bold leading-tight font-serif-italic truncate drop-shadow-sm">
-                            {book.title}
-                          </h4>
-                          <div className="flex items-center justify-between gap-1 mt-0.5">
-                            <p className="text-stone-300 text-[9px] sm:text-[10px] truncate leading-tight flex-1">
-                              {book.author}
-                            </p>
-                            <span 
-                              className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-black/50 text-white/95 border border-white/10 shrink-0"
-                              title={`Added by ${book.addedBy}`}
-                            >
-                              {book.addedBy === 'Mahad' ? '🌹 M' : '🌷 I'}
-                            </span>
+                          {/* Bottom Gradient Overlay for Title, Author & User Ownership */}
+                          <div className="absolute inset-x-0 bottom-0 pt-10 pb-2.5 px-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-10 flex flex-col justify-end">
+                            <h4 className="text-white text-[11px] sm:text-xs font-bold leading-tight font-serif-italic truncate drop-shadow-sm">
+                              {book.title}
+                            </h4>
+                            <div className="flex items-center justify-between gap-1 mt-0.5">
+                              <p className="text-stone-300 text-[9px] sm:text-[10px] truncate leading-tight flex-1">
+                                {book.author}
+                              </p>
+                              <span 
+                                className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-black/50 text-white/95 border border-white/10 shrink-0"
+                                title={`Added by ${book.addedBy}`}
+                              >
+                                {book.addedBy === 'Mahad' ? '🌹 M' : '🌷 I'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Hover Quick Action Heart/Star Badge */}
+                          <div className="absolute top-2 left-5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            <div className="p-1 rounded-full bg-black/60 backdrop-blur-md text-pastel-pink-400 shadow-md">
+                              <Heart className="w-3.5 h-3.5 fill-pastel-pink-400" />
+                            </div>
                           </div>
                         </div>
 
-                        {/* Hover Quick Action Heart/Star Badge */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                          <div className="p-1 rounded-full bg-black/60 backdrop-blur-md text-pastel-pink-400 shadow-md">
-                            <Heart className="w-3.5 h-3.5 fill-pastel-pink-400" />
+                        {/* Floating Avatar Badge (Top-Right Overlapping Clay Badge) */}
+                        <div
+                          className={`absolute -top-2.5 -right-2 sm:-top-3 sm:-right-2.5 z-30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center select-none pointer-events-none border border-white/40 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:-translate-y-1 group-hover:scale-110 ${
+                            book.addedBy === 'Mahad'
+                              ? 'bg-gradient-to-br from-blue-400 via-indigo-600 to-blue-700 text-white'
+                              : 'bg-gradient-to-br from-pink-300 via-rose-400 to-rose-600 text-white'
+                          }`}
+                          style={{
+                            boxShadow: book.addedBy === 'Mahad'
+                              ? 'inset 0 2px 3px rgba(255,255,255,0.4), 0 4px 8px -2px rgba(0,0,0,0.5), 0 0 10px rgba(59,130,246,0.4)'
+                              : 'inset 0 2px 3px rgba(255,255,255,0.4), 0 4px 8px -2px rgba(0,0,0,0.5), 0 0 10px rgba(244,63,94,0.4)',
+                            transform: 'translateZ(24px)'
+                          }}
+                          title={`Added by ${book.addedBy}`}
+                        >
+                          <div className="flex items-center justify-center leading-none text-white drop-shadow-xs">
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-tighter mr-0.5">
+                              {book.addedBy === 'Mahad' ? 'M' : 'I'}
+                            </span>
+                            <span className="text-[9px] sm:text-[10px]">
+                              {book.addedBy === 'Mahad' ? '🌹' : '🌷'}
+                            </span>
                           </div>
                         </div>
                       </motion.div>
