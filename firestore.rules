@@ -107,6 +107,27 @@ rules_version = '2';
 //    - title: optional string (<= 200 chars)
 //    - createdAt: optional number
 //
+// 11. /streams/{streamId}
+//    - id: optional string (1-128 chars)
+//    - host: 'Mahad' | 'Ifa'
+//    - status: 'offering' | 'connected' | 'ended'
+//    - quality: optional string (<= 100 chars)
+//    - startedAt: number (epoch ms > 0)
+//    - endedAt: optional number
+//    - micEnabled: optional bool
+//    - offer: optional map
+//    - answer: optional map
+//
+// 12. /streams/{streamId}/offerCandidates/{candidateId} & /streams/{streamId}/answerCandidates/{candidateId}
+//    - candidate: string (0-3000 chars)
+//    - sdpMid: optional string / null (<= 100 chars)
+//    - sdpMLineIndex: optional number / null
+//    - createdAt: optional number
+//    - usernameFragment: optional string / null (<= 100 chars)
+//    - id: optional string (<= 128 chars)
+//    - serverUrl: optional string (<= 500 chars)
+//    - type: optional string (<= 50 chars)
+//
 // ===============================================================
 
 service cloud.firestore {
@@ -323,6 +344,41 @@ service cloud.firestore {
              isValidOptionalNumber(data, 'createdAt');
     }
 
+    // 11. WebRTC Stream Validator
+    function isValidStream(data) {
+      return data.keys().hasAll(['host', 'status', 'startedAt']) &&
+             data.keys().hasOnly([
+               'id', 'host', 'status', 'quality', 'startedAt', 'endedAt',
+               'micEnabled', 'offer', 'answer'
+             ]) &&
+             isValidOptionalString(data, 'id', 1, 128) &&
+             isValidUser(data.host) &&
+             data.status in ['offering', 'connected', 'ended'] &&
+             data.startedAt is number && data.startedAt > 0 &&
+             isValidOptionalString(data, 'quality', 0, 100) &&
+             isValidOptionalNumber(data, 'endedAt') &&
+             isValidOptionalBoolean(data, 'micEnabled') &&
+             isValidOptionalMap(data, 'offer') &&
+             isValidOptionalMap(data, 'answer');
+    }
+
+    // 12. WebRTC ICE Candidate Validator
+    function isValidIceCandidate(data) {
+      return data.keys().hasAll(['candidate']) &&
+             data.keys().hasOnly([
+               'candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment',
+               'createdAt', 'id', 'serverUrl', 'type'
+             ]) &&
+             data.candidate is string && data.candidate.size() <= 3000 &&
+             isValidOptionalString(data, 'sdpMid', 0, 100) &&
+             isValidOptionalNumber(data, 'sdpMLineIndex') &&
+             isValidOptionalNumber(data, 'createdAt') &&
+             isValidOptionalString(data, 'usernameFragment', 0, 100) &&
+             isValidOptionalString(data, 'id', 0, 128) &&
+             isValidOptionalString(data, 'serverUrl', 0, 500) &&
+             isValidOptionalString(data, 'type', 0, 50);
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -410,6 +466,30 @@ service cloud.firestore {
       allow create: if isValidScratchpad(request.resource.data);
       allow update: if isValidScratchpad(request.resource.data);
       allow delete: if true;
+    }
+
+    // 11. WebRTC Live Screen Share / Watch Together Streams
+    match /streams/{streamId} {
+      allow read: if true;
+      allow create: if isValidStream(request.resource.data) && streamId.size() <= 128;
+      allow update: if isValidStream(request.resource.data);
+      allow delete: if true;
+
+      // WebRTC Trickling ICE Candidates (Offer side)
+      match /offerCandidates/{candidateId} {
+        allow read: if true;
+        allow create: if isValidIceCandidate(request.resource.data) && candidateId.size() <= 128;
+        allow update: if isValidIceCandidate(request.resource.data);
+        allow delete: if true;
+      }
+
+      // WebRTC Trickling ICE Candidates (Answer side)
+      match /answerCandidates/{candidateId} {
+        allow read: if true;
+        allow create: if isValidIceCandidate(request.resource.data) && candidateId.size() <= 128;
+        allow update: if isValidIceCandidate(request.resource.data);
+        allow delete: if true;
+      }
     }
 
     // ===============================================================

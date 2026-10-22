@@ -20,7 +20,9 @@ import {
   EyeOff,
   Palette,
   BookOpen,
-  Film
+  Film,
+  Tv,
+  Radio
 } from 'lucide-react';
 import ChatSanctuary from './components/ChatSanctuary';
 import CalendarView from './components/CalendarView';
@@ -31,6 +33,8 @@ import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreen
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
 import ThemePickerModal, { applySanctuaryTheme } from './components/ThemePickerModal';
+import { ScreenShareProvider, useScreenShareContext } from './context/ScreenShareContext';
+import ScreenShareTheater from './components/ScreenShareTheater';
 import { useFirestore, fb } from './firebase';
 import { type LdrLetter } from './db';
 
@@ -452,6 +456,359 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
   );
 }
 
+interface SanctuaryContentProps {
+  currentUser: 'Mahad' | 'Ifa';
+  setCurrentUser: (u: 'Mahad' | 'Ifa') => void;
+  activeTab: 'chat' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad';
+  setActiveTab: (t: any) => void;
+  setShowSettings: (s: boolean) => void;
+  setShowThemePicker: (s: boolean) => void;
+  handleLock: () => void;
+  setCurrentBurst: (b: any) => void;
+}
+
+function SanctuaryContent({
+  currentUser,
+  setCurrentUser,
+  activeTab,
+  setActiveTab,
+  setShowSettings,
+  setShowThemePicker,
+  handleLock,
+  setCurrentBurst
+}: SanctuaryContentProps) {
+  const {
+    activeStream,
+    isStreaming,
+    isWatching,
+    localStream,
+    remoteStream,
+    isMicOn,
+    volume: screenVolume,
+    isMuted: isScreenMuted,
+    viewMode: screenViewMode,
+    error: screenShareError,
+    stopScreenShare,
+    leaveStream,
+    toggleMic: toggleScreenMic,
+    toggleMute: toggleScreenMute,
+    setVolume: setScreenVolume,
+    setViewMode: setScreenViewMode,
+    clearError: clearScreenShareError,
+    joinStream
+  } = useScreenShareContext();
+
+  const isPartnerStreaming = Boolean(
+    activeStream && 
+    activeStream.status !== 'ended' && 
+    activeStream.host !== currentUser && 
+    !isWatching && 
+    !isStreaming
+  );
+
+  const TABS = [
+    { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare, isLive: isPartnerStreaming },
+    { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
+    { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
+    { id: 'library', label: 'Shared Library', emoji: '📚', icon: BookOpen },
+    { id: 'watchlist', label: 'Watchlist', emoji: '🎬', icon: Film },
+  ];
+
+  return (
+    <div className="h-[100dvh] w-full flex flex-col md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
+      
+      {/* MOBILE TOP NAV (Sits completely out of the way of the keyboard) */}
+      <div className="lg:hidden flex flex-col w-full bg-surface/95 backdrop-blur-xl border-b border-border shadow-sm z-50">
+        {/* Header row */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
+              <Heart className="w-3.5 h-3.5 fill-white animate-pulse" />
+            </div>
+            <h1 className="text-base font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
+              A.I.M. <span className="text-pastel-pink-400 font-fairytale text-[14px] lowercase whitespace-nowrap">Always Ifa & Mahad</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
+              className="text-[10px] font-bold text-pastel-pink-400 cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
+            >
+              <span>{currentUser}</span>
+              <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
+            </button>
+            <button
+              onClick={() => setShowThemePicker(true)}
+              className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-pastel-pink-400 cursor-pointer"
+              title="Aesthetic Themes"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main cursor-pointer"
+              title="Password Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Scrollable Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-3 py-2.5">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <motion.button
+                key={tab.id}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                  isActive 
+                    ? 'clay-btn text-white shadow-md' 
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text-main interactive-spring'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-bold">{tab.label}</span>
+                {tab.isLive && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase text-red-500 bg-red-500/15 px-1.5 py-0.2 rounded-full animate-pulse ml-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    LIVE
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* TOP NOTIFICATION BANNER ACROSS NON-CHAT TABS IF PARTNER IS STREAMING */}
+      <AnimatePresence>
+        {isPartnerStreaming && activeTab !== 'chat' && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="w-full bg-gradient-to-r from-red-500/15 via-rose-500/20 to-red-500/15 border-b border-red-500/30 px-4 py-2 flex items-center justify-between text-xs z-30 backdrop-blur-md shrink-0"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+              </span>
+              <span className="font-bold text-text-main truncate">
+                {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is streaming live (1080p 60fps)!
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                joinStream();
+                setActiveTab('chat');
+              }}
+              className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-pastel-pink-500 to-rose-500 text-white font-bold text-[11px] uppercase tracking-wider shadow-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 glow-rose-sm"
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Join Stream</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING PIP MINI-PLAYER (Always stays mounted across tabs without dropping WebRTC connection) */}
+      <AnimatePresence>
+        {(isStreaming || isWatching) && (screenViewMode === 'pip' || activeTab !== 'chat') && (
+          <ScreenShareTheater
+            currentUser={currentUser}
+            activeStream={activeStream}
+            isStreaming={isStreaming}
+            isWatching={isWatching}
+            localStream={localStream}
+            remoteStream={remoteStream}
+            isMicOn={isMicOn}
+            volume={screenVolume}
+            isMuted={isScreenMuted}
+            viewMode="pip"
+            error={screenShareError}
+            onStop={stopScreenShare}
+            onLeave={leaveStream}
+            onToggleMic={toggleScreenMic}
+            onToggleMute={toggleScreenMute}
+            onSetVolume={setScreenVolume}
+            onSetViewMode={setScreenViewMode}
+            onClearError={clearScreenShareError}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MAIN 3-PANE LAYOUT */}
+      <div className="flex-1 w-full h-full overflow-hidden flex flex-col lg:flex-row relative gap-4 lg:gap-5 lg:py-2">
+        
+        {/* LEFT SIDEBAR (Desktop Only - Floating 3D Bubbly Clay Card) */}
+        <div className="hidden lg:flex flex-col w-64 shrink-0 h-full clay-card rounded-[36px] p-6 gap-6">
+          <div>
+            <div className="p-3 rounded-[24px] clay-btn text-white flex items-center justify-center w-12 h-12 mb-4">
+              <Heart className="w-6 h-6 fill-white animate-pulse" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex flex-col gap-0 font-serif-italic mb-1">
+              <span>A.I.M.</span>
+              <span className="text-pastel-pink-400 font-fairytale text-2xl lowercase translate-y-0.5 whitespace-nowrap">Always Ifa & Mahad</span>
+            </h1>
+            <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium mt-3">
+              <span>Logged in as</span>
+              <button
+                onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
+                className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-3 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs interactive-spring"
+              >
+                <span>{currentUser}</span>
+                <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Sanctuary</span>
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <motion.button
+                  key={tab.id}
+                  whileHover={{ scale: 1.04, x: 4 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-4 py-3 rounded-[28px] text-sm font-bold transition-all cursor-pointer flex items-center justify-between ${
+                    isActive
+                      ? 'clay-btn text-white shadow-lg'
+                      : 'bg-surface/50 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50 interactive-spring'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </div>
+                  {tab.isLive && (
+                    <span className="flex items-center gap-1 text-[9px] font-black uppercase text-red-500 bg-red-500/20 px-2 py-0.5 rounded-full animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      LIVE
+                    </span>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto flex flex-col gap-1.5 pt-3 border-t border-border/40">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Settings</span>
+            <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
+              <Settings className="w-4 h-4" /> Password
+            </button>
+            <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
+              <Palette className="w-4 h-4" /> Aesthetic Themes
+            </button>
+            <button onClick={handleLock} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
+              <Lock className="w-4 h-4" /> Lock Sanctuary
+            </button>
+          </div>
+        </div>
+
+        {/* CENTER COLUMN (Active View) */}
+        <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
+          <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+            <AnimatePresence mode="wait">
+              {activeTab === 'chat' && (
+                <motion.div
+                  key="chat"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <ChatSanctuary currentUser={currentUser} />
+                </motion.div>
+              )}
+              {activeTab === 'ldr' && (
+                <motion.div
+                  key="ldr"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <LdrSanctuaryView
+                    currentUser={currentUser}
+                    onTriggerBurst={(type, sender) => setCurrentBurst({ type, sender })}
+                  />
+                </motion.div>
+              )}
+              {activeTab === 'calendar' && (
+                <motion.div
+                  key="calendar"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <CalendarView currentUser={currentUser} />
+                </motion.div>
+              )}
+              {activeTab === 'library' && (
+                <motion.div
+                  key="library"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <SharedLibraryView currentUser={currentUser} />
+                </motion.div>
+              )}
+              {activeTab === 'watchlist' && (
+                <motion.div
+                  key="watchlist"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <WatchlistView currentUser={currentUser} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary, Shared Library & Watchlist to provide spacious views) */}
+        <AnimatePresence>
+          {activeTab !== 'ldr' && activeTab !== 'library' && activeTab !== 'watchlist' && (
+            <motion.div
+              key="right-hud"
+              initial={{ opacity: 0, width: 0, x: 20 }}
+              animate={{ opacity: 1, width: 'auto', x: 0 }}
+              exit={{ opacity: 0, width: 0, x: 20 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="hidden lg:flex shrink-0 overflow-hidden"
+            >
+              <RightSidebarHUD currentUser={currentUser} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+      </div>
+
+    </div>
+  );
+}
+
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [hasUnlockedPasscode, setHasUnlockedPasscode] = useState(() => {
@@ -707,225 +1064,17 @@ export default function App() {
 
       {/* STEP 3: MAIN SANCTUARY */}
       {!loading && hasUnlockedPasscode && currentUser && (
-        <div className="h-[100dvh] w-full flex flex-col md:p-6 max-w-[1600px] mx-auto overflow-hidden transition-colors duration-500 relative z-10">
-          
-          {/* MOBILE TOP NAV (Sits completely out of the way of the keyboard) */}
-          <div className="lg:hidden flex flex-col w-full bg-surface/95 backdrop-blur-xl border-b border-border shadow-sm z-50">
-            {/* Header row */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-xl bg-gradient-to-br from-pastel-pink-300 to-pastel-pink-400 text-white shadow-md glow-rose-sm flex items-center justify-center">
-                  <Heart className="w-3.5 h-3.5 fill-white animate-pulse" />
-                </div>
-                <h1 className="text-base font-bold tracking-tight text-text-main leading-tight flex items-center gap-1.5 font-serif-italic">
-                  A.I.M. <span className="text-pastel-pink-400 font-fairytale text-[14px] lowercase whitespace-nowrap">Always Ifa & Mahad</span>
-                </h1>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                  className="text-[10px] font-bold text-pastel-pink-400 cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20"
-                >
-                  <span>{currentUser}</span>
-                  <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
-                </button>
-                <button
-                  onClick={() => setShowThemePicker(true)}
-                  className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-pastel-pink-400 cursor-pointer"
-                  title="Aesthetic Themes"
-                >
-                  <Palette className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="p-1.5 rounded-full text-text-muted hover:bg-surface-hover hover:text-text-main cursor-pointer"
-                  title="Password Settings"
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            
-            {/* Scrollable Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-3 py-2.5">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                      isActive 
-                        ? 'clay-btn text-white shadow-md' 
-                        : 'text-text-muted hover:bg-surface-hover hover:text-text-main interactive-spring'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-[11px] font-bold">{tab.label}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* MAIN 3-PANE LAYOUT */}
-          <div className="flex-1 w-full h-full overflow-hidden flex flex-col lg:flex-row relative gap-4 lg:gap-5 lg:py-2">
-            
-            {/* LEFT SIDEBAR (Desktop Only - Floating 3D Bubbly Clay Card) */}
-            <div className="hidden lg:flex flex-col w-64 shrink-0 h-full clay-card rounded-[36px] p-6 gap-6">
-              <div>
-                <div className="p-3 rounded-[24px] clay-btn text-white flex items-center justify-center w-12 h-12 mb-4">
-                  <Heart className="w-6 h-6 fill-white animate-pulse" />
-                </div>
-                <h1 className="text-3xl font-bold tracking-tight text-text-main leading-tight flex flex-col gap-0 font-serif-italic mb-1">
-                  <span>A.I.M.</span>
-                  <span className="text-pastel-pink-400 font-fairytale text-2xl lowercase translate-y-0.5 whitespace-nowrap">Always Ifa & Mahad</span>
-                </h1>
-                <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium mt-3">
-                  <span>Logged in as</span>
-                  <button
-                    onClick={() => setCurrentUser(currentUser === 'Mahad' ? 'Ifa' : 'Mahad')}
-                    className="font-bold text-pastel-pink-400 hover:underline cursor-pointer flex items-center gap-1 px-3 py-1 rounded-full bg-surface-hover border border-border/40 hover:border-pastel-pink-400/50 transition-all shadow-xs interactive-spring"
-                  >
-                    <span>{currentUser}</span>
-                    <span>{currentUser === 'Mahad' ? '🌹' : '🌷'}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Sanctuary</span>
-                {TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <motion.button
-                      key={tab.id}
-                      whileHover={{ scale: 1.04, x: 4 }}
-                      whileTap={{ scale: 0.95 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`px-4 py-3 rounded-[28px] text-sm font-bold transition-all cursor-pointer flex items-center gap-3 ${
-                        isActive
-                          ? 'clay-btn text-white shadow-lg'
-                          : 'bg-surface/50 hover:bg-surface-hover text-text-muted hover:text-text-main border border-transparent hover:border-border/50 interactive-spring'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-auto flex flex-col gap-1.5 pt-3 border-t border-border/40">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1 px-2">Settings</span>
-                <button onClick={() => setShowSettings(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
-                  <Settings className="w-4 h-4" /> Password
-                </button>
-                <button onClick={() => setShowThemePicker(true)} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-pastel-pink-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
-                  <Palette className="w-4 h-4" /> Aesthetic Themes
-                </button>
-                <button onClick={handleLock} className="px-3.5 py-2 rounded-2xl text-sm font-semibold flex items-center gap-3 text-text-muted hover:text-red-400 hover:bg-surface-hover transition-colors cursor-pointer text-left interactive-spring">
-                  <Lock className="w-4 h-4" /> Lock Sanctuary
-                </button>
-              </div>
-            </div>
-
-            {/* CENTER COLUMN (Active View) */}
-            <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-              <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' ? 'max-w-6xl' : 'max-w-4xl'}`}>
-                <AnimatePresence mode="wait">
-                  {activeTab === 'chat' && (
-                    <motion.div
-                      key="chat"
-                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
-                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
-                    >
-                      <ChatSanctuary currentUser={currentUser} />
-                    </motion.div>
-                  )}
-                  {activeTab === 'ldr' && (
-                    <motion.div
-                      key="ldr"
-                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
-                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
-                    >
-                      <LdrSanctuaryView
-                        currentUser={currentUser}
-                        onTriggerBurst={(type, sender) => setCurrentBurst({ type, sender })}
-                      />
-                    </motion.div>
-                  )}
-                  {activeTab === 'calendar' && (
-                    <motion.div
-                      key="calendar"
-                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
-                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
-                    >
-                      <CalendarView currentUser={currentUser} />
-                    </motion.div>
-                  )}
-                  {activeTab === 'library' && (
-                    <motion.div
-                      key="library"
-                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
-                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
-                    >
-                      <SharedLibraryView currentUser={currentUser} />
-                    </motion.div>
-                  )}
-                  {activeTab === 'watchlist' && (
-                    <motion.div
-                      key="watchlist"
-                      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -14, scale: 0.985 }}
-                      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
-                    >
-                      <WatchlistView currentUser={currentUser} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary, Shared Library & Watchlist to provide spacious views) */}
-            <AnimatePresence>
-              {activeTab !== 'ldr' && activeTab !== 'library' && activeTab !== 'watchlist' && (
-                <motion.div
-                  key="right-hud"
-                  initial={{ opacity: 0, width: 0, x: 20 }}
-                  animate={{ opacity: 1, width: 'auto', x: 0 }}
-                  exit={{ opacity: 0, width: 0, x: 20 }}
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  className="hidden lg:flex shrink-0 overflow-hidden"
-                >
-                  <RightSidebarHUD currentUser={currentUser} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-          </div>
-
-
+        <ScreenShareProvider currentUser={currentUser}>
+          <SanctuaryContent
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            setShowSettings={setShowSettings}
+            setShowThemePicker={setShowThemePicker}
+            handleLock={handleLock}
+            setCurrentBurst={setCurrentBurst}
+          />
 
           {/* PASSWORD SETTINGS MODAL */}
           <AnimatePresence>
@@ -944,8 +1093,7 @@ export default function App() {
               />
             )}
           </AnimatePresence>
-
-        </div>
+        </ScreenShareProvider>
       )}
     </>
   );
