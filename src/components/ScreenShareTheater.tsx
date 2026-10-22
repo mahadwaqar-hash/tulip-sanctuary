@@ -81,8 +81,10 @@ export default function ScreenShareTheater({
       const playPromise = node.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('[PiP] Autoplay was blocked:', err);
+          console.warn('[PiP] Autoplay was blocked, muting to start video:', err);
           if (!isStreaming) {
+            node.muted = true;
+            node.play().catch(() => {});
             setAudioAutoplayBlocked(true);
           }
         });
@@ -155,6 +157,7 @@ export default function ScreenShareTheater({
           ref={attachVideoRef}
           autoPlay
           playsInline
+          webkit-playsinline="true"
           muted={isStreaming ? true : isMuted}
           className="w-full h-full object-contain pointer-events-none"
         />

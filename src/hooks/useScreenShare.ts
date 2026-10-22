@@ -25,8 +25,26 @@ export interface ActiveStreamDoc {
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
-    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
-  ]
+    {
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302',
+        'stun:openrelay.metered.ca:80'
+      ]
+    },
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp'
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ],
+  iceCandidatePoolSize: 10
 };
 
 export type StreamViewMode = 'theater' | 'pip' | 'fullscreen';
@@ -93,10 +111,29 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     }
   }, []);
 
+  // Safely construct a valid RTCIceCandidateInit matching standard WebRTC specifications
+  const createSafeIceInit = (data: any): RTCIceCandidateInit | null => {
+    if (!data || !data.candidate) return null;
+    const init: RTCIceCandidateInit = {
+      candidate: data.candidate
+    };
+    if (data.sdpMid !== null && data.sdpMid !== undefined) {
+      init.sdpMid = String(data.sdpMid);
+    }
+    if (data.sdpMLineIndex !== null && data.sdpMLineIndex !== undefined) {
+      init.sdpMLineIndex = Number(data.sdpMLineIndex);
+    }
+    if (data.usernameFragment) {
+      init.usernameFragment = String(data.usernameFragment);
+    }
+    return init;
+  };
+
   // Flush queued early ICE candidates after setRemoteDescription has resolved
   const flushIceCandidateQueue = useCallback(async (pc: RTCPeerConnection) => {
     while (iceCandidateQueueRef.current.length > 0) {
-      const candidateInit = iceCandidateQueueRef.current.shift();
+      const candidateData = iceCandidateQueueRef.current.shift();
+      const candidateInit = createSafeIceInit(candidateData);
       if (candidateInit && pc.remoteDescription) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
@@ -107,16 +144,19 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     }
   }, []);
 
-  // Handle incoming candidate with queue protection
+  // Handle incoming candidate with queue protection and empty candidate filtering
   const handleIncomingCandidate = useCallback(async (candidateData: any) => {
     const pc = pcRef.current;
     if (!pc) return;
 
+    const candidateInit = createSafeIceInit(candidateData);
+    if (!candidateInit) return;
+
     if (!isRemoteDescriptionSetRef.current || !pc.remoteDescription) {
-      iceCandidateQueueRef.current.push(candidateData);
+      iceCandidateQueueRef.current.push(candidateInit);
     } else {
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(candidateData));
+        await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
       } catch (err) {
         console.warn('[WebRTC] addIceCandidate error (non-fatal):', err);
       }
@@ -257,21 +297,51 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       };
 
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') {
+          console.warn('[WebRTC] Host ICE connection failed, restarting ICE...');
+          try {
+            pc.restartIce();
+          } catch (e) {}
+        }
+      };
+
       // Add display tracks to RTCPeerConnection
       displayStream.getTracks().forEach(track => {
         pc.addTrack(track, displayStream);
       });
 
+      // Ensure an audio transceiver exists so mic can be added or toggled later without renegotiation
+      if (displayStream.getAudioTracks().length === 0) {
+        try {
+          pc.addTransceiver('audio', { direction: 'sendrecv' });
+        } catch (e) {}
+      }
+
       // Clear previous candidates before posting new offer
       await clearSubcollection('offerCandidates');
       await clearSubcollection('answerCandidates');
 
-      // Trickle ICE candidates
+      // Trickle ICE candidates (Sanitized to strictly match firestore.rules isValidIceCandidate)
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && event.candidate.candidate) {
+          const payload: any = {
+            candidate: event.candidate.candidate,
+            createdAt: Date.now()
+          };
+          if (event.candidate.sdpMid !== null && event.candidate.sdpMid !== undefined) {
+            payload.sdpMid = String(event.candidate.sdpMid);
+          }
+          if (event.candidate.sdpMLineIndex !== null && event.candidate.sdpMLineIndex !== undefined) {
+            payload.sdpMLineIndex = Number(event.candidate.sdpMLineIndex);
+          }
+          if (event.candidate.usernameFragment) {
+            payload.usernameFragment = String(event.candidate.usernameFragment);
+          }
+
           addDoc(
             collection(firestoreDB, 'streams', 'activeStream', 'offerCandidates'),
-            event.candidate.toJSON()
+            payload
           ).catch(e => console.warn('[WebRTC] ICE candidate write error:', e));
         }
       };
@@ -380,25 +450,50 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         setConnectionState(pc.connectionState);
       };
 
-      // Unified Remote MediaStream: initialize once, add tracks incrementally
-      remoteStreamRef.current = new MediaStream();
-
-      pc.ontrack = (event) => {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream();
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') {
+          console.warn('[WebRTC] Viewer ICE connection failed, restarting ICE...');
+          try {
+            pc.restartIce();
+          } catch (e) {}
         }
-        if (!remoteStreamRef.current.getTracks().some(t => t.id === event.track.id)) {
-          remoteStreamRef.current.addTrack(event.track);
+      };
+
+      // Receive media tracks and update remoteStreamRef
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          remoteStreamRef.current = event.streams[0];
+        } else {
+          if (!remoteStreamRef.current) {
+            remoteStreamRef.current = new MediaStream();
+          }
+          if (!remoteStreamRef.current.getTracks().some(t => t.id === event.track.id)) {
+            remoteStreamRef.current.addTrack(event.track);
+          }
         }
         setStreamTick(t => t + 1);
       };
 
-      // Trickle answer candidates
+      // Trickle answer candidates (Sanitized to strictly match firestore.rules isValidIceCandidate)
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && event.candidate.candidate) {
+          const payload: any = {
+            candidate: event.candidate.candidate,
+            createdAt: Date.now()
+          };
+          if (event.candidate.sdpMid !== null && event.candidate.sdpMid !== undefined) {
+            payload.sdpMid = String(event.candidate.sdpMid);
+          }
+          if (event.candidate.sdpMLineIndex !== null && event.candidate.sdpMLineIndex !== undefined) {
+            payload.sdpMLineIndex = Number(event.candidate.sdpMLineIndex);
+          }
+          if (event.candidate.usernameFragment) {
+            payload.usernameFragment = String(event.candidate.usernameFragment);
+          }
+
           addDoc(
             collection(firestoreDB, 'streams', 'activeStream', 'answerCandidates'),
-            event.candidate.toJSON()
+            payload
           ).catch(e => console.warn('[WebRTC] Viewer ICE candidate write error:', e));
         }
       };

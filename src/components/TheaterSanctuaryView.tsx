@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   Tv, 
@@ -98,18 +98,21 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
       }
       if (isStreaming) {
         node.muted = true;
+        node.play().catch(() => {});
       } else {
         node.muted = isMuted;
         node.volume = volume;
-      }
-      const playPromise = node.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('[Theater] Autoplay caught:', err);
-          if (!isStreaming) {
+        const playPromise = node.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('[Theater] Autoplay with audio was restricted, muting to start video playback:', err);
+            // CRITICAL MOBILE FIX: If browser blocks unmuted audio autoplay, immediately mute and play
+            // so video NEVER stays blank or frozen!
+            node.muted = true;
+            node.play().catch(e => console.error('[Theater] Muted play failed:', e));
             setAudioAutoplayBlocked(true);
-          }
-        });
+          });
+        }
       }
     }
   }, [getActiveMediaStream, isStreaming, isMuted, volume, streamTick]);
@@ -123,19 +126,15 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
   // Direct viewer join action: unmutes immediately with direct user interaction
   const handleJoinStream = async () => {
-    if (isMuted) toggleMute();
-    setVolume(1.0);
-    await joinStream();
+    // Pre-activate unmuted audio playback synchronously in direct tap gesture
     if (videoNodeRef.current) {
       videoNodeRef.current.muted = false;
       videoNodeRef.current.volume = 1.0;
-      try {
-        await videoNodeRef.current.play();
-      } catch (err) {
-        console.warn('[Theater] Autoplay blocked on join:', err);
-        setAudioAutoplayBlocked(true);
-      }
+      videoNodeRef.current.play().catch(() => {});
     }
+    if (isMuted) toggleMute();
+    setVolume(1.0);
+    await joinStream();
   };
 
   const handleUnmuteClick = () => {
@@ -149,28 +148,54 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     setVolume(1.0);
   };
 
-  // Track Fullscreen
+  // Track Fullscreen (Desktop + iOS Safari fallback)
   useEffect(() => {
     const handleFsChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const isFs = Boolean(
+        document.fullscreenElement || 
+        (document as any).webkitFullscreenElement
+      );
+      setIsFullscreen(isFs);
     };
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+
+    const videoEl = videoNodeRef.current;
+    const onWebkitBegin = () => setIsFullscreen(true);
+    const onWebkitEnd = () => setIsFullscreen(false);
+    if (videoEl) {
+      videoEl.addEventListener('webkitbeginfullscreen', onWebkitBegin);
+      videoEl.addEventListener('webkitendfullscreen', onWebkitEnd);
+    }
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      if (videoEl) {
+        videoEl.removeEventListener('webkitbeginfullscreen', onWebkitBegin);
+        videoEl.removeEventListener('webkitendfullscreen', onWebkitEnd);
+      }
+    };
   }, []);
 
   const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
     try {
-      if (!document.fullscreenElement) {
-        if (containerRef.current.requestFullscreen) {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        if (containerRef.current?.requestFullscreen) {
           await containerRef.current.requestFullscreen();
-        } else if ((containerRef.current as any).webkitRequestFullscreen) {
+          setIsFullscreen(true);
+        } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
           await (containerRef.current as any).webkitRequestFullscreen();
+          setIsFullscreen(true);
+        } else if (videoNodeRef.current && (videoNodeRef.current as any).webkitEnterFullscreen) {
+          (videoNodeRef.current as any).webkitEnterFullscreen();
+          setIsFullscreen(true);
         }
-        setIsFullscreen(true);
       } else {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
         }
         setIsFullscreen(false);
       }
@@ -191,26 +216,68 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     <div className="w-full h-full flex flex-col overflow-hidden relative">
       {/* 1. CINEMA LOUNGE (EMPTY / READY STATE) */}
       {!isStreamActive && (
-        <div className="w-full h-full overflow-y-auto no-scrollbar py-4 px-2 sm:px-4 max-w-5xl mx-auto flex flex-col gap-6">
+        <div className="w-full h-full overflow-y-auto no-scrollbar py-2 sm:py-4 px-2 sm:px-4 max-w-5xl mx-auto flex flex-col gap-3 sm:gap-6 pb-24 sm:pb-8">
+          
+          {/* TOP PRIORITY ON MOBILE: PARTNER IS STREAMING - JOIN TICKET BANNER */}
+          {isPartnerStreaming && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={springBezier}
+              className="p-5 sm:p-8 rounded-3xl sm:rounded-[36px] bg-gradient-to-r from-pastel-pink-500/25 via-rose-500/30 to-pastel-pink-500/25 border-2 border-pastel-pink-400/80 shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-3.5 sm:gap-4 w-full sm:w-auto">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-red-500/20 text-red-500 border border-red-500/40 flex items-center justify-center shrink-0 shadow-lg">
+                  <Radio className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse text-red-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-red-400">
+                      LIVE NOW • 1080p 60FPS
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-2xl font-bold text-text-main font-serif-italic mt-0.5 truncate">
+                    {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is streaming live!
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5 sm:mt-1 leading-snug">
+                    Join now to watch together in synchrony with live audio.
+                  </p>
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springBezier}
+                onClick={handleJoinStream}
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl hover:brightness-110 cursor-pointer flex items-center justify-center gap-2.5 shrink-0 glow-rose-sm"
+              >
+                <Tv className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Join Cinema Stream 🍿</span>
+              </motion.button>
+            </motion.div>
+          )}
+
           {/* Header Title Card */}
-          <div className="p-6 sm:p-8 rounded-[36px] clay-card bg-surface/80 border border-pastel-pink-300/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
-            <div className="flex flex-col gap-1.5 z-10">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pastel-pink-500/15 border border-pastel-pink-500/30 text-[11px] font-black uppercase tracking-wider text-pastel-pink-500 w-fit">
+          <div className="p-4 sm:p-8 rounded-3xl sm:rounded-[36px] clay-card bg-surface/80 border border-pastel-pink-300/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden">
+            <div className="flex flex-col gap-1 z-10">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-pastel-pink-500/15 border border-pastel-pink-500/30 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-pastel-pink-500 w-fit">
                 <Popcorn className="w-3.5 h-3.5" />
                 <span>Our Private Cinema</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold font-serif-italic text-text-main tracking-tight mt-1">
+              <h2 className="text-2xl sm:text-4xl font-bold font-serif-italic text-text-main tracking-tight mt-1">
                 A.I.M. Theater 🍿
               </h2>
-              <p className="text-xs sm:text-sm text-text-muted font-medium max-w-xl">
+              <p className="text-xs sm:text-sm text-text-muted font-medium max-w-xl leading-relaxed">
                 Stream your screen, movies, TV shows, and anime in crystal clear 1080p 60FPS Nitro quality with full system audio.
               </p>
             </div>
 
             {/* Partner Presence Card */}
-            <div className="flex items-center gap-3 p-4 rounded-3xl bg-surface-hover/80 border border-border/50 shadow-xs z-10 shrink-0">
+            <div className="flex items-center gap-3 p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-surface-hover/80 border border-border/50 shadow-xs z-10 shrink-0">
               <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-md ${
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-bold text-white shadow-md ${
                   partnerName === 'Mahad'
                     ? 'bg-gradient-to-br from-blue-600 to-indigo-700'
                     : 'bg-gradient-to-br from-rose-500 to-pink-600'
@@ -240,50 +307,9 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
             </div>
           </div>
 
-          {/* PARTNER IS STREAMING - JOIN TICKET BANNER */}
-          {isPartnerStreaming && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={springBezier}
-              className="p-6 sm:p-8 rounded-[36px] bg-gradient-to-r from-pastel-pink-500/25 via-rose-500/30 to-pastel-pink-500/25 border-2 border-pastel-pink-400/80 shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-3xl bg-red-500/20 text-red-500 border border-red-500/40 flex items-center justify-center shrink-0 shadow-lg">
-                  <Radio className="w-8 h-8 animate-pulse text-red-500" />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                    <span className="text-[11px] font-black uppercase tracking-wider text-red-400">
-                      LIVE NOW • 1080p 60FPS
-                    </span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-text-main font-serif-italic mt-0.5">
-                    {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is waiting for you in the Theater!
-                  </h3>
-                  <p className="text-xs text-text-muted mt-1">
-                    Join now to watch together in synchrony with live audio.
-                  </p>
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={springBezier}
-                onClick={handleJoinStream}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl hover:brightness-110 cursor-pointer flex items-center justify-center gap-2.5 shrink-0 glow-rose-sm"
-              >
-                <Tv className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Join Cinema Stream 🍿</span>
-              </motion.button>
-            </motion.div>
-          )}
-
           {/* MAIN START SCREEN SHARE ACTION CARD (DESKTOP) */}
           {!isPartnerStreaming && canShareScreen && (
-            <div className="p-6 sm:p-12 rounded-[36px] sm:rounded-[40px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-5 sm:gap-6 relative overflow-hidden">
+            <div className="p-5 sm:p-12 rounded-3xl sm:rounded-[40px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-4 sm:gap-6 relative overflow-hidden">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] sm:rounded-[28px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
                 <Film className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
@@ -322,22 +348,22 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
           {/* MOBILE VIEWER MODE (When on phone and partner is not yet streaming) */}
           {!isPartnerStreaming && !canShareScreen && (
-            <div className="p-6 sm:p-10 rounded-[36px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-4 sm:gap-5">
-              <div className="w-16 h-16 rounded-[24px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
-                <Popcorn className="w-8 h-8" />
+            <div className="p-5 sm:p-10 rounded-3xl sm:rounded-[36px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-3.5 sm:gap-5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[22px] sm:rounded-[24px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
+                <Popcorn className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
               <div className="max-w-md">
-                <span className="inline-block px-3 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20 text-pastel-pink-500 text-[11px] font-black uppercase tracking-wider mb-2">
+                <span className="inline-block px-3 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20 text-pastel-pink-500 text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-1.5 sm:mb-2">
                   Mobile Cinema Mode 📱
                 </span>
-                <h3 className="text-xl sm:text-2xl font-bold font-serif-italic text-text-main">
+                <h3 className="text-lg sm:text-2xl font-bold font-serif-italic text-text-main">
                   Ready to Watch Together
                 </h3>
-                <p className="text-xs sm:text-sm text-text-muted font-medium mt-1.5 leading-relaxed">
-                  Mobile browsers cannot share screens, but as soon as {partnerName} starts streaming from desktop, a glowing ticket will pop up right here so you can watch together in 1080p 60FPS!
+                <p className="text-xs sm:text-sm text-text-muted font-medium mt-1 leading-relaxed">
+                  Mobile browsers cannot broadcast screens, but as soon as {partnerName} starts streaming from desktop, a glowing ticket pops up right here so you can watch together in 1080p 60FPS!
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-text-muted bg-surface-hover/80 px-4 py-2 rounded-full border border-border/50">
+              <div className="flex items-center gap-2 text-xs font-semibold text-text-muted bg-surface-hover/80 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full border border-border/50">
                 <span className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`} />
                 <span>{isPartnerOnline ? `${partnerName} is online` : `${partnerName} is currently offline`}</span>
               </div>
@@ -346,7 +372,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
           {/* Error Message Pill */}
           {error && (
-            <div className="p-4 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center justify-between">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
                 <span>{error}</span>
@@ -366,13 +392,13 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
           onMouseMove={handleUserActivity}
           onTouchStart={handleUserActivity}
           className={`relative w-full h-full flex flex-col justify-center items-center bg-black transition-all duration-300 ${
-            isFullscreen ? 'fixed inset-0 z-[100]' : 'p-2 sm:p-4'
+            isFullscreen ? 'fixed inset-0 z-[100]' : 'p-0 sm:p-4'
           }`}
         >
           {/* Cinema Frame */}
           <div
-            className={`relative w-full h-full max-w-6xl max-h-[85vh] rounded-[36px] overflow-hidden clay-card shadow-[0_0_60px_rgba(244,63,94,0.25)] border-2 border-pastel-pink-400/40 bg-black flex items-center justify-center ${
-              isFullscreen ? 'max-w-none max-h-none rounded-none border-none shadow-none' : ''
+            className={`relative w-full h-full max-w-6xl rounded-none sm:rounded-[36px] overflow-hidden clay-card sm:shadow-[0_0_60px_rgba(244,63,94,0.25)] sm:border-2 sm:border-pastel-pink-400/40 bg-black flex items-center justify-center ${
+              isFullscreen ? 'max-w-none rounded-none border-none shadow-none' : ''
             }`}
           >
             {/* Primary Video Canvas with Callback Ref Pattern */}
@@ -380,6 +406,8 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
               ref={attachVideoRef}
               autoPlay
               playsInline
+              webkit-playsinline="true"
+              controls={false}
               muted={isStreaming ? true : isMuted}
               className="w-full h-full object-contain cursor-default"
               onClick={handleUserActivity}
@@ -397,12 +425,12 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                   whileTap={{ scale: 0.95 }}
                   transition={springBezier}
                   onClick={handleUnmuteClick}
-                  className="px-7 py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm sm:text-base shadow-2xl flex items-center gap-3 hover:brightness-110 active:scale-95 transition-all cursor-pointer glow-rose-sm border-2 border-white/50 animate-pulse"
+                  className="px-6 py-3.5 sm:px-7 sm:py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-xs sm:text-base shadow-2xl flex items-center gap-2.5 sm:gap-3 hover:brightness-110 active:scale-95 transition-all cursor-pointer glow-rose-sm border-2 border-white/50 animate-pulse text-center"
                 >
-                  <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
                   <span>🔊 Tap to Unmute Stream Audio</span>
                 </motion.button>
-                <span className="text-xs text-white/80 font-medium bg-black/60 px-3.5 py-1 rounded-full border border-white/10">
+                <span className="text-[11px] sm:text-xs text-white/80 font-medium bg-black/60 px-3.5 py-1 rounded-full border border-white/10 text-center">
                   Browser paused audio until you tap here
                 </span>
               </motion.div>
@@ -410,7 +438,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
             {/* Top Info Bar (AutoHide) */}
             <div
-              className={`absolute top-0 inset-x-0 z-30 p-2.5 sm:p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 ${
+              className={`absolute top-0 inset-x-0 z-30 p-2 sm:p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 ${
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
@@ -437,7 +465,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                   >
                     {isHostMahad ? 'M' : 'I'}
                   </div>
-                  <span className="truncate max-w-[100px] sm:max-w-none">{isStreaming ? `You (${currentUser})` : `${hostName}'s Stream`}</span>
+                  <span className="truncate max-w-[85px] sm:max-w-none">{isStreaming ? `You (${currentUser})` : `${hostName}'s Stream`}</span>
                   <span>{isHostMahad ? '🌹' : '🌷'}</span>
                 </div>
               </div>
@@ -473,15 +501,15 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
             {/* Bottom Floating Tactile Controls Dock */}
             <div
-              className={`absolute bottom-2.5 sm:bottom-5 inset-x-0 z-30 flex justify-center px-2 sm:px-4 transition-opacity duration-300 ${
+              className={`absolute bottom-2 sm:bottom-5 inset-x-0 z-30 flex justify-center px-2 sm:px-4 pb-[calc(env(safe-area-inset-bottom,0px)+6px)] transition-opacity duration-300 ${
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <div className="flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-2.5 rounded-full sm:rounded-[28px] bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-white/20 shadow-2xl max-w-[calc(100vw-16px)]">
+              <div className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 rounded-full sm:rounded-[28px] bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-white/20 shadow-2xl max-w-[calc(100vw-16px)]">
                 {/* Microphone Toggle */}
                 <button
                   onClick={toggleMic}
-                  className={`min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] px-2.5 sm:px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] px-2.5 sm:px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
                     isMicOn
                       ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/40 ring-2 ring-emerald-400/40'
                       : 'bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40'
@@ -494,10 +522,10 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
                 {/* Volume / Mute for viewer */}
                 {!isStreaming && (
-                  <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
+                  <div className="flex items-center gap-1.5 sm:gap-2 px-1 sm:px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
                     <button
                       onClick={toggleMute}
-                      className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
+                      className="min-w-[42px] min-h-[42px] sm:min-w-[40px] sm:min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
                       title={isMuted ? 'Unmute stream' : 'Mute stream'}
                     >
                       {isMuted || volume === 0 ? (
@@ -525,7 +553,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 {/* Fullscreen Toggle */}
                 <button
                   onClick={toggleFullscreen}
-                  className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
+                  className="min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
                   title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >
                   <Maximize2 className="w-4 h-4" />
@@ -534,7 +562,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 {/* End / Leave Stream Button */}
                 <button
                   onClick={isStreaming ? stopScreenShare : leaveStream}
-                  className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] px-3 sm:px-4 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                  className="min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] px-3 sm:px-4 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                 >
                   <PhoneOff className="w-4 h-4" />
                   <span className="hidden sm:inline">{isStreaming ? 'End Stream' : 'Leave'}</span>

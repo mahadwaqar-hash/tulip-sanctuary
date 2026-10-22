@@ -720,7 +720,7 @@ function SanctuaryContent({
 
         {/* CENTER COLUMN (Active View) */}
         <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-          <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' || activeTab === 'theater' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+          <div className={`w-full h-full mx-auto ${activeTab === 'theater' ? 'px-0 sm:px-4' : 'px-2 sm:px-4'} lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' || activeTab === 'theater' ? 'max-w-6xl' : 'max-w-4xl'}`}>
             <AnimatePresence mode="wait">
               {activeTab === 'chat' && (
                 <motion.div
@@ -744,7 +744,7 @@ function SanctuaryContent({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -14, scale: 0.985 }}
                   transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                  className="h-full pt-0 pb-0 sm:pt-3 sm:pb-4"
                 >
                   <TheaterSanctuaryView currentUser={currentUser} />
                 </motion.div>
