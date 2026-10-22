@@ -54,6 +54,8 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const micSenderRef = useRef<RTCRtpSender | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const originalSystemAudioTrackRef = useRef<MediaStreamTrack | null>(null);
   
   // CRITICAL FIX 2: State Tracking & Early ICE Candidate Queue
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
@@ -145,6 +147,14 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       micStreamRef.current = null;
     }
     micSenderRef.current = null;
+
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {}
+      audioContextRef.current = null;
+    }
+    originalSystemAudioTrackRef.current = null;
 
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
@@ -358,7 +368,10 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
 
       setIsWatching(true);
       setIsStreaming(false);
+      setIsMuted(false);
+      setVolume(1);
       setViewMode('theater');
+      setStreamTick(t => t + 1);
 
       const pc = new RTCPeerConnection(RTC_CONFIG);
       pcRef.current = pc;
@@ -367,14 +380,15 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         setConnectionState(pc.connectionState);
       };
 
-      // Receive media tracks and store in remoteStreamRef
+      // Unified Remote MediaStream: initialize once, add tracks incrementally
+      remoteStreamRef.current = new MediaStream();
+
       pc.ontrack = (event) => {
         if (!remoteStreamRef.current) {
-          remoteStreamRef.current = event.streams[0] || new MediaStream([event.track]);
-        } else {
-          if (!remoteStreamRef.current.getTracks().find(t => t.id === event.track.id)) {
-            remoteStreamRef.current.addTrack(event.track);
-          }
+          remoteStreamRef.current = new MediaStream();
+        }
+        if (!remoteStreamRef.current.getTracks().some(t => t.id === event.track.id)) {
+          remoteStreamRef.current.addTrack(event.track);
         }
         setStreamTick(t => t + 1);
       };
@@ -446,25 +460,44 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     teardown();
   }, [teardown]);
 
-  // Toggle microphone
+  // Toggle microphone with Web Audio API mixing if system audio is active
   const toggleMic = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
     if (isMicOn) {
+      // Turn microphone OFF
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach(t => t.stop());
         micStreamRef.current = null;
       }
-      if (micSenderRef.current && pcRef.current) {
+      if (audioContextRef.current) {
         try {
-          pcRef.current.removeTrack(micSenderRef.current);
+          await audioContextRef.current.close();
         } catch (e) {}
-        micSenderRef.current = null;
+        audioContextRef.current = null;
       }
+
+      const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+      if (audioSender) {
+        if (originalSystemAudioTrackRef.current) {
+          // Restore unmixed system audio track
+          await audioSender.replaceTrack(originalSystemAudioTrackRef.current);
+        } else {
+          try {
+            pc.removeTrack(audioSender);
+          } catch (e) {}
+        }
+      }
+      originalSystemAudioTrackRef.current = null;
+      micSenderRef.current = null;
       setIsMicOn(false);
 
       if (isStreamingRef.current) {
         updateDoc(doc(firestoreDB, 'streams', 'activeStream'), { micEnabled: false }).catch(() => {});
       }
     } else {
+      // Turn microphone ON
       try {
         const micStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -476,11 +509,45 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         micStreamRef.current = micStream;
         const micTrack = micStream.getAudioTracks()[0];
 
-        if (pcRef.current && micTrack) {
-          micSenderRef.current = pcRef.current.addTrack(micTrack, micStream);
-        }
-        setIsMicOn(true);
+        const systemAudioTrack = localStreamRef.current?.getAudioTracks()[0];
+        if (systemAudioTrack) {
+          originalSystemAudioTrackRef.current = systemAudioTrack;
 
+          // Mix system audio + microphone together seamlessly using Web Audio API
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const audioCtx = new AudioContextClass();
+            audioContextRef.current = audioCtx;
+            const dest = audioCtx.createMediaStreamDestination();
+
+            const sysSource = audioCtx.createMediaStreamSource(new MediaStream([systemAudioTrack]));
+            sysSource.connect(dest);
+
+            const micSource = audioCtx.createMediaStreamSource(new MediaStream([micTrack]));
+            micSource.connect(dest);
+
+            const mixedTrack = dest.stream.getAudioTracks()[0];
+            const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+            if (audioSender) {
+              await audioSender.replaceTrack(mixedTrack);
+            } else {
+              micSenderRef.current = pc.addTrack(mixedTrack, dest.stream);
+            }
+          } else {
+            // Fallback: add mic track directly
+            micSenderRef.current = pc.addTrack(micTrack, micStream);
+          }
+        } else {
+          // No system audio, send mic directly
+          const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+          if (audioSender) {
+            await audioSender.replaceTrack(micTrack);
+          } else {
+            micSenderRef.current = pc.addTrack(micTrack, micStream);
+          }
+        }
+
+        setIsMicOn(true);
         if (isStreamingRef.current) {
           updateDoc(doc(firestoreDB, 'streams', 'activeStream'), { micEnabled: true }).catch(() => {});
         }

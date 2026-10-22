@@ -43,6 +43,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     canShareScreen,
     streamTick,
     attachVideoStream,
+    getActiveMediaStream,
     isMicOn,
     volume,
     isMuted,
@@ -58,7 +59,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     setViewMode
   } = useScreenShareContext();
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoNodeRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -85,35 +86,68 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     !isStreaming
   );
 
-  // Attach MediaStream to <video> safely using attachVideoStream
-  useEffect(() => {
-    if (!videoRef.current || !isStreamActive) return;
+  // Callback Ref Pattern: immediately sets srcObject and plays the instant <video> mounts
+  const attachVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoNodeRef.current = node;
+    if (!node) return;
 
-    attachVideoStream(videoRef.current);
-
-    if (isStreaming) {
-      videoRef.current.muted = true;
-    } else {
-      videoRef.current.muted = isMuted;
-      videoRef.current.volume = volume;
-
-      const playPromise = videoRef.current.play();
+    const stream = getActiveMediaStream();
+    if (stream) {
+      if (node.srcObject !== stream) {
+        node.srcObject = stream;
+      }
+      if (isStreaming) {
+        node.muted = true;
+      } else {
+        node.muted = isMuted;
+        node.volume = volume;
+      }
+      const playPromise = node.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('[Theater] Autoplay blocked:', err);
-          setAudioAutoplayBlocked(true);
+          console.warn('[Theater] Autoplay caught:', err);
+          if (!isStreaming) {
+            setAudioAutoplayBlocked(true);
+          }
         });
       }
     }
-  }, [isStreamActive, isStreaming, isMuted, volume, streamTick, attachVideoStream]);
+  }, [getActiveMediaStream, isStreaming, isMuted, volume, streamTick]);
 
-  // Adjust volume/mute for viewer
+  // Synchronize playback properties when stream or volume state updates
   useEffect(() => {
-    if (videoRef.current && !isStreaming) {
-      videoRef.current.volume = volume;
-      videoRef.current.muted = isMuted;
+    if (videoNodeRef.current) {
+      attachVideoRef(videoNodeRef.current);
     }
-  }, [volume, isMuted, isStreaming]);
+  }, [attachVideoRef, streamTick, isStreamActive, isStreaming, isMuted, volume]);
+
+  // Direct viewer join action: unmutes immediately with direct user interaction
+  const handleJoinStream = async () => {
+    if (isMuted) toggleMute();
+    setVolume(1.0);
+    await joinStream();
+    if (videoNodeRef.current) {
+      videoNodeRef.current.muted = false;
+      videoNodeRef.current.volume = 1.0;
+      try {
+        await videoNodeRef.current.play();
+      } catch (err) {
+        console.warn('[Theater] Autoplay blocked on join:', err);
+        setAudioAutoplayBlocked(true);
+      }
+    }
+  };
+
+  const handleUnmuteClick = () => {
+    if (videoNodeRef.current) {
+      videoNodeRef.current.muted = false;
+      videoNodeRef.current.volume = 1.0;
+      videoNodeRef.current.play().catch(() => {});
+    }
+    setAudioAutoplayBlocked(false);
+    if (isMuted) toggleMute();
+    setVolume(1.0);
+  };
 
   // Track Fullscreen
   useEffect(() => {
@@ -151,15 +185,6 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     controlsTimeoutRef.current = setTimeout(() => {
       setShowControls(false);
     }, 4000);
-  };
-
-  const handleUnmuteClick = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = false;
-      videoRef.current.play().catch(() => {});
-    }
-    setAudioAutoplayBlocked(false);
-    if (isMuted) toggleMute();
   };
 
   return (
@@ -247,50 +272,74 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={springBezier}
-                onClick={joinStream}
-                className="px-8 py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm uppercase tracking-wider shadow-xl hover:brightness-110 cursor-pointer flex items-center gap-2.5 shrink-0 glow-rose-sm"
+                onClick={handleJoinStream}
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl hover:brightness-110 cursor-pointer flex items-center justify-center gap-2.5 shrink-0 glow-rose-sm"
               >
-                <Tv className="w-5 h-5" />
+                <Tv className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Join Cinema Stream 🍿</span>
               </motion.button>
             </motion.div>
           )}
 
-          {/* MAIN START SCREEN SHARE ACTION CARD */}
-          {!isPartnerStreaming && (
-            <div className="p-8 sm:p-12 rounded-[40px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-6 relative overflow-hidden">
-              <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
-                <Film className="w-10 h-10" />
+          {/* MAIN START SCREEN SHARE ACTION CARD (DESKTOP) */}
+          {!isPartnerStreaming && canShareScreen && (
+            <div className="p-6 sm:p-12 rounded-[36px] sm:rounded-[40px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-5 sm:gap-6 relative overflow-hidden">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] sm:rounded-[28px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
+                <Film className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
 
               <div className="max-w-md">
-                <h3 className="text-2xl sm:text-3xl font-bold font-serif-italic text-text-main">
+                <h3 className="text-xl sm:text-3xl font-bold font-serif-italic text-text-main">
                   Ready for Movie Night?
                 </h3>
-                <p className="text-xs sm:text-sm text-text-muted font-medium mt-2 leading-relaxed">
-                  Start streaming your screen or a browser tab. Fast-moving movies and high-framerate anime will transmit smoothly at 60 frames per second.
+                <p className="text-xs sm:text-sm text-text-muted font-medium mt-1.5 sm:mt-2 leading-relaxed">
+                  Start streaming your screen, windows, or browser tabs. Fast-moving movies and high-framerate anime will transmit smoothly at 60 frames per second.
                 </p>
               </div>
 
               {/* Start Button */}
               <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
+                whileHover={{ scale: 1.04, y: -2 }}
                 whileTap={{ scale: 0.96 }}
                 transition={springBezier}
                 onClick={startScreenShare}
-                className="px-8 sm:px-10 py-4 sm:py-5 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-2xl hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-3 glow-rose-sm"
+                className="w-full sm:w-auto px-6 sm:px-10 py-3.5 sm:py-5 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-xs sm:text-base uppercase tracking-wider shadow-2xl hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 sm:gap-3 glow-rose-sm text-center"
               >
-                <Tv className="w-6 h-6" />
+                <Tv className="w-5 h-5 sm:w-6 sm:h-6" />
                 <span>Start 1080p 60fps Screen Share 🖥️</span>
               </motion.button>
 
               {/* Audio Instructions Tip */}
-              <div className="p-4 rounded-2xl bg-surface-hover/80 border border-border/50 max-w-lg flex items-start gap-3 text-left mt-2">
-                <Info className="w-5 h-5 text-pastel-pink-500 shrink-0 mt-0.5" />
-                <div className="flex flex-col text-xs text-text-muted leading-relaxed">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-hover/80 border border-border/50 max-w-lg flex items-start gap-2.5 sm:gap-3 text-left mt-1 sm:mt-2">
+                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-pastel-pink-500 shrink-0 mt-0.5" />
+                <div className="flex flex-col text-[11px] sm:text-xs text-text-muted leading-relaxed">
                   <strong className="text-text-main font-bold">How to share audio:</strong>
                   When your browser displays the sharing dialog, choose <span className="text-pastel-pink-500 font-semibold">"Chrome Tab"</span> or <span className="text-pastel-pink-500 font-semibold">"Entire Screen"</span> and make sure the <span className="text-pastel-pink-500 font-semibold">"Share audio"</span> checkbox is ticked!
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* MOBILE VIEWER MODE (When on phone and partner is not yet streaming) */}
+          {!isPartnerStreaming && !canShareScreen && (
+            <div className="p-6 sm:p-10 rounded-[36px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 rounded-[24px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
+                <Popcorn className="w-8 h-8" />
+              </div>
+              <div className="max-w-md">
+                <span className="inline-block px-3 py-1 rounded-full bg-pastel-pink-100/60 dark:bg-pastel-pink-400/20 text-pastel-pink-500 text-[11px] font-black uppercase tracking-wider mb-2">
+                  Mobile Cinema Mode 📱
+                </span>
+                <h3 className="text-xl sm:text-2xl font-bold font-serif-italic text-text-main">
+                  Ready to Watch Together
+                </h3>
+                <p className="text-xs sm:text-sm text-text-muted font-medium mt-1.5 leading-relaxed">
+                  Mobile browsers cannot share screens, but as soon as {partnerName} starts streaming from desktop, a glowing ticket will pop up right here so you can watch together in 1080p 60FPS!
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-text-muted bg-surface-hover/80 px-4 py-2 rounded-full border border-border/50">
+                <span className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`} />
+                <span>{isPartnerOnline ? `${partnerName} is online` : `${partnerName} is currently offline`}</span>
               </div>
             </div>
           )}
@@ -326,11 +375,12 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
               isFullscreen ? 'max-w-none max-h-none rounded-none border-none shadow-none' : ''
             }`}
           >
-            {/* Primary Video Canvas */}
+            {/* Primary Video Canvas with Callback Ref Pattern */}
             <video
-              ref={videoRef}
+              ref={attachVideoRef}
               autoPlay
               playsInline
+              muted={isStreaming ? true : isMuted}
               className="w-full h-full object-contain cursor-default"
               onClick={handleUserActivity}
             />
@@ -340,43 +390,46 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4"
+                className="absolute inset-0 z-40 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center gap-3 p-4 select-none"
               >
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={springBezier}
                   onClick={handleUnmuteClick}
-                  className="px-6 py-3.5 rounded-full bg-gradient-to-r from-pastel-pink-500 to-rose-500 text-white font-bold text-sm shadow-xl flex items-center gap-2.5 hover:scale-105 active:scale-95 transition-all cursor-pointer glow-rose-sm"
+                  className="px-7 py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm sm:text-base shadow-2xl flex items-center gap-3 hover:brightness-110 active:scale-95 transition-all cursor-pointer glow-rose-sm border-2 border-white/50 animate-pulse"
                 >
-                  <Volume2 className="w-5 h-5 animate-pulse" />
-                  <span>Tap to Unmute Stream Audio 🔊</span>
-                </button>
-                <span className="text-xs text-white/70 font-medium">
-                  Browser paused audio until you interact
+                  <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span>🔊 Tap to Unmute Stream Audio</span>
+                </motion.button>
+                <span className="text-xs text-white/80 font-medium bg-black/60 px-3.5 py-1 rounded-full border border-white/10">
+                  Browser paused audio until you tap here
                 </span>
               </motion.div>
             )}
 
             {/* Top Info Bar (AutoHide) */}
             <div
-              className={`absolute top-0 inset-x-0 z-30 p-3 sm:p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 ${
+              className={`absolute top-0 inset-x-0 z-30 p-2.5 sm:p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 ${
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
                 {/* Live Indicator */}
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-red-500/40 shadow-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-red-400">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-red-500/40 shadow-sm">
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-red-400">
                     LIVE
                   </span>
-                  <span className="text-[10px] font-bold text-white/80 bg-white/10 px-1.5 py-0.5 rounded-md">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-white/80 bg-white/10 px-1 sm:px-1.5 py-0.5 rounded-md">
                     1080p 60FPS
                   </span>
                 </div>
 
                 {/* Host Pill */}
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-semibold shadow-xs">
+                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[11px] sm:text-xs font-semibold shadow-xs">
                   <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                    className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-white ${
                       isHostMahad
                         ? 'bg-gradient-to-br from-blue-600 to-indigo-700'
                         : 'bg-gradient-to-br from-rose-500 to-pink-600'
@@ -384,17 +437,17 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                   >
                     {isHostMahad ? 'M' : 'I'}
                   </div>
-                  <span>{isStreaming ? `You (${currentUser})` : `${hostName}'s Stream`}</span>
+                  <span className="truncate max-w-[100px] sm:max-w-none">{isStreaming ? `You (${currentUser})` : `${hostName}'s Stream`}</span>
                   <span>{isHostMahad ? '🌹' : '🌷'}</span>
                 </div>
               </div>
 
               {/* View Modes */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {!isFullscreen && (
                   <button
                     onClick={() => setViewMode('pip')}
-                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white text-xs font-medium cursor-pointer transition-all flex items-center gap-1.5 interactive-spring"
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white text-xs font-medium cursor-pointer transition-all flex items-center gap-1.5 interactive-spring"
                     title="Minimize to Floating PiP"
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
@@ -404,7 +457,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
                 <button
                   onClick={toggleFullscreen}
-                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white cursor-pointer transition-all interactive-spring"
+                  className="p-1.5 sm:p-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white cursor-pointer transition-all interactive-spring"
                   title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
                 >
                   <Maximize2 className="w-4 h-4" />
@@ -420,15 +473,15 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
             {/* Bottom Floating Tactile Controls Dock */}
             <div
-              className={`absolute bottom-3 sm:bottom-5 inset-x-0 z-30 flex justify-center px-4 transition-opacity duration-300 ${
+              className={`absolute bottom-2.5 sm:bottom-5 inset-x-0 z-30 flex justify-center px-2 sm:px-4 transition-opacity duration-300 ${
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-[28px] bg-surface/90 dark:bg-black/85 backdrop-blur-2xl border border-white/20 shadow-2xl">
+              <div className="flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-2.5 rounded-full sm:rounded-[28px] bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-white/20 shadow-2xl max-w-[calc(100vw-16px)]">
                 {/* Microphone Toggle */}
                 <button
                   onClick={toggleMic}
-                  className={`min-w-[44px] min-h-[44px] px-3.5 rounded-full flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] px-2.5 sm:px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
                     isMicOn
                       ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/40 ring-2 ring-emerald-400/40'
                       : 'bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40'
@@ -436,15 +489,15 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                   title={isMicOn ? 'Mute Microphone' : 'Unmute Mic (Talk with partner)'}
                 >
                   {isMicOn ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
-                  <span className="hidden xs:inline">{isMicOn ? 'Mic Live' : 'Mic Off'}</span>
+                  <span className="hidden sm:inline">{isMicOn ? 'Mic Live' : 'Mic Off'}</span>
                 </button>
 
                 {/* Volume / Mute for viewer */}
                 {!isStreaming && (
-                  <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
+                  <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
                     <button
                       onClick={toggleMute}
-                      className="min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
+                      className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
                       title={isMuted ? 'Unmute stream' : 'Mute stream'}
                     >
                       {isMuted || volume === 0 ? (
@@ -463,7 +516,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={(e) => setVolume(parseFloat(e.target.value))}
-                      className="w-16 sm:w-24 accent-pastel-pink-500 cursor-pointer h-1.5 rounded-lg"
+                      className="hidden sm:block w-16 sm:w-24 accent-pastel-pink-500 cursor-pointer h-1.5 rounded-lg"
                       title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
                     />
                   </div>
@@ -472,7 +525,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 {/* Fullscreen Toggle */}
                 <button
                   onClick={toggleFullscreen}
-                  className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
+                  className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
                   title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >
                   <Maximize2 className="w-4 h-4" />
@@ -481,7 +534,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 {/* End / Leave Stream Button */}
                 <button
                   onClick={isStreaming ? stopScreenShare : leaveStream}
-                  className="min-w-[44px] min-h-[44px] px-4 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                  className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] px-3 sm:px-4 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                 >
                   <PhoneOff className="w-4 h-4" />
                   <span className="hidden sm:inline">{isStreaming ? 'End Stream' : 'Leave'}</span>

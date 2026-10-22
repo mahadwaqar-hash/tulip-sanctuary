@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { MessageSquare, Send, X, Heart, Sparkles, Smile } from 'lucide-react';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { firestoreDB, fb } from '../firebase';
+import { collection, query, orderBy, limit, onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { firestoreDB } from '../firebase';
 import { decryptMessage } from '../crypto';
 
 const springBezier: Transition = {
@@ -41,12 +41,15 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
     const q = query(
       collection(firestoreDB, 'messages'),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(15)
     );
+
+    const mountTime = Date.now();
 
     const unsub = onSnapshot(q, (snapshot) => {
       const now = Date.now();
-      const cutoff = streamStartTime > 0 ? streamStartTime - 2000 : now - 15000;
+      // Show messages from the last 20 seconds or during active stream
+      const cutoff = streamStartTime > 0 ? Math.max(streamStartTime - 3000, now - 30000) : now - 20000;
 
       const newIncoming: ChatToast[] = [];
 
@@ -55,13 +58,12 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
         const id = docSnap.id;
         const createdAt = data.createdAt || 0;
 
-        // Only pop up messages that occurred during or right around the stream
         if (createdAt >= cutoff && !seenMsgIdsRef.current.has(id)) {
           seenMsgIdsRef.current.add(id);
 
           const rawContent = data.content || '';
           const cleanText = data.type === 'text' 
-            ? decryptMessage(rawContent) 
+            ? (rawContent ? decryptMessage(rawContent) : '') 
             : data.type === 'image' 
               ? '📷 Sent a photo' 
               : data.type === 'sticker' 
@@ -106,22 +108,29 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
     return () => clearInterval(interval);
   }, []);
 
-  // Quick message send
+  // Quick message send with EXACT firestore.rules message schema
   const handleSendMessage = async (e?: React.FormEvent, customContent?: string) => {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const textToSend = (customContent !== undefined ? customContent : inputText).trim();
     if (!textToSend || isSending) return;
 
     setIsSending(true);
-    const msgId = crypto.randomUUID();
+    const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     try {
-      await fb.messages.add({
+      await setDoc(doc(firestoreDB, 'messages', msgId), {
         id: msgId,
         sender: currentUser,
         type: 'text',
         content: textToSend,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        isRead: false,
+        reactions: []
       });
 
       if (customContent === undefined) {
@@ -139,9 +148,9 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-30 flex flex-col justify-end items-end p-4 sm:p-6 overflow-hidden">
+    <div className="absolute inset-0 pointer-events-none z-30 flex flex-col justify-end items-end p-3 sm:p-6 pb-20 sm:pb-24 overflow-hidden">
       {/* 1. STACKED LIVE CHAT TOAST BUBBLES */}
-      <div className="flex flex-col items-end gap-2.5 mb-3 max-w-sm w-full">
+      <div className="flex flex-col items-end gap-2.5 mb-2.5 max-w-[85vw] sm:max-w-sm w-full">
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => {
             const isMe = toast.sender === currentUser;
@@ -155,7 +164,7 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
                 exit={{ opacity: 0, scale: 0.88, y: -10 }}
                 transition={springBezier}
                 onClick={() => dismissToast(toast.id)}
-                className={`pointer-events-auto cursor-pointer p-3 sm:p-3.5 rounded-[24px] clay-card shadow-2xl backdrop-blur-xl border border-white/20 flex items-start gap-2.5 max-w-[90%] sm:max-w-xs transition-transform hover:scale-102 active:scale-98 ${
+                className={`pointer-events-auto cursor-pointer p-2.5 sm:p-3.5 rounded-[22px] sm:rounded-[24px] clay-card shadow-2xl backdrop-blur-xl border border-white/20 flex items-start gap-2.5 max-w-full sm:max-w-xs transition-transform hover:scale-102 active:scale-98 ${
                   isMahad 
                     ? 'bg-slate-900/90 text-white border-blue-400/40' 
                     : 'bg-rose-950/90 text-white border-rose-400/40'
@@ -215,7 +224,7 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 15 }}
               transition={springBezier}
-              className="p-3 sm:p-3.5 rounded-[28px] clay-card bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-2xl flex flex-col gap-2.5 w-72 sm:w-80"
+              className="p-3 sm:p-3.5 rounded-[28px] clay-card bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-2xl flex flex-col gap-2.5 w-[calc(100vw-36px)] max-w-xs sm:w-80"
             >
               {/* Header */}
               <div className="flex items-center justify-between pb-1.5 border-b border-border/40">

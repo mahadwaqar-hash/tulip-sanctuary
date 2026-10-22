@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, type Transition } from 'framer-motion';
 import { 
   Maximize2, 
@@ -10,6 +10,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import type { StreamViewMode, ActiveStreamDoc } from '../hooks/useScreenShare';
+import { useScreenShareContext } from '../context/ScreenShareContext';
 
 const springBezier: Transition = {
   type: 'spring',
@@ -54,38 +55,52 @@ export default function ScreenShareTheater({
   onToggleMute,
   onSetViewMode
 }: ScreenShareTheaterProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { getActiveMediaStream } = useScreenShareContext();
+  const videoNodeRef = useRef<HTMLVideoElement | null>(null);
   const [audioAutoplayBlocked, setAudioAutoplayBlocked] = useState(false);
 
   const hostName = activeStream?.host || (isStreaming ? currentUser : 'Mahad');
   const isHostMahad = hostName === 'Mahad';
 
-  // Attach active MediaStream directly to video element via attachVideoStream
-  useEffect(() => {
-    if (!videoRef.current) return;
+  // Callback Ref Pattern for reliable instant video attachment
+  const attachVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoNodeRef.current = node;
+    if (!node) return;
 
-    attachVideoStream(videoRef.current);
-
-    if (isStreaming) {
-      videoRef.current.muted = true;
-    } else {
-      videoRef.current.muted = isMuted;
-      videoRef.current.volume = volume;
-
-      const playPromise = videoRef.current.play();
+    const stream = getActiveMediaStream();
+    if (stream) {
+      if (node.srcObject !== stream) {
+        node.srcObject = stream;
+      }
+      if (isStreaming) {
+        node.muted = true;
+      } else {
+        node.muted = isMuted;
+        node.volume = volume;
+      }
+      const playPromise = node.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
           console.warn('[PiP] Autoplay was blocked:', err);
-          setAudioAutoplayBlocked(true);
+          if (!isStreaming) {
+            setAudioAutoplayBlocked(true);
+          }
         });
       }
     }
-  }, [isStreaming, isMuted, volume, streamTick, attachVideoStream]);
+  }, [getActiveMediaStream, isStreaming, isMuted, volume, streamTick]);
+
+  useEffect(() => {
+    if (videoNodeRef.current) {
+      attachVideoRef(videoNodeRef.current);
+    }
+  }, [attachVideoRef, streamTick, isStreaming, isMuted, volume]);
 
   const handleUnmuteClick = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = false;
-      videoRef.current.play().catch(() => {});
+    if (videoNodeRef.current) {
+      videoNodeRef.current.muted = false;
+      videoNodeRef.current.volume = 1.0;
+      videoNodeRef.current.play().catch(() => {});
     }
     setAudioAutoplayBlocked(false);
     if (isMuted) onToggleMute();
@@ -137,9 +152,10 @@ export default function ScreenShareTheater({
       {/* Video Surface */}
       <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
         <video
-          ref={videoRef}
+          ref={attachVideoRef}
           autoPlay
           playsInline
+          muted={isStreaming ? true : isMuted}
           className="w-full h-full object-contain pointer-events-none"
         />
 

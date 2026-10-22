@@ -482,8 +482,8 @@ function SanctuaryContent({
     activeStream,
     isStreaming,
     isWatching,
-    localStream,
-    remoteStream,
+    streamTick,
+    attachVideoStream,
     isMicOn,
     volume: screenVolume,
     isMuted: isScreenMuted,
@@ -628,8 +628,8 @@ function SanctuaryContent({
             activeStream={activeStream}
             isStreaming={isStreaming}
             isWatching={isWatching}
-            localStream={localStream}
-            remoteStream={remoteStream}
+            attachVideoStream={attachVideoStream}
+            streamTick={streamTick}
             isMicOn={isMicOn}
             volume={screenVolume}
             isMuted={isScreenMuted}
