@@ -129,7 +129,7 @@ export default function WatchlistView({ currentUser }: { currentUser: 'Mahad' | 
   // TMDB API Key state
   const [tmdbApiKey, setTmdbApiKey] = useState(() => {
     try {
-      return localStorage.getItem('tulip_tmdb_api_key') || '';
+      return localStorage.getItem('tulip_tmdb_api_key') || (import.meta as any).env?.VITE_TMDB_API_KEY || '';
     } catch (e) {
       return '';
     }
@@ -141,7 +141,7 @@ export default function WatchlistView({ currentUser }: { currentUser: 'Mahad' | 
   useEffect(() => {
     const handleKeyUpdate = () => {
       try {
-        const key = localStorage.getItem('tulip_tmdb_api_key') || '';
+        const key = localStorage.getItem('tulip_tmdb_api_key') || (import.meta as any).env?.VITE_TMDB_API_KEY || '';
         setTmdbApiKey(key);
       } catch (e) {}
     };
@@ -150,13 +150,13 @@ export default function WatchlistView({ currentUser }: { currentUser: 'Mahad' | 
   }, []);
 
   useEffect(() => {
-    if (globalSettings.tmdbApiKey && !tmdbApiKey) {
+    if (globalSettings.tmdbApiKey) {
       setTmdbApiKey(globalSettings.tmdbApiKey);
       try {
         localStorage.setItem('tulip_tmdb_api_key', globalSettings.tmdbApiKey);
       } catch (e) {}
     }
-  }, [globalSettings.tmdbApiKey, tmdbApiKey]);
+  }, [globalSettings.tmdbApiKey]);
 
   // Saved Watchlist State - Strictly initialized to empty array (NO mock data)
   const [watchlist, setWatchlist] = useState<SavedMedia[]>(() => {

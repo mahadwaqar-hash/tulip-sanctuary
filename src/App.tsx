@@ -286,7 +286,7 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
   });
   const [tmdbApiKey, setTmdbApiKey] = useState(() => {
     try {
-      return localStorage.getItem('tulip_tmdb_api_key') || '';
+      return localStorage.getItem('tulip_tmdb_api_key') || (import.meta as any).env?.VITE_TMDB_API_KEY || '';
     } catch (e) {
       return '';
     }
@@ -502,10 +502,8 @@ export default function App() {
   useEffect(() => {
     if (globalSettings.tmdbApiKey) {
       try {
-        if (!localStorage.getItem('tulip_tmdb_api_key')) {
-          localStorage.setItem('tulip_tmdb_api_key', globalSettings.tmdbApiKey);
-          window.dispatchEvent(new Event('tmdb_key_updated'));
-        }
+        localStorage.setItem('tulip_tmdb_api_key', globalSettings.tmdbApiKey);
+        window.dispatchEvent(new Event('tmdb_key_updated'));
       } catch (e) {}
     }
   }, [globalSettings.tmdbApiKey]);
