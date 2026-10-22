@@ -35,7 +35,6 @@ import { PREMADE_GIFS_AND_STICKERS } from '../data/stickers';
 import { encryptMessage, decryptMessage } from '../crypto';
 import { getNetworkNow, formatMessageTime } from '../utils/timezone';
 import { useScreenShareContext } from '../context/ScreenShareContext';
-import ScreenShareTheater from './ScreenShareTheater';
 
 const springConfig: Transition = { type: 'spring', stiffness: 360, damping: 22, mass: 0.8 };
 
@@ -725,30 +724,15 @@ const ChatMessageItem = memo(function ChatMessageItem({
 
 interface ChatSanctuaryProps {
   currentUser: 'Mahad' | 'Ifa';
+  onNavigateToTheater?: () => void;
 }
 
-export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
+export default function ChatSanctuary({ currentUser, onNavigateToTheater }: ChatSanctuaryProps) {
   const {
     activeStream,
     isStreaming,
     isWatching,
-    canShareScreen,
-    localStream,
-    remoteStream,
-    isMicOn,
-    volume: screenVolume,
-    isMuted: isScreenMuted,
-    viewMode: screenViewMode,
-    error: screenShareError,
-    startScreenShare,
-    stopScreenShare,
-    joinStream,
-    leaveStream,
-    toggleMic: toggleScreenMic,
-    toggleMute: toggleScreenMute,
-    setVolume: setScreenVolume,
-    setViewMode: setScreenViewMode,
-    clearError: clearScreenShareError
+    joinStream
   } = useScreenShareContext();
 
   const [inputText, setInputText] = useState('');
@@ -1736,30 +1720,16 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 self-end md:self-auto">
-          {/* Live Screen Share / Watch Together Button */}
+          {/* Theater / Screen Share Button */}
           <button
             type="button"
-            onClick={() => {
-              if (isStreaming) {
-                stopScreenShare();
-              } else if (canShareScreen) {
-                startScreenShare();
-              } else {
-                alert("Mobile browsers don't support sharing your screen, but you can join and watch Mahad or Ifa's stream anytime in crystal clear 1080p 60fps! ✨");
-              }
-            }}
+            onClick={() => onNavigateToTheater?.()}
             className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 ${
-              isStreaming
+              isStreaming || isWatching
                 ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-red-500/30 ring-2 ring-red-400/50 animate-pulse'
                 : 'bg-surface-hover hover:bg-pastel-pink-500/20 text-text-main border border-border/50 hover:border-pastel-pink-400 hover:text-pastel-pink-400'
             }`}
-            title={
-              isStreaming 
-                ? 'You are streaming live! Click to stop sharing' 
-                : canShareScreen 
-                  ? 'Share Screen (1080p 60FPS Nitro Quality)' 
-                  : 'Screen sharing is available on desktop browsers'
-            }
+            title="Open Theater 🍿 (1080p 60fps Screen Share)"
           >
             {isStreaming ? (
               <>
@@ -1767,11 +1737,17 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                 <span className="hidden sm:inline">Streaming 🔴</span>
                 <span className="sm:hidden">Live</span>
               </>
+            ) : isWatching ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                <span className="hidden sm:inline">Theater 🍿</span>
+                <span className="sm:hidden">Theater</span>
+              </>
             ) : (
               <>
                 <Tv className="w-3.5 h-3.5 text-pastel-pink-400" />
-                <span className="hidden sm:inline">Share Screen</span>
-                <span className="sm:hidden">Stream</span>
+                <span className="hidden sm:inline">Theater 🍿</span>
+                <span className="sm:hidden">Theater</span>
               </>
             )}
           </button>
@@ -1875,34 +1851,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
         );
       })()}
 
-      {/* ACTIVE SCREEN SHARE THEATER MODE (Inside Chat) */}
-      <AnimatePresence>
-        {(isStreaming || isWatching) && screenViewMode === 'theater' && (
-          <div className="px-3 pt-2 shrink-0">
-            <ScreenShareTheater
-              currentUser={currentUser}
-              activeStream={activeStream}
-              isStreaming={isStreaming}
-              isWatching={isWatching}
-              localStream={localStream}
-              remoteStream={remoteStream}
-              isMicOn={isMicOn}
-              volume={screenVolume}
-              isMuted={isScreenMuted}
-              viewMode={screenViewMode}
-              error={screenShareError}
-              onStop={stopScreenShare}
-              onLeave={leaveStream}
-              onToggleMic={toggleScreenMic}
-              onToggleMute={toggleScreenMute}
-              onSetVolume={setScreenVolume}
-              onSetViewMode={setScreenViewMode}
-              onClearError={clearScreenShareError}
-            />
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* PARTNER IS STREAMING BANNER (When not yet joined) */}
       <AnimatePresence>
         {activeStream && 
@@ -1929,18 +1877,21 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
                   </span>
                 </span>
                 <span className="text-[11px] text-text-muted truncate">
-                  Watch together in crystal clear Nitro quality ✨
+                  Watch together in the Theater 🍿
                 </span>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={joinStream}
+              onClick={() => {
+                joinStream();
+                onNavigateToTheater?.();
+              }}
               className="px-4 py-2 rounded-full bg-gradient-to-r from-pastel-pink-500 to-rose-500 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 glow-rose-sm"
             >
               <Tv className="w-3.5 h-3.5" />
-              <span>Join Stream</span>
+              <span>Join Theater 🍿</span>
             </button>
           </motion.div>
         )}

@@ -36,23 +36,30 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>('new');
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMicOn, setIsMicOn] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [viewMode, setViewMode] = useState<StreamViewMode>('theater');
   const [error, setError] = useState<string | null>(null);
+  const [streamTick, setStreamTick] = useState(0);
 
   // Check if browser supports screen sharing (desktop vs mobile)
   const canShareScreen = typeof navigator !== 'undefined' && 
     Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
 
+  // CRITICAL FIX 1: All WebRTC & MediaStream objects strictly stored in REFS (NEVER in useState)
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const micSenderRef = useRef<RTCRtpSender | null>(null);
+  
+  // CRITICAL FIX 2: State Tracking & Early ICE Candidate Queue
+  const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
+  const isRemoteDescriptionSetRef = useRef<boolean>(false);
+  const isStreamingRef = useRef<boolean>(false);
+  const isWatchingRef = useRef<boolean>(false);
   const unsubActiveDocRef = useRef<Unsubscribe | null>(null);
   const unsubCandidatesRef = useRef<Unsubscribe | null>(null);
 
@@ -67,31 +74,54 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     }
   };
 
-  // 1. Global listener for the activeStream document
-  useEffect(() => {
-    const streamDocRef = doc(firestoreDB, 'streams', 'activeStream');
-    const unsub = onSnapshot(streamDocRef, (snap) => {
-      if (!snap.exists()) {
-        setActiveStream(null);
-        return;
-      }
-      const data = snap.data() as ActiveStreamDoc;
-      if (data.status === 'ended') {
-        setActiveStream(null);
-        if (isWatching || isStreaming) {
-          teardown();
+  // Safe Bitrate Boost (Only applied inside try/catch when encodings exist and connection is ready)
+  const applySafeBitrateBoost = useCallback(async (pc: RTCPeerConnection) => {
+    try {
+      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) {
+        const params = videoSender.getParameters();
+        if (params.encodings && params.encodings.length > 0) {
+          params.encodings[0].maxBitrate = 8000000; // 8 Mbps Nitro Quality
+          params.encodings[0].maxFramerate = 60;
+          await videoSender.setParameters(params);
         }
-      } else {
-        setActiveStream(data);
       }
-    }, (err) => {
-      console.warn('[WebRTC] Stream doc snapshot error:', err);
-    });
+    } catch (err) {
+      console.warn('[WebRTC] Bitrate boost skipped (non-fatal):', err);
+    }
+  }, []);
 
-    return () => unsub();
-  }, [isWatching, isStreaming]);
+  // Flush queued early ICE candidates after setRemoteDescription has resolved
+  const flushIceCandidateQueue = useCallback(async (pc: RTCPeerConnection) => {
+    while (iceCandidateQueueRef.current.length > 0) {
+      const candidateInit = iceCandidateQueueRef.current.shift();
+      if (candidateInit && pc.remoteDescription) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+        } catch (err) {
+          console.warn('[WebRTC] Error adding queued ICE candidate (non-fatal):', err);
+        }
+      }
+    }
+  }, []);
 
-  // Teardown everything locally
+  // Handle incoming candidate with queue protection
+  const handleIncomingCandidate = useCallback(async (candidateData: any) => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    if (!isRemoteDescriptionSetRef.current || !pc.remoteDescription) {
+      iceCandidateQueueRef.current.push(candidateData);
+    } else {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidateData));
+      } catch (err) {
+        console.warn('[WebRTC] addIceCandidate error (non-fatal):', err);
+      }
+    }
+  }, []);
+
+  // Teardown everything locally with complete cleanup
   const teardown = useCallback(() => {
     if (unsubActiveDocRef.current) {
       unsubActiveDocRef.current();
@@ -106,6 +136,10 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach(t => t.stop());
+      remoteStreamRef.current = null;
+    }
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
       micStreamRef.current = null;
@@ -116,19 +150,49 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       pcRef.current.onicecandidate = null;
       pcRef.current.ontrack = null;
       pcRef.current.onconnectionstatechange = null;
-      pcRef.current.close();
+      try {
+        pcRef.current.close();
+      } catch (e) {}
       pcRef.current = null;
     }
 
-    setLocalStream(null);
-    setRemoteStream(null);
+    iceCandidateQueueRef.current = [];
+    isRemoteDescriptionSetRef.current = false;
+    isStreamingRef.current = false;
+    isWatchingRef.current = false;
+
     setIsStreaming(false);
     setIsWatching(false);
     setIsMicOn(false);
     setConnectionState('closed');
+    setStreamTick(t => t + 1);
   }, []);
 
-  // 2. Host starts screen sharing (Nitro 1080p 60fps + system audio)
+  // CRITICAL FIX 3: Stable Firestore listener with empty dependency array []
+  useEffect(() => {
+    const streamDocRef = doc(firestoreDB, 'streams', 'activeStream');
+    const unsub = onSnapshot(streamDocRef, (snap) => {
+      if (!snap.exists()) {
+        setActiveStream(null);
+        return;
+      }
+      const data = snap.data() as ActiveStreamDoc;
+      if (data.status === 'ended') {
+        setActiveStream(null);
+        if (isWatchingRef.current || isStreamingRef.current) {
+          teardown();
+        }
+      } else {
+        setActiveStream(data);
+      }
+    }, (err) => {
+      console.warn('[WebRTC] Stream doc snapshot error:', err);
+    });
+
+    return () => unsub();
+  }, [teardown]);
+
+  // Host starts 1080p 60fps screen share
   const startScreenShare = useCallback(async () => {
     if (!currentUser) return;
     setError(null);
@@ -139,7 +203,7 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     }
 
     try {
-      // High-profile capture constraints: 1080p 60fps with raw system audio
+      // High-profile capture: 1080p 60fps + raw uncompressed system audio
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           width: { ideal: 1920, max: 2560 },
@@ -154,54 +218,45 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       });
 
       localStreamRef.current = displayStream;
-      setLocalStream(displayStream);
-      setIsStreaming(true);
-      setViewMode('theater');
+      isStreamingRef.current = true;
+      isWatchingRef.current = false;
+      isRemoteDescriptionSetRef.current = false;
+      iceCandidateQueueRef.current = [];
 
-      // Native "Stop sharing" event listener
+      setIsStreaming(true);
+      setIsWatching(false);
+      setViewMode('theater');
+      setStreamTick(t => t + 1);
+
+      // Native browser "Stop sharing" ribbon listener
       const videoTrack = displayStream.getVideoTracks()[0];
       if (videoTrack) {
-        // High motion content hint for fast-paced video/movies
         videoTrack.contentHint = 'motion';
         videoTrack.onended = () => {
           stopScreenShare();
         };
       }
 
-      // Initialize RTCPeerConnection
       const pc = new RTCPeerConnection(RTC_CONFIG);
       pcRef.current = pc;
 
       pc.onconnectionstatechange = () => {
         setConnectionState(pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          applySafeBitrateBoost(pc);
+        }
       };
 
-      // Add display tracks to connection
+      // Add display tracks to RTCPeerConnection
       displayStream.getTracks().forEach(track => {
         pc.addTrack(track, displayStream);
       });
 
-      // Nitro 8 Mbps / 60 FPS Bitrate Override
-      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
-      if (videoSender) {
-        try {
-          const params = videoSender.getParameters();
-          if (!params.encodings || params.encodings.length === 0) {
-            params.encodings = [{}];
-          }
-          params.encodings[0].maxBitrate = 8000000; // 8 Mbps
-          params.encodings[0].maxFramerate = 60;
-          await videoSender.setParameters(params);
-        } catch (bitrateErr) {
-          console.warn('[WebRTC] Bitrate boost error (non-fatal):', bitrateErr);
-        }
-      }
-
-      // Clean up previous stream artifacts before posting new offer
+      // Clear previous candidates before posting new offer
       await clearSubcollection('offerCandidates');
       await clearSubcollection('answerCandidates');
 
-      // Trickle ICE candidates to offerCandidates subcollection
+      // Trickle ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           addDoc(
@@ -229,28 +284,36 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       };
       await setDoc(streamDocRef, streamPayload);
 
-      // Listen for Answer on activeStream doc
-      unsubActiveDocRef.current = onSnapshot(streamDocRef, (snap) => {
+      // CRITICAL FIX 4: Guarded Answer Listener (Strict check on signalingState)
+      unsubActiveDocRef.current = onSnapshot(streamDocRef, async (snap) => {
         if (!snap.exists()) return;
         const data = snap.data() as ActiveStreamDoc;
-        if (data.answer && !pc.currentRemoteDescription) {
-          const rtcSessionDesc = new RTCSessionDescription(data.answer);
-          pc.setRemoteDescription(rtcSessionDesc).catch(err => {
-            console.warn('[WebRTC] setRemoteDescription error on host:', err);
-          });
+        const currentPc = pcRef.current;
+        if (!currentPc) return;
+
+        if (
+          data.answer && 
+          !isRemoteDescriptionSetRef.current && 
+          currentPc.signalingState === 'have-local-offer'
+        ) {
+          try {
+            isRemoteDescriptionSetRef.current = true;
+            const rtcSessionDesc = new RTCSessionDescription(data.answer);
+            await currentPc.setRemoteDescription(rtcSessionDesc);
+            await flushIceCandidateQueue(currentPc);
+          } catch (err) {
+            console.warn('[WebRTC] Host setRemoteDescription error:', err);
+          }
         }
       });
 
-      // Listen for remote answer ICE candidates
+      // Listen for remote answer candidates with queue flushing
       unsubCandidatesRef.current = onSnapshot(
         collection(firestoreDB, 'streams', 'activeStream', 'answerCandidates'),
         (snapshot) => {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-              const candidate = new RTCIceCandidate(change.doc.data());
-              pc.addIceCandidate(candidate).catch(err => {
-                console.warn('[WebRTC] addIceCandidate error on host:', err);
-              });
+              handleIncomingCandidate(change.doc.data());
             }
           });
         }
@@ -263,9 +326,9 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         setError(err.message || 'Failed to start screen share.');
       }
     }
-  }, [currentUser, canShareScreen, teardown]);
+  }, [currentUser, canShareScreen, teardown, applySafeBitrateBoost, flushIceCandidateQueue, handleIncomingCandidate]);
 
-  // 3. Stop Screen Share (Host)
+  // Host stops stream
   const stopScreenShare = useCallback(async () => {
     try {
       const streamDocRef = doc(firestoreDB, 'streams', 'activeStream');
@@ -276,19 +339,25 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       await clearSubcollection('offerCandidates');
       await clearSubcollection('answerCandidates');
     } catch (err) {
-      console.warn('[WebRTC] Error during stream cleanup:', err);
+      console.warn('[WebRTC] Stream cleanup error:', err);
     } finally {
       teardown();
     }
   }, [teardown]);
 
-  // 4. Viewer Joins Active Stream
+  // Viewer joins active stream
   const joinStream = useCallback(async () => {
-    if (!activeStream || !activeStream.offer || isWatching || isStreaming) return;
+    if (!activeStream || !activeStream.offer || isWatchingRef.current || isStreamingRef.current) return;
     setError(null);
 
     try {
+      isWatchingRef.current = true;
+      isStreamingRef.current = false;
+      isRemoteDescriptionSetRef.current = false;
+      iceCandidateQueueRef.current = [];
+
       setIsWatching(true);
+      setIsStreaming(false);
       setViewMode('theater');
 
       const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -298,20 +367,19 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         setConnectionState(pc.connectionState);
       };
 
-      // Receive media tracks
+      // Receive media tracks and store in remoteStreamRef
       pc.ontrack = (event) => {
-        setRemoteStream(prev => {
-          if (!prev) {
-            return event.streams[0] || new MediaStream([event.track]);
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = event.streams[0] || new MediaStream([event.track]);
+        } else {
+          if (!remoteStreamRef.current.getTracks().find(t => t.id === event.track.id)) {
+            remoteStreamRef.current.addTrack(event.track);
           }
-          if (!prev.getTracks().find(t => t.id === event.track.id)) {
-            prev.addTrack(event.track);
-          }
-          return new MediaStream(prev.getTracks());
-        });
+        }
+        setStreamTick(t => t + 1);
       };
 
-      // Trickle ICE candidates to answerCandidates subcollection
+      // Trickle answer candidates
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           addDoc(
@@ -322,7 +390,11 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       };
 
       // Set Remote Description from Offer
-      await pc.setRemoteDescription(new RTCSessionDescription(activeStream.offer));
+      if (pc.signalingState === 'stable') {
+        isRemoteDescriptionSetRef.current = true;
+        await pc.setRemoteDescription(new RTCSessionDescription(activeStream.offer));
+        await flushIceCandidateQueue(pc);
+      }
 
       // Create Answer
       const answer = await pc.createAnswer();
@@ -338,16 +410,13 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       });
 
-      // Listen for remote offer ICE candidates
+      // Listen for remote offer candidates with queue protection
       unsubCandidatesRef.current = onSnapshot(
         collection(firestoreDB, 'streams', 'activeStream', 'offerCandidates'),
         (snapshot) => {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-              const candidate = new RTCIceCandidate(change.doc.data());
-              pc.addIceCandidate(candidate).catch(err => {
-                console.warn('[WebRTC] Viewer addIceCandidate error:', err);
-              });
+              handleIncomingCandidate(change.doc.data());
             }
           });
         }
@@ -370,17 +439,16 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       teardown();
       setError(err.message || 'Failed to join stream.');
     }
-  }, [activeStream, isWatching, isStreaming, teardown]);
+  }, [activeStream, teardown, handleIncomingCandidate, flushIceCandidateQueue]);
 
-  // 5. Viewer Leaves Stream
+  // Viewer leaves stream
   const leaveStream = useCallback(() => {
     teardown();
   }, [teardown]);
 
-  // 6. Toggle Microphone
+  // Toggle microphone
   const toggleMic = useCallback(async () => {
     if (isMicOn) {
-      // Turn off microphone
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach(t => t.stop());
         micStreamRef.current = null;
@@ -393,11 +461,10 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       }
       setIsMicOn(false);
 
-      if (isStreaming) {
+      if (isStreamingRef.current) {
         updateDoc(doc(firestoreDB, 'streams', 'activeStream'), { micEnabled: false }).catch(() => {});
       }
     } else {
-      // Turn on microphone
       try {
         const micStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -414,17 +481,29 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
         setIsMicOn(true);
 
-        if (isStreaming) {
+        if (isStreamingRef.current) {
           updateDoc(doc(firestoreDB, 'streams', 'activeStream'), { micEnabled: true }).catch(() => {});
         }
       } catch (err) {
-        console.warn('[WebRTC] Microphone permission denied:', err);
+        console.warn('[WebRTC] Microphone access denied:', err);
         setError('Microphone access denied.');
       }
     }
-  }, [isMicOn, isStreaming]);
+  }, [isMicOn]);
 
-  // 7. Mute / Unmute & Volume Controls
+  // Attach active MediaStream directly to a <video> element
+  const attachVideoStream = useCallback((videoElement: HTMLVideoElement | null) => {
+    if (!videoElement) return;
+    const stream = isStreamingRef.current ? localStreamRef.current : remoteStreamRef.current;
+    if (videoElement.srcObject !== stream) {
+      videoElement.srcObject = stream || null;
+    }
+  }, []);
+
+  const getActiveMediaStream = useCallback((): MediaStream | null => {
+    return isStreamingRef.current ? localStreamRef.current : remoteStreamRef.current;
+  }, []);
+
   const toggleMute = useCallback(() => {
     setIsMuted(prev => !prev);
     setNeedsAudioUnlock(false);
@@ -450,8 +529,9 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     isWatching,
     canShareScreen,
     connectionState,
-    localStream,
-    remoteStream,
+    streamTick,
+    attachVideoStream,
+    getActiveMediaStream,
     isMicOn,
     volume,
     isMuted,

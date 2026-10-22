@@ -1,31 +1,7 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext } from 'react';
 import { useScreenShare, type ActiveStreamDoc, type StreamViewMode } from '../hooks/useScreenShare';
 
-interface ScreenShareContextType {
-  activeStream: ActiveStreamDoc | null;
-  isStreaming: boolean;
-  isWatching: boolean;
-  canShareScreen: boolean;
-  connectionState: RTCPeerConnectionState;
-  localStream: MediaStream | null;
-  remoteStream: MediaStream | null;
-  isMicOn: boolean;
-  volume: number;
-  isMuted: boolean;
-  needsAudioUnlock: boolean;
-  viewMode: StreamViewMode;
-  error: string | null;
-  startScreenShare: () => Promise<void>;
-  stopScreenShare: () => Promise<void>;
-  joinStream: () => Promise<void>;
-  leaveStream: () => void;
-  toggleMic: () => Promise<void>;
-  toggleMute: () => void;
-  setVolume: (vol: number) => void;
-  unlockAudio: () => void;
-  setViewMode: (mode: StreamViewMode) => void;
-  clearError: () => void;
-}
+export type ScreenShareContextType = ReturnType<typeof useScreenShare>;
 
 const ScreenShareContext = createContext<ScreenShareContextType | null>(null);
 

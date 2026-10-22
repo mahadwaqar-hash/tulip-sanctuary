@@ -29,6 +29,7 @@ import CalendarView from './components/CalendarView';
 import LdrSanctuaryView from './components/LdrSanctuaryView';
 import SharedLibraryView from './components/SharedLibraryView';
 import WatchlistView from './components/WatchlistView';
+import TheaterSanctuaryView from './components/TheaterSanctuaryView';
 import FullScreenLoveBurst, { type LoveBurstType } from './components/FullScreenLoveBurst';
 import AmbientFairytaleDecor from './components/AmbientFairytaleDecor';
 import RightSidebarHUD from './components/RightSidebarHUD';
@@ -459,7 +460,7 @@ function PasswordSettingsModal({ onClose, currentPassword }: { onClose: () => vo
 interface SanctuaryContentProps {
   currentUser: 'Mahad' | 'Ifa';
   setCurrentUser: (u: 'Mahad' | 'Ifa') => void;
-  activeTab: 'chat' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad';
+  activeTab: 'chat' | 'theater' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad';
   setActiveTab: (t: any) => void;
   setShowSettings: (s: boolean) => void;
   setShowThemePicker: (s: boolean) => void;
@@ -507,7 +508,8 @@ function SanctuaryContent({
   );
 
   const TABS = [
-    { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare, isLive: isPartnerStreaming },
+    { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare },
+    { id: 'theater', label: 'Theater', emoji: '🍿', icon: Tv, isLive: isPartnerStreaming },
     { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
     { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
     { id: 'library', label: 'Shared Library', emoji: '📚', icon: BookOpen },
@@ -586,9 +588,9 @@ function SanctuaryContent({
         </div>
       </div>
 
-      {/* TOP NOTIFICATION BANNER ACROSS NON-CHAT TABS IF PARTNER IS STREAMING */}
+      {/* TOP NOTIFICATION BANNER ACROSS NON-THEATER TABS IF PARTNER IS STREAMING */}
       <AnimatePresence>
-        {isPartnerStreaming && activeTab !== 'chat' && (
+        {isPartnerStreaming && activeTab !== 'theater' && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -601,18 +603,18 @@ function SanctuaryContent({
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
               </span>
               <span className="font-bold text-text-main truncate">
-                {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is streaming live (1080p 60fps)!
+                {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is streaming live in the Theater!
               </span>
             </div>
             <button
               onClick={() => {
                 joinStream();
-                setActiveTab('chat');
+                setActiveTab('theater');
               }}
               className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-pastel-pink-500 to-rose-500 text-white font-bold text-[11px] uppercase tracking-wider shadow-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 glow-rose-sm"
             >
               <Tv className="w-3.5 h-3.5" />
-              <span>Join Stream</span>
+              <span>Join Theater 🍿</span>
             </button>
           </motion.div>
         )}
@@ -620,7 +622,7 @@ function SanctuaryContent({
 
       {/* FLOATING PIP MINI-PLAYER (Always stays mounted across tabs without dropping WebRTC connection) */}
       <AnimatePresence>
-        {(isStreaming || isWatching) && (screenViewMode === 'pip' || activeTab !== 'chat') && (
+        {(isStreaming || isWatching) && (screenViewMode === 'pip' || activeTab !== 'theater') && (
           <ScreenShareTheater
             currentUser={currentUser}
             activeStream={activeStream}
@@ -718,7 +720,7 @@ function SanctuaryContent({
 
         {/* CENTER COLUMN (Active View) */}
         <div className="flex-1 h-full w-full flex flex-col overflow-hidden">
-          <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+          <div className={`w-full h-full mx-auto px-2 sm:px-4 lg:px-6 transition-all duration-300 ${activeTab === 'ldr' || activeTab === 'library' || activeTab === 'watchlist' || activeTab === 'theater' ? 'max-w-6xl' : 'max-w-4xl'}`}>
             <AnimatePresence mode="wait">
               {activeTab === 'chat' && (
                 <motion.div
@@ -729,7 +731,22 @@ function SanctuaryContent({
                   transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
                   className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
                 >
-                  <ChatSanctuary currentUser={currentUser} />
+                  <ChatSanctuary
+                    currentUser={currentUser}
+                    onNavigateToTheater={() => setActiveTab('theater')}
+                  />
+                </motion.div>
+              )}
+              {activeTab === 'theater' && (
+                <motion.div
+                  key="theater"
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -14, scale: 0.985 }}
+                  transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
+                  className="h-full pt-2 sm:pt-3 pb-3 sm:pb-4"
+                >
+                  <TheaterSanctuaryView currentUser={currentUser} />
                 </motion.div>
               )}
               {activeTab === 'ldr' && (
@@ -787,9 +804,9 @@ function SanctuaryContent({
           </div>
         </div>
 
-        {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary, Shared Library & Watchlist to provide spacious views) */}
+        {/* RIGHT SIDEBAR HUD (Desktop Only - Smoothly collapsed on LDR Sanctuary, Shared Library, Watchlist & Theater to provide spacious views) */}
         <AnimatePresence>
-          {activeTab !== 'ldr' && activeTab !== 'library' && activeTab !== 'watchlist' && (
+          {activeTab !== 'ldr' && activeTab !== 'library' && activeTab !== 'watchlist' && activeTab !== 'theater' && (
             <motion.div
               key="right-hud"
               initial={{ opacity: 0, width: 0, x: 20 }}
@@ -830,7 +847,7 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'theater' | 'ldr' | 'calendar' | 'library' | 'watchlist' | 'photos' | 'scratchpad'>('chat');
   const [showSettings, setShowSettings] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
 
@@ -1020,6 +1037,7 @@ export default function App() {
 
   const TABS = [
     { id: 'chat', label: 'Our Chat', emoji: '💬', icon: MessageSquare },
+    { id: 'theater', label: 'Theater', emoji: '🍿', icon: Tv },
     { id: 'ldr', label: 'LDR Sanctuary', emoji: '💌', icon: Plane },
     { id: 'calendar', label: 'Our Calendar', emoji: '📅', icon: CalendarIcon },
     { id: 'library', label: 'Shared Library', emoji: '📚', icon: BookOpen },

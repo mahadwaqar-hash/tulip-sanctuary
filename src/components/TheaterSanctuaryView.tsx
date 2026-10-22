@@ -1,0 +1,496 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { motion, AnimatePresence, type Transition } from 'framer-motion';
+import { 
+  Tv, 
+  Sparkles, 
+  Maximize2, 
+  Minimize2, 
+  Mic, 
+  MicOff, 
+  Volume2, 
+  VolumeX, 
+  Volume1, 
+  PhoneOff, 
+  Radio, 
+  Film, 
+  Popcorn, 
+  Info, 
+  MapPin, 
+  ShieldAlert, 
+  Heart,
+  CheckCircle2
+} from 'lucide-react';
+import { useScreenShareContext } from '../context/ScreenShareContext';
+import { useFirestore } from '../firebase';
+import StreamChatOverlay from './StreamChatOverlay';
+
+const springBezier: Transition = {
+  type: 'spring',
+  stiffness: 350,
+  damping: 25,
+  mass: 0.8
+};
+
+interface TheaterSanctuaryViewProps {
+  currentUser: 'Mahad' | 'Ifa';
+}
+
+export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryViewProps) {
+  const {
+    activeStream,
+    isStreaming,
+    isWatching,
+    canShareScreen,
+    streamTick,
+    attachVideoStream,
+    isMicOn,
+    volume,
+    isMuted,
+    error,
+    startScreenShare,
+    stopScreenShare,
+    joinStream,
+    leaveStream,
+    toggleMic,
+    toggleMute,
+    setVolume,
+    clearError,
+    setViewMode
+  } = useScreenShareContext();
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [audioAutoplayBlocked, setAudioAutoplayBlocked] = useState(false);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Partner presence to show online status in Cinema Lounge
+  const partnerName = currentUser === 'Mahad' ? 'Ifa' : 'Mahad';
+  const presenceList = useFirestore<any>('presence', 'id', false) || [];
+  const partnerPresence = presenceList.find((p) => p.id === partnerName);
+  const isPartnerOnline = Boolean(
+    partnerPresence?.online && 
+    (Date.now() - (partnerPresence.lastSeen || 0) < 300000)
+  );
+
+  const isStreamActive = (isStreaming || isWatching) && activeStream?.status !== 'ended';
+  const hostName = activeStream?.host || (isStreaming ? currentUser : 'Mahad');
+  const isHostMahad = hostName === 'Mahad';
+  const isPartnerStreaming = Boolean(
+    activeStream && 
+    activeStream.status !== 'ended' && 
+    activeStream.host !== currentUser && 
+    !isWatching && 
+    !isStreaming
+  );
+
+  // Attach MediaStream to <video> safely using attachVideoStream
+  useEffect(() => {
+    if (!videoRef.current || !isStreamActive) return;
+
+    attachVideoStream(videoRef.current);
+
+    if (isStreaming) {
+      videoRef.current.muted = true;
+    } else {
+      videoRef.current.muted = isMuted;
+      videoRef.current.volume = volume;
+
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('[Theater] Autoplay blocked:', err);
+          setAudioAutoplayBlocked(true);
+        });
+      }
+    }
+  }, [isStreamActive, isStreaming, isMuted, volume, streamTick, attachVideoStream]);
+
+  // Adjust volume/mute for viewer
+  useEffect(() => {
+    if (videoRef.current && !isStreaming) {
+      videoRef.current.volume = volume;
+      videoRef.current.muted = isMuted;
+    }
+  }, [volume, isMuted, isStreaming]);
+
+  // Track Fullscreen
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        if (containerRef.current.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        } else if ((containerRef.current as any).webkitRequestFullscreen) {
+          await (containerRef.current as any).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.warn('[Theater] Fullscreen error:', err);
+    }
+  };
+
+  const handleUserActivity = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 4000);
+  };
+
+  const handleUnmuteClick = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.play().catch(() => {});
+    }
+    setAudioAutoplayBlocked(false);
+    if (isMuted) toggleMute();
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden relative">
+      {/* 1. CINEMA LOUNGE (EMPTY / READY STATE) */}
+      {!isStreamActive && (
+        <div className="w-full h-full overflow-y-auto no-scrollbar py-4 px-2 sm:px-4 max-w-5xl mx-auto flex flex-col gap-6">
+          {/* Header Title Card */}
+          <div className="p-6 sm:p-8 rounded-[36px] clay-card bg-surface/80 border border-pastel-pink-300/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="flex flex-col gap-1.5 z-10">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pastel-pink-500/15 border border-pastel-pink-500/30 text-[11px] font-black uppercase tracking-wider text-pastel-pink-500 w-fit">
+                <Popcorn className="w-3.5 h-3.5" />
+                <span>Our Private Cinema</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold font-serif-italic text-text-main tracking-tight mt-1">
+                A.I.M. Theater 🍿
+              </h2>
+              <p className="text-xs sm:text-sm text-text-muted font-medium max-w-xl">
+                Stream your screen, movies, TV shows, and anime in crystal clear 1080p 60FPS Nitro quality with full system audio.
+              </p>
+            </div>
+
+            {/* Partner Presence Card */}
+            <div className="flex items-center gap-3 p-4 rounded-3xl bg-surface-hover/80 border border-border/50 shadow-xs z-10 shrink-0">
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-md ${
+                  partnerName === 'Mahad'
+                    ? 'bg-gradient-to-br from-blue-600 to-indigo-700'
+                    : 'bg-gradient-to-br from-rose-500 to-pink-600'
+                }`}
+              >
+                {partnerName === 'Mahad' ? 'M' : 'I'}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
+                  <span>{partnerName}</span>
+                  <span>{partnerName === 'Mahad' ? '🌹' : '🌷'}</span>
+                </span>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-text-muted mt-0.5">
+                  {isPartnerOnline ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                      <span className="text-emerald-500 font-bold">Online Now</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                      <span>{partnerPresence?.lastSeen ? 'Recently Active' : 'Offline'}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PARTNER IS STREAMING - JOIN TICKET BANNER */}
+          {isPartnerStreaming && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={springBezier}
+              className="p-6 sm:p-8 rounded-[36px] bg-gradient-to-r from-pastel-pink-500/25 via-rose-500/30 to-pastel-pink-500/25 border-2 border-pastel-pink-400/80 shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-3xl bg-red-500/20 text-red-500 border border-red-500/40 flex items-center justify-center shrink-0 shadow-lg">
+                  <Radio className="w-8 h-8 animate-pulse text-red-500" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-[11px] font-black uppercase tracking-wider text-red-400">
+                      LIVE NOW • 1080p 60FPS
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-text-main font-serif-italic mt-0.5">
+                    {activeStream?.host === 'Mahad' ? '🌹 Mahad' : '🌷 Ifa'} is waiting for you in the Theater!
+                  </h3>
+                  <p className="text-xs text-text-muted mt-1">
+                    Join now to watch together in synchrony with live audio.
+                  </p>
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springBezier}
+                onClick={joinStream}
+                className="px-8 py-4 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm uppercase tracking-wider shadow-xl hover:brightness-110 cursor-pointer flex items-center gap-2.5 shrink-0 glow-rose-sm"
+              >
+                <Tv className="w-5 h-5" />
+                <span>Join Cinema Stream 🍿</span>
+              </motion.button>
+            </motion.div>
+          )}
+
+          {/* MAIN START SCREEN SHARE ACTION CARD */}
+          {!isPartnerStreaming && (
+            <div className="p-8 sm:p-12 rounded-[40px] clay-card bg-surface/90 border border-pastel-pink-300/30 shadow-2xl flex flex-col items-center text-center gap-6 relative overflow-hidden">
+              <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-pastel-pink-400 to-rose-500 text-white flex items-center justify-center shadow-xl glow-rose-sm">
+                <Film className="w-10 h-10" />
+              </div>
+
+              <div className="max-w-md">
+                <h3 className="text-2xl sm:text-3xl font-bold font-serif-italic text-text-main">
+                  Ready for Movie Night?
+                </h3>
+                <p className="text-xs sm:text-sm text-text-muted font-medium mt-2 leading-relaxed">
+                  Start streaming your screen or a browser tab. Fast-moving movies and high-framerate anime will transmit smoothly at 60 frames per second.
+                </p>
+              </div>
+
+              {/* Start Button */}
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.96 }}
+                transition={springBezier}
+                onClick={startScreenShare}
+                className="px-8 sm:px-10 py-4 sm:py-5 rounded-full bg-gradient-to-r from-pastel-pink-500 via-rose-500 to-pastel-pink-500 text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-2xl hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-3 glow-rose-sm"
+              >
+                <Tv className="w-6 h-6" />
+                <span>Start 1080p 60fps Screen Share 🖥️</span>
+              </motion.button>
+
+              {/* Audio Instructions Tip */}
+              <div className="p-4 rounded-2xl bg-surface-hover/80 border border-border/50 max-w-lg flex items-start gap-3 text-left mt-2">
+                <Info className="w-5 h-5 text-pastel-pink-500 shrink-0 mt-0.5" />
+                <div className="flex flex-col text-xs text-text-muted leading-relaxed">
+                  <strong className="text-text-main font-bold">How to share audio:</strong>
+                  When your browser displays the sharing dialog, choose <span className="text-pastel-pink-500 font-semibold">"Chrome Tab"</span> or <span className="text-pastel-pink-500 font-semibold">"Entire Screen"</span> and make sure the <span className="text-pastel-pink-500 font-semibold">"Share audio"</span> checkbox is ticked!
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message Pill */}
+          {error && (
+            <div className="p-4 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button onClick={clearError} className="p-1 hover:text-white cursor-pointer">
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. ACTIVE STREAM STAGE (THEATER MODE) */}
+      {isStreamActive && (
+        <div
+          ref={containerRef}
+          onMouseMove={handleUserActivity}
+          onTouchStart={handleUserActivity}
+          className={`relative w-full h-full flex flex-col justify-center items-center bg-black transition-all duration-300 ${
+            isFullscreen ? 'fixed inset-0 z-[100]' : 'p-2 sm:p-4'
+          }`}
+        >
+          {/* Cinema Frame */}
+          <div
+            className={`relative w-full h-full max-w-6xl max-h-[85vh] rounded-[36px] overflow-hidden clay-card shadow-[0_0_60px_rgba(244,63,94,0.25)] border-2 border-pastel-pink-400/40 bg-black flex items-center justify-center ${
+              isFullscreen ? 'max-w-none max-h-none rounded-none border-none shadow-none' : ''
+            }`}
+          >
+            {/* Primary Video Canvas */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain cursor-default"
+              onClick={handleUserActivity}
+            />
+
+            {/* Unmute Autoplay Blocked Banner */}
+            {audioAutoplayBlocked && !isStreaming && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4"
+              >
+                <button
+                  onClick={handleUnmuteClick}
+                  className="px-6 py-3.5 rounded-full bg-gradient-to-r from-pastel-pink-500 to-rose-500 text-white font-bold text-sm shadow-xl flex items-center gap-2.5 hover:scale-105 active:scale-95 transition-all cursor-pointer glow-rose-sm"
+                >
+                  <Volume2 className="w-5 h-5 animate-pulse" />
+                  <span>Tap to Unmute Stream Audio 🔊</span>
+                </button>
+                <span className="text-xs text-white/70 font-medium">
+                  Browser paused audio until you interact
+                </span>
+              </motion.div>
+            )}
+
+            {/* Top Info Bar (AutoHide) */}
+            <div
+              className={`absolute top-0 inset-x-0 z-30 p-3 sm:p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 ${
+                showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {/* Live Indicator */}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-red-500/40 shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+                  <span className="text-[11px] font-black uppercase tracking-wider text-red-400">
+                    LIVE
+                  </span>
+                  <span className="text-[10px] font-bold text-white/80 bg-white/10 px-1.5 py-0.5 rounded-md">
+                    1080p 60FPS
+                  </span>
+                </div>
+
+                {/* Host Pill */}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-semibold shadow-xs">
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                      isHostMahad
+                        ? 'bg-gradient-to-br from-blue-600 to-indigo-700'
+                        : 'bg-gradient-to-br from-rose-500 to-pink-600'
+                    }`}
+                  >
+                    {isHostMahad ? 'M' : 'I'}
+                  </div>
+                  <span>{isStreaming ? `You (${currentUser})` : `${hostName}'s Stream`}</span>
+                  <span>{isHostMahad ? '🌹' : '🌷'}</span>
+                </div>
+              </div>
+
+              {/* View Modes */}
+              <div className="flex items-center gap-2">
+                {!isFullscreen && (
+                  <button
+                    onClick={() => setViewMode('pip')}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white text-xs font-medium cursor-pointer transition-all flex items-center gap-1.5 interactive-spring"
+                    title="Minimize to Floating PiP"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-[11px]">Mini PiP</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/15 text-white cursor-pointer transition-all interactive-spring"
+                  title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* LIVE FLOATING CHAT BUBBLE OVERLAY */}
+            <StreamChatOverlay
+              currentUser={currentUser}
+              streamStartTime={activeStream?.startedAt || Date.now()}
+            />
+
+            {/* Bottom Floating Tactile Controls Dock */}
+            <div
+              className={`absolute bottom-3 sm:bottom-5 inset-x-0 z-30 flex justify-center px-4 transition-opacity duration-300 ${
+                showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-[28px] bg-surface/90 dark:bg-black/85 backdrop-blur-2xl border border-white/20 shadow-2xl">
+                {/* Microphone Toggle */}
+                <button
+                  onClick={toggleMic}
+                  className={`min-w-[44px] min-h-[44px] px-3.5 rounded-full flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                    isMicOn
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/40 ring-2 ring-emerald-400/40'
+                      : 'bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40'
+                  } active:scale-90`}
+                  title={isMicOn ? 'Mute Microphone' : 'Unmute Mic (Talk with partner)'}
+                >
+                  {isMicOn ? <Mic className="w-4 h-4 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+                  <span className="hidden xs:inline">{isMicOn ? 'Mic Live' : 'Mic Off'}</span>
+                </button>
+
+                {/* Volume / Mute for viewer */}
+                {!isStreaming && (
+                  <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
+                    <button
+                      onClick={toggleMute}
+                      className="min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
+                      title={isMuted ? 'Unmute stream' : 'Mute stream'}
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4 text-red-400" />
+                      ) : volume < 0.5 ? (
+                        <Volume1 className="w-4 h-4" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 text-pastel-pink-400" />
+                      )}
+                    </button>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => setVolume(parseFloat(e.target.value))}
+                      className="w-16 sm:w-24 accent-pastel-pink-500 cursor-pointer h-1.5 rounded-lg"
+                      title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                    />
+                  </div>
+                )}
+
+                {/* Fullscreen Toggle */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
+                  title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+
+                {/* End / Leave Stream Button */}
+                <button
+                  onClick={isStreaming ? stopScreenShare : leaveStream}
+                  className="min-w-[44px] min-h-[44px] px-4 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                >
+                  <PhoneOff className="w-4 h-4" />
+                  <span className="hidden sm:inline">{isStreaming ? 'End Stream' : 'Leave'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
