@@ -739,7 +739,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
   
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
-  const [showLovePrompts, setShowLovePrompts] = useState(false);
   const [showEmojiCustomizer, setShowEmojiCustomizer] = useState(false);
   const [customEmojiInput, setCustomEmojiInput] = useState('');
   const [customReactions, setCustomReactions] = useState<string[]>(() => {
@@ -1001,38 +1000,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
       return { ...prev, [msgId]: next };
     });
   }, []);
-
-  const SWEET_NOTHINGS = [
-    "Thinking of you right now 💕",
-    "I miss your smile & warmth 🌹",
-    "Counting down the seconds until I hold you ✨",
-    "You're my favorite person in the whole universe 🌷",
-    "Sending you 1,000 warm kisses 💋",
-    "I'm so lucky you're mine 💍",
-    "Good morning my sunshine ☀️",
-    "Goodnight my beautiful angel 🌙"
-  ];
-
-  const handleSendLovePrompt = async (text: string) => {
-    setShowLovePrompts(false);
-    if ('vibrate' in navigator) navigator.vibrate(40);
-    const newCreatedAt = getSafeNewTimestamp();
-    const msgId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `prompt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-    await fb.messages.add({
-      id: msgId,
-      sender: currentUser,
-      type: 'text',
-      content: text,
-      createdAt: newCreatedAt
-    });
-
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 50);
-  };
 
   const handleStartReply = useCallback((msg: any) => {
     setReplyingTo({
@@ -1981,45 +1948,6 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           )}
         </AnimatePresence>
 
-        {/* SWEET NOTHINGS / ROMANTIC QUICK-SEND POPUP */}
-        <AnimatePresence>
-          {showLovePrompts && (
-            <motion.div
-              initial={{ opacity: 0, y: 15, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-[80px] left-3 right-3 sm:left-6 sm:right-auto sm:w-96 bg-surface/95 backdrop-blur-2xl border border-border/60 rounded-[2rem] p-4 shadow-2xl z-30 flex flex-col gap-2"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                <span className="text-xs font-bold font-serif-italic text-text-main flex items-center gap-1.5">
-                  <Heart className="w-3.5 h-3.5 text-pastel-pink-400 fill-pastel-pink-400 animate-pulse" /> Sweet Love Sparks
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowLovePrompts(false)}
-                  className="p-1 rounded-full text-text-muted hover:text-text-main cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1">
-                {SWEET_NOTHINGS.map((phrase, i) => (
-                  <motion.button
-                    key={i}
-                    whileHover={{ scale: 1.02, x: 2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleSendLovePrompt(phrase)}
-                    className="w-full text-left p-2.5 rounded-xl bg-surface-hover/70 hover:bg-pastel-pink-400/15 hover:border-pastel-pink-400 border border-border/40 text-xs font-medium text-text-main transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <span>{phrase}</span>
-                    <Send className="w-3 h-3 text-pastel-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Floating Bubbly Clay Pill Input Container */}
         <div className="p-1.5 md:p-2 border border-border/70 bg-surface/90 backdrop-blur-2xl rounded-[36px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.45),inset_0_2px_6px_rgba(255,255,255,0.35),inset_0_-6px_12px_rgba(0,0,0,0.4)] flex items-end relative z-20 overflow-hidden transition-all duration-150">
           
@@ -2088,27 +2016,11 @@ export default function ChatSanctuary({ currentUser }: ChatSanctuaryProps) {
           ) : (
             <form onSubmit={handleSendMessage} className="w-full flex items-end gap-1">
               
-              {/* Sweet Nothings / Romance Sparks Popover Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLovePrompts(!showLovePrompts);
-                  setShowStickerPicker(false);
-                }}
-                className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
-                  showLovePrompts ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
-                }`}
-                title="Sweet Love Prompts"
-              >
-                <Heart className="w-5 h-5 fill-current" />
-              </button>
-
               {/* Sticker / GIF Picker Toggle */}
               <button
                 type="button"
                 onClick={() => {
                   setShowStickerPicker(!showStickerPicker);
-                  setShowLovePrompts(false);
                 }}
                 className={`p-2.5 rounded-full transition-all cursor-pointer shrink-0 mb-0.5 hover:-translate-y-0.5 active:translate-y-0 duration-200 ${
                   showStickerPicker ? 'clay-btn text-white shadow-md' : 'text-text-muted hover:bg-pastel-pink-400/20 hover:text-pastel-pink-400'
