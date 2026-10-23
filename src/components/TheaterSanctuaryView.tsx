@@ -92,6 +92,12 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
     videoNodeRef.current = node;
     if (!node) return;
 
+    // CRITICAL MOBILE FIX: Force playsinline attributes so iOS Safari never opens native modal or blocks playback
+    node.setAttribute('playsinline', 'true');
+    node.setAttribute('webkit-playsinline', 'true');
+    node.setAttribute('x5-playsinline', 'true');
+    node.playsInline = true;
+
     const stream = getActiveMediaStream();
     if (stream) {
       if (node.srcObject !== stream) {
@@ -122,6 +128,12 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
   useEffect(() => {
     const node = videoNodeRef.current;
     if (!node) return;
+
+    node.setAttribute('playsinline', 'true');
+    node.setAttribute('webkit-playsinline', 'true');
+    node.setAttribute('x5-playsinline', 'true');
+    node.playsInline = true;
+
     const stream = getActiveMediaStream();
     if (stream) {
       if (node.srcObject !== stream) {
@@ -550,14 +562,14 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
-              <div className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 rounded-full sm:rounded-[28px] bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-white/20 shadow-2xl max-w-[calc(100vw-16px)]">
+              <div className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2.5 rounded-full sm:rounded-[28px] bg-black/45 backdrop-blur-xl border border-white/20 shadow-2xl max-w-[calc(100vw-16px)]">
                 {/* Microphone Toggle */}
                 <button
                   onClick={toggleMic}
                   className={`min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] px-2.5 sm:px-3.5 rounded-full flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
                     isMicOn
                       ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/40 ring-2 ring-emerald-400/40'
-                      : 'bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40'
+                      : 'bg-white/10 hover:bg-white/20 text-white/90 border border-white/15'
                   } active:scale-90`}
                   title={isMicOn ? 'Mute Microphone' : 'Unmute Mic (Talk with partner)'}
                 >
@@ -567,10 +579,10 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
                 {/* Volume / Mute for viewer */}
                 {!isStreaming && (
-                  <div className="flex items-center gap-1.5 sm:gap-2 px-1 sm:px-2.5 py-1 rounded-full bg-surface-hover/70 border border-border/30">
+                  <div className="flex items-center gap-1.5 sm:gap-2 px-1 sm:px-2.5 py-1 rounded-full bg-white/10 border border-white/15">
                     <button
                       onClick={toggleMute}
-                      className="min-w-[42px] min-h-[42px] sm:min-w-[40px] sm:min-h-[40px] rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer active:scale-90 transition-transform"
+                      className="min-w-[42px] min-h-[42px] sm:min-w-[40px] sm:min-h-[40px] rounded-full flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-transform"
                       title={isMuted ? 'Unmute stream' : 'Mute stream'}
                     >
                       {isMuted || volume === 0 ? (
@@ -598,7 +610,7 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 {/* Fullscreen Toggle */}
                 <button
                   onClick={toggleFullscreen}
-                  className="min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] rounded-full flex items-center justify-center bg-surface-hover hover:bg-surface-hover/80 text-text-muted hover:text-text-main border border-border/40 cursor-pointer active:scale-90 transition-transform"
+                  className="min-w-[42px] min-h-[42px] sm:min-w-[44px] sm:min-h-[44px] rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 cursor-pointer active:scale-90 transition-transform"
                   title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >
                   <Maximize2 className="w-4 h-4" />

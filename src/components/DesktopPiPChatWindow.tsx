@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, Sparkles, Ghost, Eye, MessageSquare, Flame } from 'lucide-react';
+import { Send, X, Sparkles, Ghost, Sliders, Volume2 } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -18,8 +18,6 @@ interface DesktopPiPChatWindowProps {
 
 const QUICK_EMOJIS = ['❤️', '🥺', '😂', '🍿', '✨', '🌹', '🌷'];
 
-type OverlayTheme = 'ghost' | 'glass' | 'smoke';
-
 export default function DesktopPiPChatWindow({
   currentUser,
   messages,
@@ -28,7 +26,9 @@ export default function DesktopPiPChatWindow({
 }: DesktopPiPChatWindowProps) {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [theme, setTheme] = useState<OverlayTheme>('ghost');
+  // Default to 0% background opacity for 100% see-through ghost overlay!
+  const [bgOpacity, setBgOpacity] = useState(0); 
+  const [showSlider, setShowSlider] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -57,47 +57,6 @@ export default function DesktopPiPChatWindow({
     }
   };
 
-  const cycleTheme = () => {
-    setTheme(prev => {
-      if (prev === 'ghost') return 'glass';
-      if (prev === 'glass') return 'smoke';
-      return 'ghost';
-    });
-  };
-
-  const getContainerBg = () => {
-    switch (theme) {
-      case 'ghost':
-        return 'transparent';
-      case 'glass':
-        return 'rgba(12, 14, 26, 0.45)';
-      case 'smoke':
-        return 'rgba(7, 8, 12, 0.78)';
-    }
-  };
-
-  const getBackdropFilter = () => {
-    switch (theme) {
-      case 'ghost':
-        return 'none';
-      case 'glass':
-        return 'blur(16px)';
-      case 'smoke':
-        return 'blur(20px)';
-    }
-  };
-
-  const getBorder = () => {
-    switch (theme) {
-      case 'ghost':
-        return 'none';
-      case 'glass':
-        return '1px solid rgba(255, 255, 255, 0.12)';
-      case 'smoke':
-        return '1px solid rgba(255, 255, 255, 0.18)';
-    }
-  };
-
   return (
     <div
       style={{
@@ -105,96 +64,110 @@ export default function DesktopPiPChatWindow({
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: getContainerBg(),
-        backdropFilter: getBackdropFilter(),
-        WebkitBackdropFilter: getBackdropFilter(),
-        border: getBorder(),
+        backgroundColor: `rgba(10, 12, 20, ${bgOpacity / 100})`,
+        backdropFilter: bgOpacity > 0 ? `blur(${Math.min(16, bgOpacity / 4)}px)` : 'none',
+        WebkitBackdropFilter: bgOpacity > 0 ? `blur(${Math.min(16, bgOpacity / 4)}px)` : 'none',
         color: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         boxSizing: 'border-box',
         overflow: 'hidden',
         userSelect: 'none',
-        transition: 'background-color 0.25s ease'
+        transition: 'background-color 0.2s ease'
       }}
     >
-      {/* 1. COMPACT DRAG HEADER */}
+      {/* 1. ULTRA-LIGHTWEIGHT TRANSPARENT DRAG HEADER */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 12px',
-          background: theme === 'ghost' 
-            ? 'linear-gradient(to bottom, rgba(0,0,0,0.65), rgba(0,0,0,0.15))' 
-            : 'linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-          borderBottom: theme === 'ghost' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+          padding: '6px 10px',
+          background: bgOpacity > 20 ? 'rgba(0,0,0,0.3)' : 'transparent',
+          borderBottom: bgOpacity > 20 ? '1px solid rgba(255,255,255,0.08)' : 'none',
           cursor: 'grab'
         }}
       >
         {/* Partner badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div
             style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: '#ef4444',
-              boxShadow: '0 0 8px rgba(239,68,68,0.9)'
-            }}
-          />
-          <span style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.3px', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-            {partnerName} {partnerEmoji}
-          </span>
-          <span
-            style={{
-              fontSize: '9px',
-              fontWeight: 800,
-              color: '#fda4af',
-              backgroundColor: 'rgba(244,63,94,0.25)',
-              padding: '2px 6px',
+              padding: '2px 8px',
               borderRadius: '999px',
-              border: '1px solid rgba(244,63,94,0.4)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              background: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            Live Overlay
-          </span>
+            <div
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#ef4444',
+                boxShadow: '0 0 6px #ef4444'
+              }}
+            />
+            <span style={{ fontSize: '11px', fontWeight: 800, textShadow: '0 1px 2px #000' }}>
+              {partnerName} {partnerEmoji}
+            </span>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: '#fda4af', opacity: 0.9 }}>
+              LIVE
+            </span>
+          </div>
         </div>
 
-        {/* Theme mode toggle & Close */}
+        {/* Transparency Slider Toggle & Close */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Opacity Pill / Presets */}
           <button
-            onClick={cycleTheme}
+            onClick={() => setBgOpacity(prev => (prev === 0 ? 35 : prev === 35 ? 70 : 0))}
             style={{
-              background: 'rgba(255,255,255,0.12)',
+              background: 'rgba(0,0,0,0.45)',
               border: '1px solid rgba(255,255,255,0.2)',
               color: '#fff',
               fontSize: '10px',
               fontWeight: 700,
-              padding: '3px 8px',
+              padding: '2px 8px',
               borderRadius: '999px',
               cursor: 'pointer',
+              textShadow: '0 1px 2px #000',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              textShadow: '0 1px 2px rgba(0,0,0,0.6)'
+              gap: '4px'
             }}
-            title="Toggle Transparent Ghost Mode / Frosted Glass / Smoke"
+            title="Click to toggle: 0% Pure Ghost / 35% Frosted Glass / 70% Dark Smoke"
           >
-            {theme === 'ghost' && <span>👻 Ghost HUD</span>}
-            {theme === 'glass' && <span>🪟 Glass HUD</span>}
-            {theme === 'smoke' && <span>🌑 Smoke HUD</span>}
+            <span>👻 {bgOpacity === 0 ? 'Ghost 100%' : `${100 - bgOpacity}% Clear`}</span>
+          </button>
+
+          <button
+            onClick={() => setShowSlider(s => !s)}
+            style={{
+              background: 'rgba(0,0,0,0.45)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.9)',
+              cursor: 'pointer',
+              padding: '3px 6px',
+              borderRadius: '999px',
+              fontSize: '10px',
+              fontWeight: 700
+            }}
+            title="Adjust transparency slider"
+          >
+            <Sliders size={11} />
           </button>
 
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: 'none',
-              color: 'rgba(255,255,255,0.8)',
+              background: 'rgba(0,0,0,0.45)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.9)',
               cursor: 'pointer',
-              padding: '4px',
+              padding: '3px 6px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -202,17 +175,45 @@ export default function DesktopPiPChatWindow({
             }}
             title="Close Overlay"
           >
-            <X size={14} />
+            <X size={12} />
           </button>
         </div>
       </div>
 
-      {/* 2. REAL-TIME FLOATING MESSAGES STREAM */}
+      {/* OPTIONAL OPACITY ADJUST SLIDER BAR */}
+      {showSlider && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '4px 12px',
+            background: 'rgba(0,0,0,0.65)',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            fontSize: '10px'
+          }}
+        >
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Tint:</span>
+          <input
+            type="range"
+            min="0"
+            max="85"
+            value={bgOpacity}
+            onChange={(e) => setBgOpacity(Number(e.target.value))}
+            style={{ flex: 1, accentColor: '#f43f5e', cursor: 'pointer', height: '3px' }}
+          />
+          <span style={{ color: '#fda4af', fontWeight: 700, minWidth: '32px' }}>
+            {bgOpacity}%
+          </span>
+        </div>
+      )}
+
+      {/* 2. REAL-TIME FLOATING MESSAGES STREAM (SEETHRROUGH BUBBLES) */}
       <div
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '10px 12px',
+          padding: '8px 10px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px'
@@ -223,22 +224,18 @@ export default function DesktopPiPChatWindow({
             style={{
               margin: 'auto',
               textAlign: 'center',
-              color: 'rgba(255,255,255,0.7)',
+              color: 'rgba(255,255,255,0.85)',
               fontSize: '11px',
               fontWeight: 600,
-              padding: '10px 16px',
-              borderRadius: '20px',
-              background: 'rgba(0,0,0,0.5)',
+              padding: '8px 14px',
+              borderRadius: '999px',
+              background: 'rgba(0,0,0,0.45)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              maxWidth: '85%'
+              border: '1px solid rgba(255,255,255,0.2)',
+              textShadow: '0 1px 3px #000'
             }}
           >
-            <div style={{ fontSize: '20px', marginBottom: '4px' }}>💬</div>
-            Waiting for {partnerName}'s messages...
-            <div style={{ fontSize: '9px', marginTop: '2px', opacity: 0.8, color: '#fda4af' }}>
-              Transparent overlay active over your games & desktop
-            </div>
+            💬 Waiting for {partnerName}'s messages...
           </div>
         ) : (
           messages.map((msg) => {
@@ -255,11 +252,11 @@ export default function DesktopPiPChatWindow({
                   gap: '6px'
                 }}
               >
-                {/* Avatar Badge */}
+                {/* Floating Avatar Badge */}
                 <div
                   style={{
-                    width: '24px',
-                    height: '24px',
+                    width: '22px',
+                    height: '22px',
                     borderRadius: '50%',
                     background: isMahad
                       ? 'linear-gradient(135deg, #2563eb, #4f46e5)'
@@ -268,40 +265,40 @@ export default function DesktopPiPChatWindow({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 800,
                     flexShrink: 0,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-                    border: '1.5px solid rgba(255,255,255,0.5)'
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.7)',
+                    border: '1px solid rgba(255,255,255,0.6)'
                   }}
                 >
                   {isMahad ? 'M' : 'I'}
                 </div>
 
-                {/* Floating Clay Message Bubble */}
+                {/* Truly Translucent Frosted Glass Message Bubble */}
                 <div
                   style={{
                     maxWidth: '82%',
-                    padding: '8px 12px',
+                    padding: '7px 11px',
                     borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                     backgroundColor: isMe
-                      ? 'rgba(244,63,94,0.45)'
+                      ? 'rgba(244, 63, 94, 0.38)'
                       : isMahad
-                        ? 'rgba(30,58,138,0.85)'
-                        : 'rgba(159,18,57,0.85)',
+                        ? 'rgba(30, 64, 175, 0.42)'
+                        : 'rgba(190, 24, 93, 0.42)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
                     border: isMe
-                      ? '1px solid rgba(244,63,94,0.6)'
+                      ? '1px solid rgba(244, 63, 94, 0.5)'
                       : isMahad
-                        ? '1px solid rgba(147,197,253,0.5)'
-                        : '1px solid rgba(251,113,133,0.5)',
+                        ? '1px solid rgba(147, 197, 253, 0.45)'
+                        : '1px solid rgba(251, 113, 133, 0.45)',
                     boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
                     wordBreak: 'break-word',
-                    fontSize: '13px',
+                    fontSize: '12px',
                     lineHeight: '1.35',
                     color: '#ffffff',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.9)'
+                    textShadow: '0 1px 3px rgba(0,0,0,0.95)'
                   }}
                 >
                   {!isMe && (
@@ -309,13 +306,13 @@ export default function DesktopPiPChatWindow({
                       style={{
                         fontSize: '9px',
                         fontWeight: 900,
-                        color: isMahad ? '#93c5fd' : '#fda4af',
-                        marginBottom: '2px',
+                        color: isMahad ? '#bfdbfe' : '#fbcfe8',
+                        marginBottom: '1px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.4px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '3px'
                       }}
                     >
                       <span>{msg.sender}</span>
@@ -331,15 +328,14 @@ export default function DesktopPiPChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. QUICK 1-TAP EMOJIS */}
+      {/* 3. QUICK 1-TAP EMOJIS (TRANSPARENT BACKGROUND) */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '6px 10px',
-          backgroundColor: theme === 'ghost' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.04)',
-          borderTop: theme === 'ghost' ? 'none' : '1px solid rgba(255,255,255,0.08)'
+          padding: '4px 8px',
+          backgroundColor: 'transparent'
         }}
       >
         {QUICK_EMOJIS.map((emoji) => (
@@ -349,11 +345,11 @@ export default function DesktopPiPChatWindow({
             style={{
               background: 'transparent',
               border: 'none',
-              fontSize: '16px',
+              fontSize: '15px',
               cursor: 'pointer',
-              padding: '2px 3px',
+              padding: '2px 4px',
               transition: 'transform 0.15s ease',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))'
             }}
             title={`Send ${emoji}`}
           >
@@ -362,16 +358,15 @@ export default function DesktopPiPChatWindow({
         ))}
       </div>
 
-      {/* 4. QUICK WHISPER INPUT */}
+      {/* 4. QUICK WHISPER INPUT (GLASS PILL) */}
       <form
         onSubmit={handleSubmit}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          padding: '8px 10px',
-          backgroundColor: theme === 'ghost' ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.4)',
-          borderTop: theme === 'ghost' ? 'none' : '1px solid rgba(255,255,255,0.1)'
+          padding: '6px 8px 8px 8px',
+          backgroundColor: 'transparent'
         }}
       >
         <input
@@ -382,23 +377,24 @@ export default function DesktopPiPChatWindow({
           onChange={(e) => setInputText(e.target.value)}
           style={{
             flex: 1,
-            backgroundColor: 'rgba(255,255,255,0.12)',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255,255,255,0.25)',
             borderRadius: '999px',
             padding: '6px 12px',
-            fontSize: '12px',
+            fontSize: '11px',
             color: '#fff',
             outline: 'none',
             boxSizing: 'border-box',
-            textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+            textShadow: '0 1px 2px #000'
           }}
         />
         <button
           type="submit"
           disabled={!inputText.trim() || isSending}
           style={{
-            width: '30px',
-            height: '30px',
+            width: '28px',
+            height: '28px',
             borderRadius: '50%',
             backgroundColor: '#f43f5e',
             border: 'none',
@@ -412,7 +408,7 @@ export default function DesktopPiPChatWindow({
             boxShadow: '0 2px 8px rgba(244,63,94,0.6)'
           }}
         >
-          <Send size={13} />
+          <Send size={12} />
         </button>
       </form>
     </div>

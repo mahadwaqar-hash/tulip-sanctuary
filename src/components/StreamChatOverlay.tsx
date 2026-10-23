@@ -343,15 +343,17 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
                   exit={{ opacity: 0, scale: 0.88, y: -10 }}
                   transition={springBezier}
                   onClick={() => dismissToast(toast.id)}
-                  className={`pointer-events-auto cursor-pointer p-2.5 sm:p-3.5 rounded-[22px] sm:rounded-[24px] clay-card shadow-2xl backdrop-blur-xl border border-white/20 flex items-start gap-2.5 max-w-full sm:max-w-xs transition-transform hover:scale-102 active:scale-98 ${
+                  className={`pointer-events-auto cursor-pointer p-2.5 sm:p-3 rounded-[22px] sm:rounded-[24px] shadow-2xl backdrop-blur-xl border flex items-start gap-2.5 max-w-full sm:max-w-xs transition-transform hover:scale-102 active:scale-98 ${
                     isMahad 
-                      ? 'bg-slate-900/90 text-white border-blue-400/40' 
-                      : 'bg-rose-950/90 text-white border-rose-400/40'
+                      ? 'bg-blue-950/40 text-white border-blue-400/50 shadow-blue-500/20' 
+                      : 'bg-rose-950/40 text-white border-rose-400/50 shadow-rose-500/20'
                   }`}
                   style={{
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
                     boxShadow: isMahad
-                      ? '0 10px 25px -5px rgba(37,99,235,0.4), inset 0 2px 4px rgba(255,255,255,0.2)'
-                      : '0 10px 25px -5px rgba(244,63,94,0.4), inset 0 2px 4px rgba(255,255,255,0.2)'
+                      ? '0 10px 25px -5px rgba(37,99,235,0.3), inset 0 2px 4px rgba(255,255,255,0.15)'
+                      : '0 10px 25px -5px rgba(244,63,94,0.3), inset 0 2px 4px rgba(255,255,255,0.15)'
                   }}
                 >
                   {/* Floating Avatar Badge */}
@@ -405,7 +407,7 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
             className={`px-3.5 py-2.5 rounded-full backdrop-blur-xl border shadow-xl text-xs font-bold flex items-center gap-2 cursor-pointer active:scale-95 transition-all ${
               pipWindow
                 ? 'bg-gradient-to-r from-pastel-pink-500 to-rose-600 text-white border-pastel-pink-400 shadow-rose-500/40'
-                : 'bg-surface/90 dark:bg-black/85 border-pastel-pink-400/50 text-text-main hover:border-pastel-pink-400'
+                : 'bg-black/40 hover:bg-black/60 border-white/20 text-white hover:border-pastel-pink-400'
             }`}
             title="Pop-out Always-On-Top Desktop Chat Overlay (stays over games, movies, & desktop apps even when site is minimized)"
           >
@@ -425,11 +427,11 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
               setIsQuickChatOpen((prev) => !prev);
               setTimeout(() => inputRef.current?.focus(), 150);
             }}
-            className="px-4 py-2.5 rounded-full bg-surface/90 dark:bg-black/85 backdrop-blur-xl border border-pastel-pink-400/50 shadow-xl text-text-main text-xs font-bold flex items-center gap-2 cursor-pointer hover:border-pastel-pink-400 hover:shadow-pastel-pink-500/20 active:scale-95 transition-all"
+            className="px-4 py-2.5 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/20 shadow-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer hover:border-pastel-pink-400 hover:shadow-pastel-pink-500/20 active:scale-95 transition-all"
           >
-            <MessageSquare className="w-4 h-4 text-pastel-pink-500" />
+            <MessageSquare className="w-4 h-4 text-pastel-pink-400" />
             <span>Quick Chat</span>
-            <span className="w-2 h-2 rounded-full bg-pastel-pink-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-pastel-pink-400 animate-pulse" />
           </motion.button>
         </div>
 
@@ -442,16 +444,16 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 15 }}
                 transition={springBezier}
-                className="p-3 sm:p-3.5 rounded-[28px] clay-card bg-surface/95 dark:bg-black/90 backdrop-blur-2xl border border-pastel-pink-300/40 shadow-2xl flex flex-col gap-2.5 w-[calc(100vw-36px)] max-w-xs sm:w-80"
+                className="p-3 sm:p-3.5 rounded-[28px] bg-black/50 backdrop-blur-2xl border border-white/20 shadow-2xl flex flex-col gap-2.5 w-[calc(100vw-36px)] max-w-xs sm:w-80"
               >
                 {/* Header */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
-                  <span className="text-xs font-bold font-serif-italic text-text-main flex items-center gap-1">
+                <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+                  <span className="text-xs font-bold font-serif-italic text-white flex items-center gap-1">
                     <span>Whisper to {partnerName} {partnerEmoji}</span>
                   </span>
                   <button
                     onClick={() => setIsQuickChatOpen(false)}
-                    className="p-1 text-text-muted hover:text-text-main rounded-full cursor-pointer"
+                    className="p-1 text-white/60 hover:text-white rounded-full cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -480,7 +482,7 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
                     placeholder="Type a message..."
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    className="flex-1 bg-surface-hover py-2 px-3 rounded-full text-xs text-text-main outline-none border border-border focus:border-pastel-pink-400 font-medium"
+                    className="flex-1 bg-white/10 py-2 px-3 rounded-full text-xs text-white placeholder:text-white/40 outline-none border border-white/20 focus:border-pastel-pink-400 font-medium"
                   />
                   <button
                     type="submit"

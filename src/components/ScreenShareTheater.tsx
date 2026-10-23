@@ -67,6 +67,11 @@ export default function ScreenShareTheater({
     videoNodeRef.current = node;
     if (!node) return;
 
+    node.setAttribute('playsinline', 'true');
+    node.setAttribute('webkit-playsinline', 'true');
+    node.setAttribute('x5-playsinline', 'true');
+    node.playsInline = true;
+
     const stream = getActiveMediaStream();
     if (stream) {
       if (node.srcObject !== stream) {

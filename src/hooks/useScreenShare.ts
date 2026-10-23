@@ -308,6 +308,23 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         } catch (e) {}
       }
 
+      // CRITICAL MOBILE FIX: Prioritize H.264 so iOS Safari & Android can hardware decode 1080p stream
+      try {
+        const videoTransceiver = pc.getTransceivers().find(t => t.sender.track?.kind === 'video');
+        if (videoTransceiver && 'setCodecPreferences' in videoTransceiver) {
+          const capabilities = RTCRtpSender.getCapabilities('video');
+          if (capabilities && capabilities.codecs) {
+            const h264 = capabilities.codecs.filter(c => c.mimeType.toLowerCase() === 'video/h264');
+            const others = capabilities.codecs.filter(c => c.mimeType.toLowerCase() !== 'video/h264');
+            if (h264.length > 0) {
+              videoTransceiver.setCodecPreferences([...h264, ...others]);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[WebRTC] setCodecPreferences skipped:', err);
+      }
+
       // Clear previous candidates before posting new offer
       await clearSubcollection('offerCandidates');
       await clearSubcollection('answerCandidates');
@@ -456,15 +473,12 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       };
 
-      // Explicitly declare transceivers so browser immediately sets up reception for video and audio
-      try {
-        pc.addTransceiver('video', { direction: 'recvonly' });
-        pc.addTransceiver('audio', { direction: 'recvonly' });
-      } catch (e) {}
-
       // Receive media tracks and update remoteStreamRef
       pc.ontrack = (event) => {
-        if (event.track) {
+        if (event.streams && event.streams[0]) {
+          // CRITICAL WEBKIT / SAFARI FIX: Use the native WebRTC stream from event.streams[0]
+          remoteStreamRef.current = event.streams[0];
+        } else if (event.track) {
           if (!remoteStreamRef.current) {
             remoteStreamRef.current = new MediaStream();
           }
