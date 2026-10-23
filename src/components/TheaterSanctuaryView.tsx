@@ -18,7 +18,8 @@ import {
   MapPin, 
   ShieldAlert, 
   Heart,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
 import { useScreenShareContext } from '../context/ScreenShareContext';
 import { useFirestore } from '../firebase';
@@ -470,8 +471,19 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
                 </div>
               </div>
 
-              {/* View Modes */}
+              {/* View Modes & Overlay Controls */}
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {isStreaming && (
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('aim:toggle-desktop-overlay'))}
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-pastel-pink-500/20 hover:bg-pastel-pink-500/30 text-pastel-pink-300 border border-pastel-pink-400/40 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 interactive-spring shadow-xs"
+                    title="Pop-out Always-On-Top Desktop Chat Overlay (floats over games, movies & apps even when browser is minimized)"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-pastel-pink-400" />
+                    <span className="hidden sm:inline text-[11px]">Desktop Overlay</span>
+                  </button>
+                )}
+
                 {!isFullscreen && (
                   <button
                     onClick={() => setViewMode('pip')}
