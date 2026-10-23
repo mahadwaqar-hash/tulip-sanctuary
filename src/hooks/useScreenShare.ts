@@ -31,20 +31,11 @@ const RTC_CONFIG: RTCConfiguration = {
         'stun:stun1.l.google.com:19302',
         'stun:stun2.l.google.com:19302',
         'stun:stun3.l.google.com:19302',
-        'stun:openrelay.metered.ca:80'
+        'stun:stun4.l.google.com:19302',
+        'stun:stun.cloudflare.com:3478'
       ]
-    },
-    {
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
     }
-  ],
-  iceCandidatePoolSize: 10
+  ]
 };
 
 export type StreamViewMode = 'theater' | 'pip' | 'fullscreen';
@@ -132,11 +123,10 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
   // Flush queued early ICE candidates after setRemoteDescription has resolved
   const flushIceCandidateQueue = useCallback(async (pc: RTCPeerConnection) => {
     while (iceCandidateQueueRef.current.length > 0) {
-      const candidateData = iceCandidateQueueRef.current.shift();
-      const candidateInit = createSafeIceInit(candidateData);
+      const candidateInit = iceCandidateQueueRef.current.shift();
       if (candidateInit && pc.remoteDescription) {
         try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+          await pc.addIceCandidate(candidateInit);
         } catch (err) {
           console.warn('[WebRTC] Error adding queued ICE candidate (non-fatal):', err);
         }
@@ -156,7 +146,7 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       iceCandidateQueueRef.current.push(candidateInit);
     } else {
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+        await pc.addIceCandidate(candidateInit);
       } catch (err) {
         console.warn('[WebRTC] addIceCandidate error (non-fatal):', err);
       }
@@ -387,13 +377,16 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       });
 
-      // Listen for remote answer candidates with queue flushing
+      const hostStreamStartTime = Date.now();
+      // Listen for remote answer candidates with queue flushing and timestamp filtering
       unsubCandidatesRef.current = onSnapshot(
         collection(firestoreDB, 'streams', 'activeStream', 'answerCandidates'),
         (snapshot) => {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-              handleIncomingCandidate(change.doc.data());
+              const data = change.doc.data();
+              if (data.createdAt && data.createdAt < hostStreamStartTime - 5000) return;
+              handleIncomingCandidate(data);
             }
           });
         }
@@ -436,6 +429,10 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
       isRemoteDescriptionSetRef.current = false;
       iceCandidateQueueRef.current = [];
 
+      // Create unified persistent remote MediaStream container
+      const remoteStream = new MediaStream();
+      remoteStreamRef.current = remoteStream;
+
       setIsWatching(true);
       setIsStreaming(false);
       setIsMuted(false);
@@ -459,11 +456,15 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       };
 
+      // Explicitly declare transceivers so browser immediately sets up reception for video and audio
+      try {
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      } catch (e) {}
+
       // Receive media tracks and update remoteStreamRef
       pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          remoteStreamRef.current = event.streams[0];
-        } else {
+        if (event.track) {
           if (!remoteStreamRef.current) {
             remoteStreamRef.current = new MediaStream();
           }
@@ -519,13 +520,16 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         }
       });
 
-      // Listen for remote offer candidates with queue protection
+      // Listen for remote offer candidates with queue protection and timestamp filtering
+      const streamStartCutoff = (activeStream.startedAt || Date.now()) - 5000;
       unsubCandidatesRef.current = onSnapshot(
         collection(firestoreDB, 'streams', 'activeStream', 'offerCandidates'),
         (snapshot) => {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-              handleIncomingCandidate(change.doc.data());
+              const data = change.doc.data();
+              if (data.createdAt && data.createdAt < streamStartCutoff) return;
+              handleIncomingCandidate(data);
             }
           });
         }
@@ -560,6 +564,15 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
     const pc = pcRef.current;
     if (!pc) return;
 
+    // Helper to find audio transceiver or audio sender safely
+    const findAudioSender = () => {
+      const audioTransceiver = pc.getTransceivers().find(t => 
+        t.sender.track?.kind === 'audio' || 
+        (t.receiver && t.receiver.track && t.receiver.track.kind === 'audio')
+      );
+      return audioTransceiver?.sender || pc.getSenders().find(s => !s.track || s.track.kind === 'audio');
+    };
+
     if (isMicOn) {
       // Turn microphone OFF
       if (micStreamRef.current) {
@@ -573,14 +586,15 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         audioContextRef.current = null;
       }
 
-      const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
+      const audioSender = findAudioSender();
       if (audioSender) {
         if (originalSystemAudioTrackRef.current) {
-          // Restore unmixed system audio track
+          // Restore original system audio track
           await audioSender.replaceTrack(originalSystemAudioTrackRef.current);
         } else {
+          // Replace with null to gracefully mute without tearing down transceiver
           try {
-            pc.removeTrack(audioSender);
+            await audioSender.replaceTrack(null);
           } catch (e) {}
         }
       }
@@ -605,6 +619,8 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
         const micTrack = micStream.getAudioTracks()[0];
 
         const systemAudioTrack = localStreamRef.current?.getAudioTracks()[0];
+        let trackToSend = micTrack;
+
         if (systemAudioTrack) {
           originalSystemAudioTrackRef.current = systemAudioTrack;
 
@@ -621,25 +637,15 @@ export function useScreenShare(currentUser: 'Mahad' | 'Ifa' | null) {
             const micSource = audioCtx.createMediaStreamSource(new MediaStream([micTrack]));
             micSource.connect(dest);
 
-            const mixedTrack = dest.stream.getAudioTracks()[0];
-            const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
-            if (audioSender) {
-              await audioSender.replaceTrack(mixedTrack);
-            } else {
-              micSenderRef.current = pc.addTrack(mixedTrack, dest.stream);
-            }
-          } else {
-            // Fallback: add mic track directly
-            micSenderRef.current = pc.addTrack(micTrack, micStream);
+            trackToSend = dest.stream.getAudioTracks()[0];
           }
+        }
+
+        const audioSender = findAudioSender();
+        if (audioSender) {
+          await audioSender.replaceTrack(trackToSend);
         } else {
-          // No system audio, send mic directly
-          const audioSender = pc.getSenders().find(s => s.track?.kind === 'audio');
-          if (audioSender) {
-            await audioSender.replaceTrack(micTrack);
-          } else {
-            micSenderRef.current = pc.addTrack(micTrack, micStream);
-          }
+          micSenderRef.current = pc.addTrack(trackToSend, new MediaStream([trackToSend]));
         }
 
         setIsMicOn(true);

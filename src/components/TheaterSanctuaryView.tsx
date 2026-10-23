@@ -120,21 +120,56 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
   // Synchronize playback properties when stream or volume state updates
   useEffect(() => {
-    if (videoNodeRef.current) {
-      attachVideoRef(videoNodeRef.current);
+    const node = videoNodeRef.current;
+    if (!node) return;
+    const stream = getActiveMediaStream();
+    if (stream) {
+      if (node.srcObject !== stream) {
+        node.srcObject = stream;
+      }
+      if (isStreaming) {
+        node.muted = true;
+        node.play().catch(() => {});
+      } else {
+        node.muted = isMuted;
+        node.volume = volume;
+        const playPromise = node.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('[Theater] Autoplay restricted, muting to start video playback:', err);
+            node.muted = true;
+            node.play().catch(e => console.error('[Theater] Muted play failed:', e));
+            setAudioAutoplayBlocked(true);
+          });
+        }
+      }
     }
-  }, [attachVideoRef, streamTick, isStreamActive, isStreaming, isMuted, volume]);
+  }, [getActiveMediaStream, streamTick, isStreamActive, isStreaming, isMuted, volume]);
 
-  // Direct viewer join action: unmutes immediately with direct user interaction
+  // Direct viewer join action: unlocks browser audio and joins stream
   const handleJoinStream = async () => {
-    // Pre-activate unmuted audio playback synchronously in direct tap gesture
-    if (videoNodeRef.current) {
-      videoNodeRef.current.muted = false;
-      videoNodeRef.current.volume = 1.0;
-      videoNodeRef.current.play().catch(() => {});
-    }
+    // 1. Synchronously unlock Web Audio context in direct click gesture
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const dummyCtx = new AudioCtx();
+        await dummyCtx.resume();
+        const osc = dummyCtx.createOscillator();
+        const gain = dummyCtx.createGain();
+        gain.gain.value = 0; // silent
+        osc.connect(gain);
+        gain.connect(dummyCtx.destination);
+        osc.start();
+        osc.stop(dummyCtx.currentTime + 0.05);
+      }
+    } catch (e) {}
+
+    // 2. Pre-activate unmuted sound
     if (isMuted) toggleMute();
     setVolume(1.0);
+    setAudioAutoplayBlocked(false);
+
+    // 3. Connect to stream
     await joinStream();
   };
 
@@ -473,16 +508,14 @@ export default function TheaterSanctuaryView({ currentUser }: TheaterSanctuaryVi
 
               {/* View Modes & Overlay Controls */}
               <div className="flex items-center gap-1.5 sm:gap-2">
-                {isStreaming && (
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('aim:toggle-desktop-overlay'))}
-                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-pastel-pink-500/20 hover:bg-pastel-pink-500/30 text-pastel-pink-300 border border-pastel-pink-400/40 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 interactive-spring shadow-xs"
-                    title="Pop-out Always-On-Top Desktop Chat Overlay (floats over games, movies & apps even when browser is minimized)"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 text-pastel-pink-400" />
-                    <span className="hidden sm:inline text-[11px]">Desktop Overlay</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('aim:toggle-desktop-overlay'))}
+                  className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-pastel-pink-500/25 hover:bg-pastel-pink-500/40 text-pastel-pink-200 border border-pastel-pink-400/50 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 interactive-spring shadow-xs"
+                  title="Pop-out Transparent Floating Chat Overlay (floats over any game, app, or window even when site is in background)"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-pastel-pink-400" />
+                  <span className="hidden sm:inline text-[11px]">Desktop Overlay 💬</span>
+                </button>
 
                 {!isFullscreen && (
                   <button

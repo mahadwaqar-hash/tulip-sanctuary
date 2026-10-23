@@ -265,10 +265,19 @@ export default function StreamChatOverlay({ currentUser, streamStartTime }: Stre
           }
         });
 
-        pw.document.title = `💬 Sanctuary Overlay • ${partnerName} ${partnerEmoji}`;
+        pw.document.title = `💬 Transparent Chat Overlay • ${partnerName} ${partnerEmoji}`;
+        
+        // Pure transparent root & body so the overlay floats seamlessly over desktop apps and games
+        pw.document.documentElement.style.margin = '0';
+        pw.document.documentElement.style.padding = '0';
+        pw.document.documentElement.style.background = 'transparent';
+        pw.document.documentElement.style.backgroundColor = 'transparent';
+        pw.document.documentElement.style.overflow = 'hidden';
+
         pw.document.body.style.margin = '0';
         pw.document.body.style.padding = '0';
-        pw.document.body.style.backgroundColor = '#07080a';
+        pw.document.body.style.background = 'transparent';
+        pw.document.body.style.backgroundColor = 'transparent';
         pw.document.body.style.overflow = 'hidden';
 
         pw.addEventListener('pagehide', () => {
